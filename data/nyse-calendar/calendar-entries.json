@@ -1,0 +1,1329 @@
+{
+  "_comment": "CalendarEntry input for SessionManager. kind: 1=holiday, 2=early close.",
+  "_official_through": 2028,
+  "_warning": "Entries after 2028 are RULE-DERIVED, not published by NYSE. Do not load them onchain; use for test fixtures only.",
+  "unscheduled_closures_not_derivable": {
+    "2025-01-09": "National Day of Mourning \u2014 funeral of Jimmy Carter",
+    "2018-12-05": "National Day of Mourning \u2014 funeral of George H. W. Bush",
+    "2012-10-29": "Hurricane Sandy",
+    "2012-10-30": "Hurricane Sandy"
+  },
+  "entries": [
+    {
+      "date": "2020-01-01",
+      "days_since_epoch": 18262,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2020-01-20",
+      "days_since_epoch": 18281,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2020-02-17",
+      "days_since_epoch": 18309,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2020-04-10",
+      "days_since_epoch": 18362,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2020-05-25",
+      "days_since_epoch": 18407,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2020-07-03",
+      "days_since_epoch": 18446,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2020-09-07",
+      "days_since_epoch": 18512,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2020-11-26",
+      "days_since_epoch": 18592,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2020-12-25",
+      "days_since_epoch": 18621,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2021-01-01",
+      "days_since_epoch": 18628,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2021-01-18",
+      "days_since_epoch": 18645,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2021-02-15",
+      "days_since_epoch": 18673,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2021-04-02",
+      "days_since_epoch": 18719,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2021-05-31",
+      "days_since_epoch": 18778,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2021-07-05",
+      "days_since_epoch": 18813,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2021-09-06",
+      "days_since_epoch": 18876,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2021-11-25",
+      "days_since_epoch": 18956,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2021-12-24",
+      "days_since_epoch": 18985,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2022-01-17",
+      "days_since_epoch": 19009,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2022-02-21",
+      "days_since_epoch": 19044,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2022-04-15",
+      "days_since_epoch": 19097,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2022-05-30",
+      "days_since_epoch": 19142,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2022-06-20",
+      "days_since_epoch": 19163,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2022-07-04",
+      "days_since_epoch": 19177,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2022-09-05",
+      "days_since_epoch": 19240,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2022-11-24",
+      "days_since_epoch": 19320,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2022-12-26",
+      "days_since_epoch": 19352,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2023-01-02",
+      "days_since_epoch": 19359,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2023-01-16",
+      "days_since_epoch": 19373,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2023-02-20",
+      "days_since_epoch": 19408,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2023-04-07",
+      "days_since_epoch": 19454,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2023-05-29",
+      "days_since_epoch": 19506,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2023-06-19",
+      "days_since_epoch": 19527,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2023-07-04",
+      "days_since_epoch": 19542,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2023-09-04",
+      "days_since_epoch": 19604,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2023-11-23",
+      "days_since_epoch": 19684,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2023-12-25",
+      "days_since_epoch": 19716,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2024-01-01",
+      "days_since_epoch": 19723,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2024-01-15",
+      "days_since_epoch": 19737,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2024-02-19",
+      "days_since_epoch": 19772,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2024-03-29",
+      "days_since_epoch": 19811,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2024-05-27",
+      "days_since_epoch": 19870,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2024-06-19",
+      "days_since_epoch": 19893,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2024-07-04",
+      "days_since_epoch": 19908,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2024-09-02",
+      "days_since_epoch": 19968,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2024-11-28",
+      "days_since_epoch": 20055,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2024-12-25",
+      "days_since_epoch": 20082,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2025-01-01",
+      "days_since_epoch": 20089,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2025-01-20",
+      "days_since_epoch": 20108,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2025-02-17",
+      "days_since_epoch": 20136,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2025-04-18",
+      "days_since_epoch": 20196,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2025-05-26",
+      "days_since_epoch": 20234,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2025-06-19",
+      "days_since_epoch": 20258,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2025-07-04",
+      "days_since_epoch": 20273,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2025-09-01",
+      "days_since_epoch": 20332,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2025-11-27",
+      "days_since_epoch": 20419,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2025-12-25",
+      "days_since_epoch": 20447,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2026-01-01",
+      "days_since_epoch": 20454,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2026-01-19",
+      "days_since_epoch": 20472,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2026-02-16",
+      "days_since_epoch": 20500,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2026-04-03",
+      "days_since_epoch": 20546,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2026-05-25",
+      "days_since_epoch": 20598,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2026-06-19",
+      "days_since_epoch": 20623,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2026-07-03",
+      "days_since_epoch": 20637,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2026-09-07",
+      "days_since_epoch": 20703,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2026-11-26",
+      "days_since_epoch": 20783,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2026-12-25",
+      "days_since_epoch": 20812,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2027-01-01",
+      "days_since_epoch": 20819,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2027-01-18",
+      "days_since_epoch": 20836,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2027-02-15",
+      "days_since_epoch": 20864,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2027-03-26",
+      "days_since_epoch": 20903,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2027-05-31",
+      "days_since_epoch": 20969,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2027-06-18",
+      "days_since_epoch": 20987,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2027-07-05",
+      "days_since_epoch": 21004,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2027-09-06",
+      "days_since_epoch": 21067,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2027-11-25",
+      "days_since_epoch": 21147,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2027-12-24",
+      "days_since_epoch": 21176,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2028-01-17",
+      "days_since_epoch": 21200,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2028-02-21",
+      "days_since_epoch": 21235,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2028-04-14",
+      "days_since_epoch": 21288,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2028-05-29",
+      "days_since_epoch": 21333,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2028-06-19",
+      "days_since_epoch": 21354,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2028-07-04",
+      "days_since_epoch": 21369,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2028-09-04",
+      "days_since_epoch": 21431,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2028-11-23",
+      "days_since_epoch": 21511,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2028-12-25",
+      "days_since_epoch": 21543,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2029-01-01",
+      "days_since_epoch": 21550,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2029-01-15",
+      "days_since_epoch": 21564,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2029-02-19",
+      "days_since_epoch": 21599,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2029-03-30",
+      "days_since_epoch": 21638,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2029-05-28",
+      "days_since_epoch": 21697,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2029-06-19",
+      "days_since_epoch": 21719,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2029-07-04",
+      "days_since_epoch": 21734,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2029-09-03",
+      "days_since_epoch": 21795,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2029-11-22",
+      "days_since_epoch": 21875,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2029-12-25",
+      "days_since_epoch": 21908,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2030-01-01",
+      "days_since_epoch": 21915,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2030-01-21",
+      "days_since_epoch": 21935,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2030-02-18",
+      "days_since_epoch": 21963,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2030-04-19",
+      "days_since_epoch": 22023,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2030-05-27",
+      "days_since_epoch": 22061,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2030-06-19",
+      "days_since_epoch": 22084,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2030-07-04",
+      "days_since_epoch": 22099,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2030-09-02",
+      "days_since_epoch": 22159,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2030-11-28",
+      "days_since_epoch": 22246,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2030-12-25",
+      "days_since_epoch": 22273,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2031-01-01",
+      "days_since_epoch": 22280,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2031-01-20",
+      "days_since_epoch": 22299,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2031-02-17",
+      "days_since_epoch": 22327,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2031-04-11",
+      "days_since_epoch": 22380,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2031-05-26",
+      "days_since_epoch": 22425,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2031-06-19",
+      "days_since_epoch": 22449,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2031-07-04",
+      "days_since_epoch": 22464,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2031-09-01",
+      "days_since_epoch": 22523,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2031-11-27",
+      "days_since_epoch": 22610,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2031-12-25",
+      "days_since_epoch": 22638,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2032-01-01",
+      "days_since_epoch": 22645,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2032-01-19",
+      "days_since_epoch": 22663,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2032-02-16",
+      "days_since_epoch": 22691,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2032-03-26",
+      "days_since_epoch": 22730,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2032-05-31",
+      "days_since_epoch": 22796,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2032-06-18",
+      "days_since_epoch": 22814,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2032-07-05",
+      "days_since_epoch": 22831,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2032-09-06",
+      "days_since_epoch": 22894,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2032-11-25",
+      "days_since_epoch": 22974,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2032-12-24",
+      "days_since_epoch": 23003,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2033-01-17",
+      "days_since_epoch": 23027,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2033-02-21",
+      "days_since_epoch": 23062,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2033-04-15",
+      "days_since_epoch": 23115,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2033-05-30",
+      "days_since_epoch": 23160,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2033-06-20",
+      "days_since_epoch": 23181,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2033-07-04",
+      "days_since_epoch": 23195,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2033-09-05",
+      "days_since_epoch": 23258,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2033-11-24",
+      "days_since_epoch": 23338,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2033-12-26",
+      "days_since_epoch": 23370,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2034-01-02",
+      "days_since_epoch": 23377,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2034-01-16",
+      "days_since_epoch": 23391,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2034-02-20",
+      "days_since_epoch": 23426,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2034-04-07",
+      "days_since_epoch": 23472,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2034-05-29",
+      "days_since_epoch": 23524,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2034-06-19",
+      "days_since_epoch": 23545,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2034-07-04",
+      "days_since_epoch": 23560,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2034-09-04",
+      "days_since_epoch": 23622,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2034-11-23",
+      "days_since_epoch": 23702,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2034-12-25",
+      "days_since_epoch": 23734,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2035-01-01",
+      "days_since_epoch": 23741,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "New Year's Day"
+    },
+    {
+      "date": "2035-01-15",
+      "days_since_epoch": 23755,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Martin Luther King Jr. Day"
+    },
+    {
+      "date": "2035-02-19",
+      "days_since_epoch": 23790,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Washington's Birthday"
+    },
+    {
+      "date": "2035-03-23",
+      "days_since_epoch": 23822,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Good Friday"
+    },
+    {
+      "date": "2035-05-28",
+      "days_since_epoch": 23888,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Memorial Day"
+    },
+    {
+      "date": "2035-06-19",
+      "days_since_epoch": 23910,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Juneteenth National Independence Day"
+    },
+    {
+      "date": "2035-07-04",
+      "days_since_epoch": 23925,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Independence Day"
+    },
+    {
+      "date": "2035-09-03",
+      "days_since_epoch": 23986,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Labor Day"
+    },
+    {
+      "date": "2035-11-22",
+      "days_since_epoch": 24066,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Thanksgiving Day"
+    },
+    {
+      "date": "2035-12-25",
+      "days_since_epoch": 24099,
+      "kind": 1,
+      "close_time_et_seconds": 0,
+      "name": "Christmas Day"
+    },
+    {
+      "date": "2020-11-27",
+      "days_since_epoch": 18593,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2020-12-24",
+      "days_since_epoch": 18620,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Christmas Eve"
+    },
+    {
+      "date": "2021-11-26",
+      "days_since_epoch": 18957,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2022-11-25",
+      "days_since_epoch": 19321,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2023-07-03",
+      "days_since_epoch": 19541,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day before Independence Day"
+    },
+    {
+      "date": "2023-11-24",
+      "days_since_epoch": 19685,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2024-07-03",
+      "days_since_epoch": 19907,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day before Independence Day"
+    },
+    {
+      "date": "2024-11-29",
+      "days_since_epoch": 20056,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2024-12-24",
+      "days_since_epoch": 20081,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Christmas Eve"
+    },
+    {
+      "date": "2025-07-03",
+      "days_since_epoch": 20272,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day before Independence Day"
+    },
+    {
+      "date": "2025-11-28",
+      "days_since_epoch": 20420,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2025-12-24",
+      "days_since_epoch": 20446,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Christmas Eve"
+    },
+    {
+      "date": "2026-11-27",
+      "days_since_epoch": 20784,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2026-12-24",
+      "days_since_epoch": 20811,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Christmas Eve"
+    },
+    {
+      "date": "2027-11-26",
+      "days_since_epoch": 21148,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2028-07-03",
+      "days_since_epoch": 21368,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day before Independence Day"
+    },
+    {
+      "date": "2028-11-24",
+      "days_since_epoch": 21512,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2029-07-03",
+      "days_since_epoch": 21733,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day before Independence Day"
+    },
+    {
+      "date": "2029-11-23",
+      "days_since_epoch": 21876,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2029-12-24",
+      "days_since_epoch": 21907,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Christmas Eve"
+    },
+    {
+      "date": "2030-07-03",
+      "days_since_epoch": 22098,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day before Independence Day"
+    },
+    {
+      "date": "2030-11-29",
+      "days_since_epoch": 22247,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2030-12-24",
+      "days_since_epoch": 22272,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Christmas Eve"
+    },
+    {
+      "date": "2031-07-03",
+      "days_since_epoch": 22463,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day before Independence Day"
+    },
+    {
+      "date": "2031-11-28",
+      "days_since_epoch": 22611,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2031-12-24",
+      "days_since_epoch": 22637,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Christmas Eve"
+    },
+    {
+      "date": "2032-11-26",
+      "days_since_epoch": 22975,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2033-11-25",
+      "days_since_epoch": 23339,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2034-07-03",
+      "days_since_epoch": 23559,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day before Independence Day"
+    },
+    {
+      "date": "2034-11-24",
+      "days_since_epoch": 23703,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2035-07-03",
+      "days_since_epoch": 23924,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day before Independence Day"
+    },
+    {
+      "date": "2035-11-23",
+      "days_since_epoch": 24067,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Day after Thanksgiving"
+    },
+    {
+      "date": "2035-12-24",
+      "days_since_epoch": 24098,
+      "kind": 2,
+      "close_time_et_seconds": 46800,
+      "name": "Christmas Eve"
+    }
+  ]
+}
