@@ -1,0 +1,45 @@
+# AI assistant instructions and state. Never committed, see CLAUDE.md 11.6
+CLAUDE.md
+AGENTS.md
+.claude/
+.cursor/
+.cursorrules
+.aider*
+.github/copilot-instructions.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+keystore/
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+!contracts/broadcast/**/run-latest.json
+contracts/lib/
+
+# Stylus and Rust
+verifier/target/
+**/*.rs.bk
+
+# Node
+node_modules/
+.pnpm-store/
+dist/
+build/
+*.tsbuildinfo
+
+# Next.js
+app/.next/
+app/out/
+.vercel
+
+# Infra and local runs
+infra/.anvil-state*
+*.log
+
+# OS
+.DS_Store
