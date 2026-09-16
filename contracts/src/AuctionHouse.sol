@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 import {IAuctionHouse} from "./interfaces/IAuctionHouse.sol";
 import {IPriceOracle} from "./interfaces/IPriceOracle.sol";
@@ -14,6 +15,7 @@ import {ISolverRegistry} from "./interfaces/ISolverRegistry.sol";
 import {IUiMultiplier} from "./interfaces/IUiMultiplier.sol";
 import {CivilDate} from "./libraries/CivilDate.sol";
 import {IntentLib} from "./libraries/IntentLib.sol";
+import {Permit2Witness} from "./libraries/Permit2Witness.sol";
 import {Execution, Intent, IntentFlags, IntentKind, Session, SessionMask} from "./types/Types.sol";
 
 /// @title Opening and closing crosses
@@ -126,6 +128,10 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     address public immutable treasury;
     address public immutable governor;
 
+    /// Permit2 prepends its own type string to ours, so the full witness typehash
+    /// is fixed at deployment and never rebuilt per commit.
+    bytes32 public immutable permitTypeHash;
+
     uint256 public immutable quoteUnit;
     uint256 public immutable bond;
     uint256 public immutable printMinVolume;
@@ -174,6 +180,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     error MultiplierChanged(address token);
     error CommitmentNotEscrowed(uint256 index);
     error OracleUnhealthy(address token);
+    error BadSignature(bytes32 intentHash);
 
     constructor(
         ISessionManager sessions_,
@@ -192,6 +199,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
         treasury = treasury_;
         governor = governor_;
 
+        permitTypeHash = Permit2Witness.typeHash(WITNESS_TYPE_STRING);
         quoteUnit = 10 ** IERC20Metadata(address(quote_)).decimals();
         bond = BOND_USD * quoteUnit;
         printMinVolume = PRINT_MIN_VOLUME_USD * quoteUnit;
@@ -241,6 +249,15 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
                 || IERC20(i.sellToken).allowance(i.owner, address(permit2)) < i.sellAmount
         ) {
             revert NotCoveredByPermit2(i.owner, i.sellToken);
+        }
+
+        // Checked here rather than left to the freeze. Permit2 would catch it
+        // eventually, but by then the entry has already sat in the book, counted
+        // towards its cap, and moved the indicative price the disclosure phase
+        // exists to make credible. Anyone may relay a commitment, and this is what
+        // keeps that from meaning anyone may fill the book.
+        if (!SignatureChecker.isValidSignatureNow(i.owner, _permitDigest(i, intentHash), sig)) {
+            revert BadSignature(intentHash);
         }
 
         commitments[intentHash] = Commitment({
@@ -898,6 +915,21 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
 
     function _crossSession(uint8 kind) internal pure returns (Session) {
         return kind == KIND_OPEN ? Session.OPEN : Session.POST_MARKET;
+    }
+
+    /// @dev The exact digest Permit2 will verify at the freeze. The spender is this
+    /// contract, because Permit2 binds a signature to its own caller.
+    function _permitDigest(Intent calldata i, bytes32 intentHash) internal view returns (bytes32) {
+        return Permit2Witness.digest(
+            permit2.DOMAIN_SEPARATOR(),
+            permitTypeHash,
+            i.sellToken,
+            i.sellAmount,
+            address(this),
+            i.nonce,
+            i.validUntil,
+            intentHash
+        );
     }
 
     function _limitOf(Intent calldata i, bool buy) internal pure returns (uint256) {

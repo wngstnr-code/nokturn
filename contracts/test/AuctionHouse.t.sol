@@ -13,6 +13,7 @@ import {ISignatureTransfer} from "../src/interfaces/IPermit2.sol";
 import {ISolverRegistry} from "../src/interfaces/ISolverRegistry.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IntentLib} from "../src/libraries/IntentLib.sol";
+import {Permit2Witness} from "../src/libraries/Permit2Witness.sol";
 import {Execution, Intent, IntentFlags, IntentKind, SessionMask} from "../src/types/Types.sol";
 import {CalendarFixture} from "./fixtures/CalendarFixture.sol";
 import {MockAggregator} from "./mocks/MockAggregator.sol";
@@ -44,9 +45,20 @@ contract AuctionHouseTest is Test {
     address governor = address(0x60174E);
     address treasury = address(0x7EA);
     address solver = address(0x501E);
-    address alice = address(0xA11CE);
-    address bob = address(0xB0B);
-    address carol = address(0xCA401);
+
+    /// Owners are keys now, not literals, because a commitment carries a real
+    /// Permit2 signature and the contract checks it before the entry joins the book.
+    uint256 constant ALICE_KEY = 0xA11CE;
+    uint256 constant BOB_KEY = 0xB0B;
+    uint256 constant CAROL_KEY = 0xCA401;
+    uint256 constant DAVE_KEY = 0xDA3E;
+    uint256 constant ERIN_KEY = 0xE61;
+
+    address alice = vm.addr(ALICE_KEY);
+    address bob = vm.addr(BOB_KEY);
+    address carol = vm.addr(CAROL_KEY);
+
+    mapping(address => uint256) internal keyOf;
 
     /// Wednesday 11 March 2026. 09:30 New York is 13:30 UTC once EDT has started.
     uint64 constant BELL = 1_773_235_800;
@@ -121,6 +133,10 @@ contract AuctionHouseTest is Test {
         vm.prank(solver);
         usdg.approve(address(house), type(uint256).max);
 
+        keyOf[alice] = ALICE_KEY;
+        keyOf[bob] = BOB_KEY;
+        keyOf[carol] = CAROL_KEY;
+
         kindOpen = house.KIND_OPEN();
         kindClose = house.KIND_CLOSE();
 
@@ -164,7 +180,30 @@ contract AuctionHouseTest is Test {
 
     function _commit(Intent memory i) internal returns (bytes32 hash) {
         hash = hasher.hashOf(i);
-        house.commitAuctionIntent(i, hex"00");
+        house.commitAuctionIntent(i, _sign(keyOf[i.owner], i, hash));
+    }
+
+    function _commitSignature(Intent memory i) internal view returns (bytes memory) {
+        return _sign(keyOf[i.owner], i, hasher.hashOf(i));
+    }
+
+    /// The same digest the deployed Permit2 verifies. Built from the library the
+    /// contract itself uses, and proved against the real Permit2 in
+    /// test/fork/AuctionHousePermit2Fork.t.sol, because a mock would only ever
+    /// agree with whatever answer this file produced.
+    function _sign(uint256 key, Intent memory i, bytes32 hash) internal view returns (bytes memory) {
+        bytes32 digest = Permit2Witness.digest(
+            permit2.DOMAIN_SEPARATOR(),
+            house.permitTypeHash(),
+            i.sellToken,
+            i.sellAmount,
+            address(house),
+            i.nonce,
+            i.validUntil,
+            hash
+        );
+        (uint8 v, bytes32 r, bytes32 vs) = vm.sign(key, digest);
+        return abi.encodePacked(r, vs, v);
     }
 
     function _buyMoo(address owner, uint256 usdgAmount, uint256 nonce) internal returns (bytes32) {
@@ -536,6 +575,11 @@ contract AuctionHouseTest is Test {
         assertEq(freezeAt, crossAt - 300);
     }
 
+    function _fund(address who, uint256 key) internal {
+        keyOf[who] = key;
+        _fund(who);
+    }
+
     function _fund(address who) internal {
         usdg.mint(who, 100_000e6);
         nvda.mint(who, 100e18);
@@ -566,10 +610,10 @@ contract AuctionHouseTest is Test {
     /// The closing print is the one number this protocol publishes to the outside
     /// world, so it carries the volume and the participant count that produced it.
     function test_closingPrintCarriesTheVolumeAndTheCountThatProducedIt() public {
-        address dave = address(0xDA3E);
-        address erin = address(0xE61);
-        _fund(dave);
-        _fund(erin);
+        address dave = vm.addr(DAVE_KEY);
+        address erin = vm.addr(ERIN_KEY);
+        _fund(dave, DAVE_KEY);
+        _fund(erin, ERIN_KEY);
         _enterClosingAuction();
 
         _commitClose(alice, true, 400e6, 1);
@@ -778,9 +822,10 @@ contract AuctionHouseTest is Test {
 
     function test_theSameIntentCannotBeCommittedTwice() public {
         Intent memory i = _intent(alice, true, 400e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, 1);
-        house.commitAuctionIntent(i, hex"00");
+        bytes memory sig = _commitSignature(i);
+        house.commitAuctionIntent(i, sig);
         vm.expectRevert(abi.encodeWithSelector(AuctionHouse.AlreadyCommitted.selector, hasher.hashOf(i)));
-        house.commitAuctionIntent(i, hex"00");
+        house.commitAuctionIntent(i, sig);
     }
 
     function test_aPermitThatExpiresBeforeTheCrossIsRefused() public {
@@ -1120,5 +1165,41 @@ contract AuctionHouseTest is Test {
         kinds[0] = 1;
         vm.prank(governor);
         sessions.setCalendarEntries(dates, kinds, closeTimes);
+    }
+
+    /// Anyone may relay a commitment, which is what makes signing on Saturday
+    /// worth anything. The signature is what stops that from meaning anyone can
+    /// fill the book with entries nobody agreed to.
+    function test_aCommitmentTheOwnerNeverSignedIsRefused() public {
+        Intent memory i = _intent(alice, true, 400e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, 1);
+        bytes32 hash = hasher.hashOf(i);
+        bytes memory wrongSigner = _sign(CAROL_KEY, i, hash);
+
+        vm.expectRevert(abi.encodeWithSelector(AuctionHouse.BadSignature.selector, hash));
+        house.commitAuctionIntent(i, wrongSigner);
+
+        vm.expectRevert(abi.encodeWithSelector(AuctionHouse.BadSignature.selector, hash));
+        house.commitAuctionIntent(i, hex"00");
+    }
+
+    /// The digest covers the amount and the terms, so a signature cannot be lifted
+    /// from one commitment onto a larger one.
+    function test_aSignatureDoesNotCarryOverToADifferentAmount() public {
+        Intent memory small = _intent(alice, true, 400e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, 1);
+        bytes memory sig = _commitSignature(small);
+
+        Intent memory large = _intent(alice, true, 800e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, 1);
+        vm.expectRevert(abi.encodeWithSelector(AuctionHouse.BadSignature.selector, hasher.hashOf(large)));
+        house.commitAuctionIntent(large, sig);
+    }
+
+    /// A relayed commitment is the normal case, not the exception.
+    function test_aRelayerCanCommitOnSomebodyElsesBehalf() public {
+        Intent memory i = _intent(alice, true, 400e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, 1);
+        bytes memory sig = _commitSignature(i);
+
+        vm.prank(address(0xBE1A4));
+        house.commitAuctionIntent(i, sig);
+        assertEq(house.commitment(hasher.hashOf(i)).owner, alice);
     }
 }

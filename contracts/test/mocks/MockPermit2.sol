@@ -9,6 +9,9 @@ import {ISignatureTransfer} from "../../src/interfaces/IPermit2.sol";
 /// real Permit2 is exercised in the fork tests instead, because it is already
 /// deployed on both networks and mocking signature recovery would only test the
 /// mock. rencana-uji.md section 6 asks for exactly that split.
+///
+/// The domain separator is built the way Permit2 builds its own, with no version
+/// field, so a signature made for these tests is shaped like a real one.
 contract MockPermit2 is ISignatureTransfer {
     mapping(address => mapping(uint256 => uint256)) internal bitmap;
 
@@ -40,6 +43,17 @@ contract MockPermit2 is ISignatureTransfer {
         uint256 amount = transferDetails.requestedAmount;
         // forge-lint: disable-next-line(erc20-unchecked-transfer)
         token.transferFrom(owner, to, amount);
+    }
+
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)"),
+                keccak256("Permit2"),
+                block.chainid,
+                address(this)
+            )
+        );
     }
 
     function nonceBitmap(address owner, uint256 word) external view returns (uint256) {
