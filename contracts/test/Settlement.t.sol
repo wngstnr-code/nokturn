@@ -553,6 +553,47 @@ contract SettlementTest is Test {
         assertTrue(settlement.finalized(BATCH_ID));
     }
 
+    /// A winner that never finalizes blocks every other solution for that batch.
+    /// No funds move before finalize, so nothing is stuck, but the block is real
+    /// and anyone can make the consequence land.
+    function test_aBatchTheWinnerAbandonedCanBeRetiredByAnyone() public {
+        _submit(_nettedSolution());
+
+        vm.warp(BATCH_ID + 20);
+        vm.expectRevert(abi.encodeWithSelector(ISettlement.SolutionWindowClosed.selector, BATCH_ID));
+        settlement.expireBatch(BATCH_ID);
+
+        vm.warp(BATCH_ID + 10 + 301);
+        settlement.expireBatch(BATCH_ID);
+
+        assertTrue(settlement.finalized(BATCH_ID), "the batch is retired, not left hanging");
+        assertEq(registry.failedFinalizes(), 1, "and the winner is reported for it");
+    }
+
+    function test_anExpiredBatchCannotThenBeFinalized() public {
+        Solution memory s = _submit(_nettedSolution());
+        vm.warp(BATCH_ID + 10 + 301);
+        settlement.expireBatch(BATCH_ID);
+
+        vm.expectRevert(abi.encodeWithSelector(Settlement.AlreadyFinalized.selector, BATCH_ID));
+        settlement.finalize(BATCH_ID, s);
+    }
+
+    function test_aBatchNobodySolvedHasNothingToExpire() public {
+        vm.warp(BATCH_ID + 10 + 301);
+        vm.expectRevert(abi.encodeWithSelector(Settlement.NoWinningSolution.selector, BATCH_ID));
+        settlement.expireBatch(BATCH_ID);
+    }
+
+    function test_theWinnerIsCreditedOnASuccessfulSettlement() public {
+        Solution memory s = _submit(_nettedSolution());
+        vm.warp(BATCH_ID + 20);
+        settlement.finalize(BATCH_ID, s);
+
+        assertEq(registry.lastWinner(), solver);
+        assertEq(registry.lastSavings(), 4e18);
+    }
+
     function test_governorOnlyControlsTheAllowlists() public {
         vm.expectRevert(Settlement.NotGovernor.selector);
         settlement.setTokenAllowed(address(nvda), false);

@@ -46,6 +46,11 @@ contract Settlement is ISettlement, ReentrancyGuard {
     uint16 internal constant BPS = 10_000;
 
     uint32 public constant SOLUTION_WINDOW = 10;
+
+    /// After this, anyone can retire a batch whose winner never finalized it. The
+    /// batch is not stuck, since no funds move before finalize, but the winner has
+    /// still blocked everyone else's solution and that is what gets slashed.
+    uint32 public constant FINALIZE_DEADLINE = 300;
     uint8 public constant MAX_SOLUTIONS_PER_SOLVER = 3;
 
     uint16 internal constant FEE_CAP_SHARE_BPS = 2000; // 20 percent of the surplus
@@ -215,6 +220,23 @@ contract Settlement is ISettlement, ReentrancyGuard {
         _settleFees(winning, winner, before, notionalUsd);
     }
 
+    /// @notice Retires a batch whose winner never finalized it, and slashes them.
+    /// Callable by anyone, because a griefing solver should not also get to decide
+    /// when the consequence lands.
+    function expireBatch(uint64 batchId) external {
+        if (finalized[batchId]) revert AlreadyFinalized(batchId);
+        (,, uint64 solveEnd) = batchWindow(batchId);
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp <= solveEnd + FINALIZE_DEADLINE) revert SolutionWindowClosed(batchId);
+
+        Best memory winner = best[batchId];
+        if (winner.hash == bytes32(0)) revert NoWinningSolution(batchId);
+
+        finalized[batchId] = true;
+        solvers.reportFailedFinalize(winner.solver);
+        emit BatchPassthrough(batchId, 0, "winner never finalized");
+    }
+
     /// @inheritdoc ISettlement
     function submitIntentOnchain(Intent calldata i, bytes calldata sig) external {
         // The escape hatch executes nothing. It publishes the intent and its
@@ -365,6 +387,7 @@ contract Settlement is ISettlement, ReentrancyGuard {
         }
 
         _emitFills(s);
+        solvers.recordWin(winner.solver, winner.savings);
 
         (uint256 nettedUsd, uint256 routedUsd) = _nettedAndRouted(s, notionalUsd);
         emit BatchSettled(
