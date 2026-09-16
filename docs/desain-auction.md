@@ -246,7 +246,9 @@ model dan di dokumentasi pengguna — jangan disamarkan.
 > bukan yang sudah ter-escrow, dan itu harus disebut apa adanya. Angka yang
 > dijamin nyata adalah yang terbit di `AuctionFrozen`.
 >
-> **Yang menutup sebagian celahnya.** Saat commit, kontrak memeriksa bahwa pemilik
+> **Yang menutup celahnya.** Saat commit, kontrak memverifikasi tanda tangan
+> Permit2 milik pemilik, jadi siapa pun boleh merelai komitmen tapi tidak ada yang
+> bisa mengisi buku atas nama orang lain. Kontrak juga memeriksa bahwa pemilik
 > benar-benar memegang dananya dan sudah menyetujui Permit2. Dana masih bisa pergi
 > sesudahnya, dan kalau itu terjadi penarikan escrow gagal, intent itu gugur dari
 > buku, dan kegagalannya terbit sebagai `CommitmentDropped`. Jadi buku tidak bisa

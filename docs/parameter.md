@@ -249,6 +249,17 @@ satu-satunya angka yang boleh disebut kredibel. Penarikan escrow lewat Permit2 p
 saat pembekuan sekaligus menyaring intent yang saldonya sudah pindah, karena
 penarikan yang gagal berarti intent itu gugur dari buku.
 
+**Dan satu lagi yang menutup sisanya, ditambahkan sore harinya.** Saat commit,
+kontrak memverifikasi tanda tangan Permit2 milik pemilik dengan membangun ulang
+digest yang nanti diverifikasi Permit2 sendiri. Jadi siapa pun boleh merelai
+komitmen, tapi tidak ada yang bisa mengisi buku atas nama orang lain. Tanpa itu,
+256 slot buku bisa dihabiskan dengan modal gas saja, dan pemeriksaan saldo tidak
+cukup karena saldo orang lain bisa dibaca siapa pun. Digest yang salah berarti
+semua komitmen ditolak di mainnet, dan mock tidak bisa menangkapnya karena mock
+akan setuju dengan jawaban yang sama salahnya, jadi pembuktiannya ada di
+`contracts/test/fork/AuctionHousePermit2Fork.t.sol` lawan Permit2 yang
+benar-benar terpasang.
+
 **2. Cross lelang pembukaan menunggu 300 detik setelah bel.** Harga referensi
 pembukaan menurut §2.3 adalah TWAP 300 detik pertama sesi `OPEN`. Pada detik bel
 berbunyi, jendela itu belum terisi, jadi cross yang berjalan tepat di bel selalu
