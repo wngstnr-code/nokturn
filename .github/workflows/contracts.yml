@@ -28,7 +28,9 @@ jobs:
       - run: forge test -vvv
       - name: coverage gate, 95 percent lines on core contracts
         run: |
-          forge coverage --report summary --no-match-coverage "(test|script)" > coverage.txt || true
+          # --ir-minimum because coverage disables the IR pipeline, and the
+          # clearing verifier needs it to compile at all.
+          forge coverage --ir-minimum --report summary --no-match-coverage "(test|script)" > coverage.txt || true
           cat coverage.txt
           ./tools/coverage-gate.sh coverage.txt
       - name: gas snapshot is committed and current
