@@ -25,7 +25,13 @@ library IntentLib {
         return keccak256(
             bytes.concat(
                 abi.encode(
-                    INTENT_TYPEHASH, i.owner, i.receiver, i.sellToken, i.buyToken, i.sellAmount, i.minBuyAmount
+                    INTENT_TYPEHASH,
+                    i.owner,
+                    i.receiver,
+                    i.sellToken,
+                    i.buyToken,
+                    i.sellAmount,
+                    i.minBuyAmount
                 ),
                 abi.encode(
                     i.validAfter,
