@@ -232,6 +232,32 @@ jaminan itu.
 tetap tanpa kustodi sama sekali.** Perbedaannya harus ditulis eksplisit di threat
 model dan di dokumentasi pengguna — jangan disamarkan.
 
+> ### Koreksi 16 September 2026, saat `AuctionHouse` ditulis
+>
+> Bagian ini dan §4 tidak bisa keduanya benar. §4 menulis bahwa harga indikatif
+> dihitung dari intent yang sudah ter-escrow, tapi harga indikatif terbit 30 menit
+> sebelum bel sementara pembekuan baru terjadi 5 menit sebelumnya. Yang menang
+> adalah `ESCROW_DURATION` di `parameter.md` §3, karena ia parameter, dan karena
+> menahan dana pengguna sepanjang akhir pekan jauh lebih mahal daripada yang
+> hendak dibeli.
+>
+> **Yang berlaku di kode.** Escrow ditarik lewat Permit2 pada saat pembekuan.
+> Harga indikatif selama fase pengungkapan berasal dari intent yang berkomitmen,
+> bukan yang sudah ter-escrow, dan itu harus disebut apa adanya. Angka yang
+> dijamin nyata adalah yang terbit di `AuctionFrozen`.
+>
+> **Yang menutup sebagian celahnya.** Saat commit, kontrak memeriksa bahwa pemilik
+> benar-benar memegang dananya dan sudah menyetujui Permit2. Dana masih bisa pergi
+> sesudahnya, dan kalau itu terjadi penarikan escrow gagal, intent itu gugur dari
+> buku, dan kegagalannya terbit sebagai `CommitmentDropped`. Jadi buku tidak bisa
+> diisi intent yang tidak ada uangnya, tanpa seorang pun diambil kustodinya lebih
+> awal.
+>
+> Tiga keputusan lain lahir di hari yang sama dan ketiganya ada di
+> `parameter.md` §3.0b, yaitu penundaan cross 300 detik agar ROO punya referensi,
+> bond yang juga dipertaruhkan solver, dan cross v1.0 yang tidak menyentuh venue.
+
+
 ---
 
 ## 3. Lelang Penutupan — dan produk sampingan yang bernilai
