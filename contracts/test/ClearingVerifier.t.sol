@@ -64,7 +64,7 @@ contract ClearingVerifierTest is Test {
         baselines[1] = 198e18;
 
         uint256 savings =
-            verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), baselines, 30);
+            verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), baselines, 30, 3);
 
         // 0.01 NVDA at 200 plus 2 USDG at 1.
         assertEq(savings, 4e18);
@@ -76,7 +76,7 @@ contract ClearingVerifierTest is Test {
         bytes memory executions = packExecution(0, 200e18, 1e18 - 1);
 
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.LimitViolated.selector, 0));
-        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30);
+        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30, 3);
     }
 
     /// A solver that hands the user fewer tokens than the clearing price implies is
@@ -86,7 +86,7 @@ contract ClearingVerifierTest is Test {
         bytes memory executions = packExecution(0, 200e18, 0.9e18);
 
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.NonUniformPrice.selector, 0));
-        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30);
+        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30, 3);
     }
 
     function test_solverCannotOverdeliverEither() public {
@@ -94,7 +94,7 @@ contract ClearingVerifierTest is Test {
         bytes memory executions = packExecution(0, 200e18, 1e18 + 1);
 
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.NonUniformPrice.selector, 0));
-        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30);
+        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30, 3);
     }
 
     /// Rounding always goes to the contract, so a sub unit remainder is fine and a
@@ -112,7 +112,7 @@ contract ClearingVerifierTest is Test {
         deltas[1] = int256(1e18);
 
         uint256 savings =
-            verifier.verify(intents, executions, tokens(), prices(), deltas, prices(), one(1e18), 30);
+            verifier.verify(intents, executions, tokens(), prices(), deltas, prices(), one(1e18), 30, 3);
         assertEq(savings, 0);
     }
 
@@ -125,7 +125,7 @@ contract ClearingVerifierTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(ClearingVerifier.ValueNotConserved.selector, uint16(0), -int256(200e18))
         );
-        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(200e18), 30);
+        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(200e18), 30, 3);
     }
 
     function test_venueDeltaClosesAnImbalance() public view {
@@ -137,7 +137,7 @@ contract ClearingVerifierTest is Test {
         deltas[1] = -int256(1e18); // NVDA sold into it
 
         uint256 savings =
-            verifier.verify(intents, executions, tokens(), prices(), deltas, prices(), one(200e18), 30);
+            verifier.verify(intents, executions, tokens(), prices(), deltas, prices(), one(200e18), 30, 3);
         assertEq(savings, 0);
     }
 
@@ -153,7 +153,7 @@ contract ClearingVerifierTest is Test {
                 ClearingVerifier.PriceOutsideBand.selector, uint16(1), 201e18, 200e18, uint16(30)
             )
         );
-        verifier.verify(intents, executions, tokens(), clearing, noDeltas(), prices(), one(0), 30);
+        verifier.verify(intents, executions, tokens(), clearing, noDeltas(), prices(), one(0), 30, 3);
     }
 
     /// Invariant I8. Nobody is made worse off than executing alone, or the batch
@@ -163,7 +163,7 @@ contract ClearingVerifierTest is Test {
         bytes memory executions = packExecution(0, 200e18, 1e18);
 
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.WorseThanBaseline.selector, 0, 1e18, 1.01e18));
-        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(1.01e18), 30);
+        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(1.01e18), 30, 3);
     }
 
     function test_partialFillNeedsTheFlag() public {
@@ -171,7 +171,7 @@ contract ClearingVerifierTest is Test {
         bytes memory executions = packExecution(0, 100e18, 0.5e18);
 
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.PartialFillNotAllowed.selector, 0));
-        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30);
+        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30, 3);
     }
 
     function test_cannotFillMoreThanTheIntentOffered() public {
@@ -179,25 +179,25 @@ contract ClearingVerifierTest is Test {
         bytes memory executions = packExecution(0, 201e18, 1e18);
 
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.OverfilledIntent.selector, 0, 201e18, 200e18));
-        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30);
+        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30, 3);
     }
 
     function test_malformedInputIsRejectedNotGuessed() public {
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.MalformedPackedIntents.selector, 71));
-        verifier.verify(new bytes(71), "", tokens(), prices(), noDeltas(), prices(), new uint256[](0), 30);
+        verifier.verify(new bytes(71), "", tokens(), prices(), noDeltas(), prices(), new uint256[](0), 30, 3);
 
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.MalformedPackedExecutions.selector, 5));
-        verifier.verify("", new bytes(5), tokens(), prices(), noDeltas(), prices(), new uint256[](0), 30);
+        verifier.verify("", new bytes(5), tokens(), prices(), noDeltas(), prices(), new uint256[](0), 30, 3);
 
         bytes memory intents = packIntent(0, 1, 0, 200e18, 1e18);
         bytes memory executions = packExecution(1, 200e18, 1e18);
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.IntentIndexOutOfRange.selector, 1));
-        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30);
+        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30, 3);
 
         bytes memory badToken = packIntent(0, 7, 0, 200e18, 1e18);
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.TokenIndexOutOfRange.selector, uint16(7)));
         verifier.verify(
-            badToken, packExecution(0, 200e18, 1e18), tokens(), prices(), noDeltas(), prices(), one(0), 30
+            badToken, packExecution(0, 200e18, 1e18), tokens(), prices(), noDeltas(), prices(), one(0), 30, 3
         );
     }
 
@@ -206,13 +206,13 @@ contract ClearingVerifierTest is Test {
             abi.encodePacked(uint16(0), uint16(1), uint8(0), hex"000001", uint256(200e18), uint256(1e18));
         vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.ReservedBytesNotZero.selector, 0));
         verifier.verify(
-            intents, packExecution(0, 200e18, 1e18), tokens(), prices(), noDeltas(), prices(), one(0), 30
+            intents, packExecution(0, 200e18, 1e18), tokens(), prices(), noDeltas(), prices(), one(0), 30, 3
         );
     }
 
     function test_arrayLengthsMustAgree() public {
         vm.expectRevert(ClearingVerifier.ArrayLengthMismatch.selector);
-        verifier.verify("", "", tokens(), new uint256[](1), noDeltas(), prices(), new uint256[](0), 30);
+        verifier.verify("", "", tokens(), new uint256[](1), noDeltas(), prices(), new uint256[](0), 30, 3);
     }
 
     /// Lemma 3 in desain-kliring.md. Evaluating the volume curve at one price is

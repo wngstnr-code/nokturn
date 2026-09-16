@@ -67,9 +67,16 @@ struct Execution {
     uint256 executedBuy;
 }
 
+/// A venue call is structured rather than raw calldata. An allowlisted adapter
+/// plus arbitrary bytes would let a solver call anything on that adapter, and it
+/// would also make the venue delta impossible to derive, so the contract would
+/// have to trust the number it is supposed to be checking.
 struct VenueCall {
     address adapter;
-    bytes data;
+    address tokenIn;
+    address tokenOut;
+    uint256 amountIn;
+    uint256 minOut;
 }
 
 struct Solution {

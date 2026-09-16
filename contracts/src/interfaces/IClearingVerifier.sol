@@ -18,6 +18,12 @@ pragma solidity 0.8.28;
 ///   [8:40]  sellAmount, uint256
 ///   [40:72] minBuyAmount, uint256
 ///
+/// maxFeeBps is how far below the clearing price an execution may land. It is what
+/// makes uniform pricing enforceable and chargeable at once: without a tolerance no
+/// fee could ever be withheld, and without a cap the solver could set the effective
+/// price per user. Settlement passes FEE_CAP_NOTIONAL_BPS, so the per intent bound
+/// and the published fee cap are the same number.
+///
 /// packedExecutions, 72 bytes per entry:
 ///   [0:4]   intentIndex, uint32
 ///   [4:8]   reserved, zero
@@ -32,7 +38,8 @@ interface IClearingVerifier {
         int256[] calldata venueDeltas,
         uint256[] calldata oraclePrices,
         uint256[] calldata baselineQuotes,
-        uint16 maxDeviationBps
+        uint16 maxDeviationBps,
+        uint16 maxFeeBps
     ) external pure returns (uint256 savings);
 
     /// @notice Evaluates the volume curve at a single price in O(N), without sorting.

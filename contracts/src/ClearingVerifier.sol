@@ -64,7 +64,8 @@ contract ClearingVerifier is IClearingVerifier {
         int256[] calldata venueDeltas,
         uint256[] calldata oraclePrices,
         uint256[] calldata baselineQuotes,
-        uint16 maxDeviationBps
+        uint16 maxDeviationBps,
+        uint16 maxFeeBps
     ) external pure returns (uint256 savings) {
         if (packedIntents.length % INTENT_STRIDE != 0) {
             revert MalformedPackedIntents(packedIntents.length);
@@ -106,7 +107,7 @@ contract ClearingVerifier is IClearingVerifier {
                 revert LimitViolated(e.intentIndex);
             }
 
-            _checkUniformPrice(e, prices[i.sellTokenIndex], prices[i.buyTokenIndex]);
+            _checkUniformPrice(e, prices[i.sellTokenIndex], prices[i.buyTokenIndex], maxFeeBps);
 
             if (e.executedBuy < baselineQuotes[k]) {
                 revert WorseThanBaseline(e.intentIndex, e.executedBuy, baselineQuotes[k]);
@@ -146,14 +147,22 @@ contract ClearingVerifier is IClearingVerifier {
         executable = demand < supply ? demand : supply;
     }
 
-    /// @dev Every execution must settle at the same per token price, so the value
-    /// leaving equals the value entering up to one unit of the bought token. The
-    /// remainder rounds toward the contract, never toward the solver.
-    function _checkUniformPrice(PackedExecution memory e, uint256 sellPrice, uint256 buyPrice) internal pure {
+    /// @dev Every execution settles at the same per token price, within maxFeeBps.
+    /// The tolerance is not slack. It is the only place value can be withheld at
+    /// all, so it doubles as the per intent fee ceiling, and it is the same number
+    /// the protocol publishes as its notional fee cap. Above it, a solver would be
+    /// setting a different effective price for each user, which is what uniform
+    /// clearing exists to prevent.
+    function _checkUniformPrice(
+        PackedExecution memory e,
+        uint256 sellPrice,
+        uint256 buyPrice,
+        uint16 maxFeeBps
+    ) internal pure {
         uint256 valueIn = e.executedSell * sellPrice;
         uint256 valueOut = e.executedBuy * buyPrice;
         if (valueOut > valueIn) revert NonUniformPrice(e.intentIndex);
-        if (valueIn - valueOut >= buyPrice) revert NonUniformPrice(e.intentIndex);
+        if ((valueIn - valueOut) * BPS > valueIn * maxFeeBps) revert NonUniformPrice(e.intentIndex);
     }
 
     function _checkBand(uint256[] calldata prices, uint256[] calldata oraclePrices, uint16 maxDeviationBps)
