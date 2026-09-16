@@ -584,9 +584,29 @@ curl --resolve rpc.mainnet.chain.robinhood.com:443:172.66.147.70 \
   -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}'
 ```
-Untuk Foundry: pakai VPN, DNS-over-HTTPS di level sistem, atau endpoint provider
-berbayar (Alchemy/QuickNode/Chainstack) di domain berbeda.
-`https://robinhood.drpc.org` bisa diakses tapi **hanya mendukung `eth_chainId`**.
+> ### Terpecahkan 16 September 2026, dan klaim lama di bawahnya salah
+>
+> Catatan lama berbunyi *"`https://robinhood.drpc.org` bisa diakses tapi hanya
+> mendukung `eth_chainId`"*. Diuji ulang hari ini, endpoint itu melayani
+> `eth_call`, `eth_getCode`, `eth_getStorageAt`, dan **state historis**.
+>
+> ```
+> anvil --fork-url https://robinhood.drpc.org --fork-block-number 64420000
+> ```
+>
+> Fork mainnet berjalan di blok lampau, artinya nodenya archive. Tidak butuh
+> `--resolve`, tidak butuh entri `/etc/hosts`, tidak butuh sudo, tidak butuh VPN.
+> Seluruh pengukuran onchain 16 September 2026 di dokumen ini dan di
+> `parameter.md` §10 dikerjakan lewat jalur itu.
+>
+> **Yang belum terpecahkan**, dan tetap butuh `curl --resolve`, adalah Blockscout
+> dan domain `rpc.mainnet.chain.robinhood.com` sendiri. Pencegatan DNS-nya masih
+> hidup, hanya saja sekarang resolve ke `block.gmedia.id` (`103.217.209.188`),
+> bukan lagi `internetpositif.id`. Gejalanya tetap menyesatkan.
+
+Untuk Foundry: pakai `https://robinhood.drpc.org` yang terbukti bekerja di atas.
+VPN, DNS-over-HTTPS di level sistem, atau endpoint provider berbayar tetap jadi
+cadangan kalau endpoint itu jatuh.
 
 ---
 
