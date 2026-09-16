@@ -1,0 +1,34 @@
+name: prose
+
+# Enforces CLAUDE.md section 11.4 and 11.6 on anything written from now on.
+# The research archive under docs/ predates both rules and is exempt by decision
+# of the project owner, 14 September 2026, so it is never scanned here.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: no em dash, no connector en dash, no emoji on the repo surface
+        run: python3 tools/prose-gate.py
+
+      - name: no ai attribution in commit messages
+        run: |
+          range="${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || 'HEAD~1..HEAD' }}"
+          if git log "$range" --format='%B%an%ae%cn%ce' | grep -niE 'claude|co-authored|generated with|anthropic|cursor|copilot'; then
+            echo "commit metadata mentions an ai assistant"
+            exit 1
+          fi
+          if git log "$range" --format=%B | grep -qP '\x{2014}|\x{2013}'; then
+            echo "commit message contains a dash that section 11.4 forbids"
+            exit 1
+          fi
+          echo "attribution gate passed"
