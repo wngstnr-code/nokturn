@@ -351,6 +351,62 @@ Saat sesi `WEEKEND`, `HOLIDAY`, atau `PROTECTIVE`, seluruh cap **dikalikan 0,5**
 Diturunkan dari cadence terukur 24–31 Juli 2026 (p95 jeda antar-update, dibulatkan
 ke atas). **Wajib per-feed:** cadence antar-aset berbeda sampai 15×.
 
+> ### Alamat lengkap dan pengukuran ulang, 16 September 2026
+>
+> Tabel di bawah ini dibuat 1 Agustus 2026 dari cadence 24 sampai 31 Juli. **Tiga
+> hal di dalamnya sekarang salah**, dan ketiganya menyentuh `PriceOracle`.
+>
+> **1. Yang tercatat adalah alamat aggregator, bukan proxy.** `0xC9D16E4F...` tidak
+> punya `aggregator()`, sedangkan `0x379ec4f7...` punya dan menunjuk ke sana. Feed
+> Chainlink dikonsumsi lewat proxy supaya aggregator bisa diganti tanpa memutus
+> konsumen. Alamat lengkap keduanya untuk allowlist v1.0.
+>
+> | Token | Proxy, ini yang dipakai kontrak | Aggregator, yang tercatat sebelumnya | `description()` |
+> |---|---|---|---|
+> | **NVDA** | `0x379ec4f7c378f34a1b47e4f3cbebcbac3e8e9f15` | `0xC9d16E4f2569b9E3ea0468fD85844953713DC2a2` | `RHNVDA / USD` |
+> | **AAPL** | `0x6b22a786baa607d76728168703a39ea9c99f2cd0` | `0xBb11A21267cFDb63d4935d99a499133DD1744ACb` | `Robinhood AAPL / USD` |
+> | **TSLA** | `0x4a1166a659a55625345e9515b32adecea5547c38` | `0x7A6b81ba7FbCB90104d8C496158Cf383cD7233b1` | `RHTSLA / USD` |
+> | **GOOGL** | `0xf6f373a037c30f0e5010d854385ca89185ae638b` | `0x11eD6d598eF565DDA86fAfE7E779303e7CC6b2Bd` | `Robinhood GOOGL / USD` |
+>
+> Semuanya 8 desimal. GOOGL sebelumnya tidak punya baris di tabel di bawah sama
+> sekali, padahal ia ada di allowlist v1.0. Sekarang punya.
+>
+> **2. Ada dua keluarga feed, dan keduanya hidup.** Selain keluarga `RH*` di atas,
+> ada keluarga bernama polos: `NVDA / USD` (`0xe5f00a9e04ed6d86dc53bfcd8de4bad22e4fe5e4`),
+> `GOOGL / USD` (`0x3d5661b635da3bb607a95be39d4d28fc24f4c683`), `AAPL / USD`
+> (`0x273cb738fe4ef162bcdfb603c89da224e1b67b0e`). Keluarga polos **tidak dibaca
+> satu konsumen pun** di chain ini, tapi ia diperbarui dengan heartbeat teratur.
+> Harganya berbeda. RHNVDA 213,04 lawan NVDA 212,17 pada saat yang sama, yaitu
+> **41 bps**, lebih lebar dari price band `OPEN` yang 30 bps.
+>
+> **3. Cadence September jauh lebih buruk daripada Juli, dan ekornya yang berbahaya.**
+> Diukur dari log `AnswerUpdated` 1 sampai 16 September 2026, dipisah per sesi.
+>
+> | Feed | Sesi | p50 | p95 | max |
+> |---|---|---|---|---|
+> | NVDA `RH` | OPEN | 3.211 dtk | **63.394 dtk** | 281.670 dtk |
+> | NVDA `RH` | off-hours | 2.658 dtk | 29.319 dtk | 187.006 dtk |
+> | AAPL `RH` | OPEN | 1.860 dtk | **66.801 dtk** | 274.168 dtk |
+> | TSLA `RH` | OPEN | 1.561 dtk | 31.000 dtk | 279.973 dtk |
+> | **GOOGL `RH`** | OPEN | 4.519 dtk | **191.721 dtk** | 293.596 dtk |
+> | NVDA polos | OPEN | 3.005 dtk | **9.793 dtk** | 9.793 dtk |
+> | NVDA polos | off-hours | 2.401 dtk | **3.437 dtk** | 12.949 dtk |
+> | AAPL polos | off-hours | 2.401 dtk | **2.873 dtk** | 13.528 dtk |
+>
+> Keluarga `RH` memperbarui lebih sering secara jumlah, tapi tidak teratur dan
+> berekor panjang. Keluarga polos memperbarui lebih jarang dengan heartbeat yang
+> hampir tetap sekitar 2.400 detik, sehingga p95-nya sepuluh kali lebih rapat.
+>
+> **Konsekuensi yang belum diputuskan.** `STALENESS_OPEN` NVDA 6.000 dtk dihitung
+> dari p95 Juli. Dengan p95 September 63.394 dtk, nilai itu akan melempar NVDA ke
+> `PROTECTIVE` berulang kali di sesi paling ramai. Dan GOOGL, yang ada di allowlist
+> justru karena kualitas feed, sekarang punya p95 terburuk di antara keempatnya.
+> **Jangan kunci `PriceOracle` sebelum ini diputuskan.** Pertanyaannya terbuka di
+> `pertanyaan-terbuka.md` RONDE 6.
+>
+> Tidak ada satu pun baris akhir pekan di seluruh pengukuran, pada kedua keluarga.
+> Feed benar-benar mati dari Jumat sore sampai Senin, persis seperti §7.3.
+
 | Aset | Feed | `STALENESS_OPEN` | `STALENESS_CLOSED` | Layak diluncurkan? |
 |---|---|---|---|---|
 | NVDA | `0xC9D16E4F…` | 6.000 dtk | 20.000 dtk | ✅ |
