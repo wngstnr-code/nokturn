@@ -18,8 +18,8 @@
 | `BATCH_PRE_MARKET` | **30 dtk** | Likuiditas mulai menipis |
 | `BATCH_POST_MARKET` | **30 dtk** | Sama seperti pre-market |
 | `BATCH_OVERNIGHT` | **45 dtk** | **Dikalibrasi ulang dari backtest netting Agustus 2026** — lihat §1B. Pada metrik antar-counterparty, 45 dtk menangkap **90,2%** netting yang tersedia di 300 dtk dengan **15%** latensinya. Lututnya ada di 20–30 dtk; 45 dtk duduk di sisi datar |
-| `BATCH_WEEKEND` | **120 dtk** 🔴 | ⚠️ **Premis lama runtuh — lihat §1B.** Akhir pekan bukan lagi sesi paling tipis: 33,2% seluruh trade, dan 8,01 pedagang/batch di 45 dtk (lebih ramai dari off-hours hari kerja). **Kandidat revisi ke 60 dtk, menunggu keputusan pemilik.** Kalau 120 dtk dipertahankan, alasannya harus diganti |
-| `BATCH_HOLIDAY` | **120 dtk** | Sama seperti akhir pekan |
+| `BATCH_WEEKEND` | **60 dtk** | **Diturunkan dari 120 dtk pada 16 September 2026.** Premis lama, yaitu "arus paling jarang", terbantah data Agustus. Angka baru memakai ambang imbal hasil marginal yang sama dengan `BATCH_OVERNIGHT`. Langkah 45 ke 60 dtk bernilai 0,101 pp/dtk, langkah 60 ke 90 dtk hanya 0,051 pp/dtk. Lihat §1B |
+| `BATCH_HOLIDAY` | **120 dtk** | **Sengaja tidak ikut turun.** Tidak ada satu pun pengukuran untuk hari libur bursa, jadi nilai konservatif dipertahankan dan durasi adaptif yang mempersempitnya kalau arus ternyata tebal |
 | `BATCH_PROTECTIVE` | **180 dtk** | Perlambat saat keadaan tidak dapat dipercaya |
 | `BATCH_ADAPTIVE_MIN` | **20 dtk** | Batas bawah saat arus tebal |
 | `BATCH_ADAPTIVE_MAX` | **180 dtk** | Batas atas saat arus tipis |
@@ -73,7 +73,7 @@ menebal, `BATCH_ADAPTIVE_MIN` = 20 dtk akan sering tersentuh, dan itu memang per
 yang diinginkan. Jangan memperpendek nilai dasarnya karena satu bulan data di pasar
 yang sedang tumbuh cepat — biarkan mekanisme adaptif yang menurunkannya.
 
-### 🔴 `BATCH_WEEKEND` = 120 dtk — premisnya runtuh, butuh keputusan
+### `BATCH_WEEKEND` diturunkan 120 dtk ke 60 dtk (16 September 2026)
 
 Alasan yang tertulis untuk 120 dtk adalah *"arus paling jarang, butuh jendela
 terpanjang untuk menemukan pasangan."* **Data Agustus membatalkan premis itu:**
@@ -89,10 +89,35 @@ lebih ramai daripada off-hours hari kerja. Dan imbal hasil dari menunggu lebih l
 tipis: 60 dtk memberi 51,77%, 120 dtk memberi 54,11%, jadi **+2,34 pp ditukar dengan
 tambahan 60 detik latensi** untuk sepertiga dari seluruh arus.
 
-**Kandidat revisi: `BATCH_WEEKEND` 120 → 60 dtk.** Belum diterapkan — mengubah
-konstanta protokol adalah keputusan pemilik proyek, bukan konsekuensi otomatis dari
-satu bulan data. Yang berubah hari ini hanya **alasannya**: kalau 120 dtk
-dipertahankan, alasannya tidak boleh lagi "arus paling jarang", karena itu tidak benar.
+**Keputusan 16 September 2026: `BATCH_WEEKEND` 120 dtk turun ke 60 dtk.**
+
+Angkanya tidak dipilih dari selera, melainkan dari ambang yang dokumen ini sudah
+pakai untuk berhenti di 45 dtk pada `BATCH_OVERNIGHT`. Imbal hasil marginal akhir
+pekan, metrik antar-counterparty, 100% arus.
+
+| Langkah | Tambahan netting | Per detik |
+|---|---|---|
+| 45 ke 60 dtk | +1,51 pp | **0,101 pp/dtk** |
+| 60 ke 90 dtk | +1,52 pp | 0,051 pp/dtk |
+| 90 ke 120 dtk | +0,82 pp | **0,027 pp/dtk** |
+
+`BATCH_OVERNIGHT` berhenti di 45 dtk karena langkah berikutnya hanya bernilai
+0,079 pp/dtk. Ambang yang sama, diterapkan ke akhir pekan, berhenti tepat di 60 dtk.
+Langkah 45 ke 60 masih di atas ambang, langkah 60 ke 90 sudah di bawahnya. Nilai
+lama 120 dtk membayar 60 detik latensi tambahan dengan imbal 0,027 pp/dtk, yaitu
+tiga kali lebih mahal daripada yang sudah ditolak di overnight.
+
+**Kenapa tidak sekalian disamakan 45 dtk dengan overnight.** Akhir pekan satu-satunya
+sesi tanpa Chainlink hidup, dengan cek ketidaksepakatan nonaktif dan price band
+berjangkar ke TWAP (§7.3). Saat dua angka sama-sama dibela data, yang dipilih adalah
+yang menyisakan lebih sedikit volume untuk dirutekan ke venue dengan referensi lebih
+lemah. Selisihnya kecil dan disebut kecil, yaitu 51,77% lawan 50,26%.
+
+Ini juga bukan pertukaran. Turun dari 120 ke 60 dtk **memperbaiki** latensi untuk
+sepertiga arus, dan yang dilepas hanya 2,34 pp netting.
+
+**`BATCH_HOLIDAY` tetap 120 dtk.** Tidak ada pengukuran hari libur sama sekali, dan
+aturan proyek melarang menulis kode yang bergantung pada sesuatu yang belum diukur.
 
 ### ⚠️ Tiga koreksi kejujuran atas angka di atas
 

@@ -40,7 +40,7 @@ Satu layar. Ini produknya.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  BATCH #1,247                          Sesi: WEEKEND  ·  120 dtk │
+│  BATCH #1,247                          Sesi: WEEKEND  ·   60 dtk │
 │  Blok 33.769.192  ·  fork mainnet 4663      [lihat di explorer ↗]│
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
@@ -153,7 +153,7 @@ menunjukkan bahwa kalau salah, salahnya besar.
 ┌──────────────────────────────────────────────────────────────────┐
 │  SEKARANG: WEEKEND        NYSE tutup 61j 12m lagi buka           │
 ├──────────────────────────────────────────────────────────────────┤
-│  Durasi batch      120 dtk    (vs 10 dtk saat OPEN)              │
+│  Durasi batch       60 dtk    (vs 10 dtk saat OPEN)              │
 │  Price band        ±150 bps   `WEEKEND_DRIFT_CAP_BPS` = 1.500    │
 │  Sumber harga      TWAP UniV3 utama · Chainlink = jangkar Jumat  │
 │  Cek ketidaksepakatan   NONAKTIF — feed beku 48–56 jam           │

@@ -20,7 +20,7 @@
 3. SessionManager menentukan: sesi apa sekarang?
    ├─ NYSE OPEN      → batch pendek (10 dtk) atau pass-through
    ├─ OFF_HOURS      → batch 30–60 dtk   ← fokus produk
-   └─ WEEKEND        → batch 120 dtk
+   └─ WEEKEND        → batch 60 dtk
 
 4. Jendela solusi dibuka (±10 dtk)
    └─ Solver bersaing mengajukan Solution ke Settlement

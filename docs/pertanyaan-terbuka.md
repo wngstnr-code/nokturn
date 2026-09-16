@@ -399,7 +399,7 @@ bukan disembunyikan karena tidak nyaman.
 ⚠️ SPCX ($212,9jt, nomor tiga) **tidak** ikut pertanyaan ini: ia tidak punya feed
 sama sekali, dan itu tidak berubah karena volume.
 
-### 🔴 P4-2 · Apakah `BATCH_WEEKEND` masih pantas 120 detik?
+### ✅ P4-2 · TERJAWAB 16 September 2026 — `BATCH_WEEKEND` turun ke 60 detik
 
 **Premis lamanya sudah runtuh.** Alasan tertulis untuk 120 dtk adalah *"arus paling
 jarang, butuh jendela terpanjang."* Data Agustus membatalkannya:
@@ -415,10 +415,16 @@ off-hours hari kerja. Dan imbal hasil menunggu lebih lama tipis: 60 dtk memberi
 netting antar-counterparty 51,77%, 120 dtk memberi 54,11%. **+2,34 pp ditukar dengan
 tambahan 60 detik latensi**, untuk sepertiga dari seluruh arus.
 
-**Kandidat: 120 → 60 dtk.** Belum diterapkan — mengubah konstanta protokol adalah
-keputusan pemilik proyek, bukan konsekuensi otomatis dari satu bulan data di pasar
-yang sedang tumbuh cepat. Yang sudah berubah hari ini hanya **alasannya**: kalau
-120 dtk dipertahankan, alasannya tidak boleh lagi "arus paling jarang".
+**Diterapkan 16 September 2026, keputusan pemilik proyek: 120 dtk turun ke 60 dtk.**
+
+Dasar angkanya adalah ambang imbal hasil marginal yang sudah dipakai untuk berhenti
+di 45 dtk pada `BATCH_OVERNIGHT`, yaitu 0,079 pp/dtk. Di akhir pekan, langkah 45 ke
+60 dtk bernilai 0,101 pp/dtk sehingga masih layak dibayar, sedangkan langkah 60 ke
+90 dtk hanya 0,051 pp/dtk. Nilai lama 120 dtk membayar dengan imbal 0,027 pp/dtk.
+Rincian dan alasan kenapa tidak disamakan 45 dtk ada di `parameter.md` §1B.
+
+`BATCH_HOLIDAY` sengaja tidak ikut turun karena hari libur bursa belum pernah diukur
+sama sekali.
 
 **Terkait:** `WEEKEND_DRIFT_CAP_BPS` = 1.500 dikalibrasi dari drift TSLA 781 bps.
 Pergerakan antar-trade TSLA akhir pekan turun dari p90 950,4 bps (Juli) ke 67,8 bps
