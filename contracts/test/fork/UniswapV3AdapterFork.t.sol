@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Test} from "forge-std/Test.sol";
 import {UniswapV3Adapter} from "../../src/adapters/UniswapV3Adapter.sol";
 import {IUniswapV3Pool} from "../../src/interfaces/IUniswapV3Pool.sol";
+import {ForkFixture} from "../fixtures/ForkFixture.sol";
 
 /// @notice The test that decides whether the savings number means anything. The
 /// baseline has to equal what the real pool would actually pay, to the wei, on the
@@ -24,7 +25,7 @@ contract UniswapV3AdapterForkTest is Test {
     address constant POOL_TSLA_3000 = 0xf4ACdAEEB7022862A763C9B1B885e11191c889E3;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"));
+        ForkFixture.selectMainnet();
         adapter = new UniswapV3Adapter(governor);
         vm.startPrank(governor);
         adapter.setPool(POOL_NVDA_500);

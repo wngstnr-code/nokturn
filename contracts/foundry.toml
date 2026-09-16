@@ -22,8 +22,10 @@ remappings = [
 ]
 
 [rpc_endpoints]
-# drpc serves an archive node for chain 4663 and needs no DNS workaround from
-# Indonesia, unlike the official endpoint. See pertanyaan-terbuka.md.
+# drpc needs no DNS workaround from Indonesia, unlike the official endpoint. It is
+# a full node rather than an archive one, and keeps state for roughly the last 20
+# to 40 thousand blocks, so a pinned block number stops resolving within the hour.
+# See pertanyaan-terbuka.md and test/fixtures/ForkFixture.sol.
 mainnet = "https://robinhood.drpc.org"
 
 [profile.default.fuzz]

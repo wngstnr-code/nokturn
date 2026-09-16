@@ -594,10 +594,46 @@ curl --resolve rpc.mainnet.chain.robinhood.com:443:172.66.147.70 \
 > anvil --fork-url https://robinhood.drpc.org --fork-block-number 64420000
 > ```
 >
-> Fork mainnet berjalan di blok lampau, artinya nodenya archive. Tidak butuh
-> `--resolve`, tidak butuh entri `/etc/hosts`, tidak butuh sudo, tidak butuh VPN.
-> Seluruh pengukuran onchain 16 September 2026 di dokumen ini dan di
-> `parameter.md` §10 dikerjakan lewat jalur itu.
+> Fork mainnet berjalan tanpa `--resolve`, tanpa entri `/etc/hosts`, tanpa sudo,
+> dan tanpa VPN. Seluruh pengukuran onchain 16 September 2026 di dokumen ini dan
+> di `parameter.md` §10 dikerjakan lewat jalur itu.
+>
+> #### Koreksi di hari yang sama, dan kali ini koreksi atas kalimat kami sendiri
+>
+> Kalimat *"nodenya archive"* di versi pertama catatan ini **salah**, dan salahnya
+> karena satu pengamatan diperluas terlalu jauh. Blok 64420000 memang menjawab
+> saat diuji, tapi itu bukan blok lampau, melainkan blok yang saat itu masih
+> berada di dalam jendela state yang disimpan node.
+>
+> Diukur ulang sore itu juga, dengan head di 64658016.
+>
+> | Blok | `eth_call` ke Permit2 |
+> |---|---|
+> | 64640000 | menjawab |
+> | 64620000 | `Unknown state. First available state is 1` |
+> | 64000000 | `Unknown state` |
+> | 1 | `Unknown state` |
+>
+> Jadi endpoint itu **full node dengan jendela state sekitar 20 sampai 40 ribu blok
+> terakhir**, kira-kira 35 sampai 65 menit pada blok 100ms. Pesan error-nya sendiri
+> menyesatkan, karena ia menyebut "first available state is 1" untuk state yang
+> justru tidak tersedia.
+>
+> **Konsekuensinya pada kode, dan ini yang membuat koreksinya penting.** Nomor blok
+> yang dipatok di dalam fork test akan berhenti resolve dalam hitungan jam, bukan
+> bulan. Fork test karena itu mengikuti head lalu mundur 300 blok, lihat
+> `contracts/test/fixtures/ForkFixture.sol`. Mundur sedikit itu perlu karena head
+> bergerak lebih cepat daripada test bisa menarik state darinya, dan endpoint
+> menjawab `Unknown block` untuk blok yang baru saja ia layani sendiri.
+>
+> ⚠️ Kalau nanti butuh state yang benar-benar lampau, misalnya untuk backtest
+> ulang, endpoint ini **tidak bisa dipakai**. Itu kembali ke `curl --resolve` ke
+> endpoint resmi, atau ke penyedia berbayar.
+
+**Pelajaran metodologi yang keenam, dan bentuknya persis sama dengan lima yang
+sudah tercatat.** Satu pengamatan positif, yaitu satu blok yang menjawab, dibaca
+sebagai sifat umum node. Kontrolnya baru dijalankan setengah hari kemudian, dan
+kontrol itulah yang menggugurkannya. Uji batasnya, jangan cuma titik tengahnya.
 >
 > **Yang belum terpecahkan**, dan tetap butuh `curl --resolve`, adalah Blockscout
 > dan domain `rpc.mainnet.chain.robinhood.com` sendiri. Pencegatan DNS-nya masih
