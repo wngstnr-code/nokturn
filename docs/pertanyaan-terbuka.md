@@ -635,15 +635,37 @@ Multicall3 · EntryPoint v0.6 · EntryPoint v0.7 · CreateX
 
 ### ✅ P0-4 — Bagaimana perilaku `uiMultiplier` (ERC-8056)?
 
-**Jawaban: fungsi ada, semua token saat ini bernilai `1e18`** (belum ada
-penyesuaian corporate action).
+**Jawaban 1 Agustus 2026: fungsi ada, semua token saat itu bernilai `1e18`.**
 
 Selector `uiMultiplier()` = `0xa60bf13d`. Terverifikasi pada NVDA, TSLA, AAPL,
 SPY, MSFT, META — semuanya `1000000000000000000`.
 
+> ### Diperbarui 16 September 2026, dan bagian "semuanya 1e18" sudah tidak benar
+>
+> Empat token sudah bergeser. Frekuensinya sekarang **terukur**, bukan lagi
+> "belum pernah terjadi". Tabel lengkap dan konsekuensi implementasinya ada di
+> `parameter.md` §10.1.
+>
+> | Token | Nilai sekarang | Berubah | Waktu New York |
+> |---|---|---|---|
+> | NVDA | 1,000775e18 | 10 Sep | 20:00, bursa tutup |
+> | AAPL | 1,000566e18 | 14 Agu | 11:12, bursa buka |
+> | MSFT | 1,000413e18 | 11 Sep | 11:10, bursa buka |
+> | GOOGL | 1,000194e18 | 15 Sep | 11:10, bursa buka |
+>
+> **Jawaban atas pertanyaan aslinya**, yaitu kapan multiplier berubah relatif
+> terhadap jam bursa. Tiga dari empat perubahan jatuh di tengah sesi `OPEN`
+> sekitar pukul 11:10 waktu New York, dan hanya satu di luar jam bursa. Jadi
+> jebakan ini menyala di sesi paling ramai.
+>
+> **Yang berubah di desain.** Gerbang allowlist tidak boleh lagi menuntut nilai
+> tepat `1e18`, karena gerbang seperti itu menolak NVDA, AAPL, GOOGL, dan MSFT.
+> Gerbang yang benar adalah fungsinya ada, tidak revert, dan nilainya >= 1e18.
+> Pemeriksaan awal lawan settle tetap wajib dan tetap murah, karena
+> perubahannya satu lompatan diskret dan jarang.
+
 **Dampak desain:** desain saat ini berlaku. Pemeriksaan multiplier di awal dan
-saat settle tetap wajib. Frekuensi perubahan belum bisa diukur karena belum
-pernah terjadi sejak mainnet — pantau event `UIMultiplierUpdated`.
+saat settle tetap wajib.
 
 ---
 

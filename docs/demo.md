@@ -132,7 +132,7 @@ Datanya sudah ada hari ini. Tidak menunggu apa pun.
 ├──────────────────────────────────────────────────────────────────┤
 │  NVDA  0xd060…9EEC                                               │
 │   ✅ slot beacon ERC-1967 = 0xe10b…1b00                          │
-│   ✅ uiMultiplier() = 1e18                                       │
+│   ✅ uiMultiplier() = 1,000775e18  (ada, >= 1e18)                │
 │   → LOLOS                                              [cek ↗]   │
 │                                                                  │
 │  "GME"  0xc236…2aff        volume Juli: $29,6jt / 250rb trade    │

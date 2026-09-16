@@ -518,7 +518,35 @@ sesi (dalam rentang keras), tabel kalender, tabel DST, exposure cap, parameter f
 **Cara verifikasi (wajib sebelum menambah token ke allowlist):** baca slot beacon
 ERC-1967 `0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50`.
 Stock Token asli **selalu** menunjuk ke `0xe10b6f6b275de231345c20d14ab812db62151b00`.
-Cek kedua: `uiMultiplier()` (`0xa60bf13d`) harus ada dan bernilai `1e18`.
+Cek kedua: `uiMultiplier()` (`0xa60bf13d`) harus **ada dan tidak revert**, serta
+bernilai **>= 1e18**.
+
+> ### Koreksi 16 September 2026, dibaca langsung dari mainnet
+> Aturan lama berbunyi *"harus bernilai `1e18`"*. Aturan itu **sudah salah dan
+> berbahaya**, karena kalau ditulis apa adanya ke `Deploy.s.sol` ia menolak jangkar
+> allowlist kita sendiri. Nilai terbaca hari ini.
+>
+> | Token | `uiMultiplier()` | Berubah pada | Waktu New York |
+> |---|---|---|---|
+> | **NVDA** | 1,000775159164630595e18 | blok 58958493, 10 Sep | 20:00, bursa tutup |
+> | **AAPL** | 1,000566080061092436e18 | blok 36351132, 14 Agu | **11:12, bursa buka** |
+> | **MSFT** | 1,000412952576205964e18 | blok 60351979, 11 Sep | **11:10, bursa buka** |
+> | **GOOGL** | 1,000193924414112587e18 | blok 63752473, 15 Sep | **11:10, bursa buka** |
+> | TSLA, GME, SPY, SPCX | tepat 1e18 | belum pernah | — |
+>
+> Tiga hal yang terukur dan mengikat implementasi.
+>
+> 1. **Perubahannya satu lompatan diskret, bukan akrual berjalan.** Nilai bertahan
+>    persis di `1e18` selama berminggu-minggu, lalu naik sekali. Jadi pemeriksaan
+>    multiplier di awal dan saat settle tetap murah.
+> 2. **Tiga dari empat perubahan terjadi di tengah sesi `OPEN`**, sekitar 11:10
+>    waktu New York. Jebakan ini menyala di sesi paling ramai, bukan di jam sepi.
+> 3. **Harga pool tidak ikut melompat.** Tick pool NVDA-USDG fee 500 dibaca di
+>    58955000, 58958492, 58958494, dan 58962000 bergerak 222220 ke 222214, yaitu
+>    kebisingan normal, tanpa lompatan di blok perubahan. Besaran perubahan NVDA
+>    77,5 bps, jadi lompatan sebesar itu akan terlihat jelas kalau ada. Konsekuensi
+>    langsung: **jangan pernah mengalikan dengan `uiMultiplier` di jalur akuntansi
+>    atau baseline.** Saldo mentah yang benar, dan multiplier murni lapisan tampilan.
 
 | Token | Alamat | Vol Juli | **Vol Agustus** | Dompet Agu | Allowlist v1.0 |
 |---|---|---|---|---|---|
@@ -672,7 +700,7 @@ Cek kedua: `uiMultiplier()` (`0xa60bf13d`) harus ada dan bernilai `1e18`.
 > | | GME asli `0x1b0e…` | Penyamar `0xc236…` |
 > |---|---|---|
 > | Slot beacon | `0xe10b6f6b…` ✅ | **kosong** |
-> | `uiMultiplier()` | `1e18` ✅ | **tidak ada** |
+> | `uiMultiplier()` | ada, `>= 1e18` ✅ | **tidak ada** |
 > | `totalSupply` | 46.420 | **100.000.000.000** |
 > | Ukuran kode | 283 byte (beacon proxy) | 44 byte (klon minimal) |
 >

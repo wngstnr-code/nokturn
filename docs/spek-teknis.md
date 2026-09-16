@@ -656,7 +656,7 @@ Ringkas hasilnya:
 | Permit2 ter-deploy? | ✅ Ada di mainnet & testnet, sudah dipakai pengguna nyata |
 | Transfer hook bisa gagal? | ✅ **Tidak.** `transfer` & `transferFrom` ke alamat baru berhasil |
 | Feed Chainlink mana? | ✅ 30 feed `DualAggregator`, alamat & cadence terpetakan |
-| Perilaku `uiMultiplier`? | ✅ Ada di semua token, semuanya `1e18` |
+| Perilaku `uiMultiplier`? | ✅ Ada di semua token. ⚠️ Nilainya **tidak** selalu `1e18`, empat token sudah bergeser per 16 Sep 2026 (`parameter.md` §10.1) |
 
 Yang masih terbuka sekarang bersifat **tidak memblokir** — butuh kode (benchmark
 gas), percakapan (mitra, regulasi), atau waktu (kalibrasi dari data mainnet).
