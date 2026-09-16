@@ -80,6 +80,9 @@ struct Solution {
     uint256[] prices;
     Execution[] executions;
     VenueCall[] venueCalls;
+    /// One entry per Execution, parallel to `executions`. Not one per pair: the
+    /// baseline depends on size because of slippage, so a single number per pair
+    /// cannot produce the per intent baselineBuy that IntentSettled carries.
     uint256[] baselineQuotes;
     uint256 claimedSavings;
     address solver;
