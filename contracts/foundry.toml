@@ -18,7 +18,13 @@ fs_permissions = [{ access = "read", path = "../data" }]
 remappings = [
   "forge-std/=lib/forge-std/src/",
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "v4-core/=lib/v4-core/src/",
 ]
+
+[rpc_endpoints]
+# drpc serves an archive node for chain 4663 and needs no DNS workaround from
+# Indonesia, unlike the official endpoint. See pertanyaan-terbuka.md.
+mainnet = "https://robinhood.drpc.org"
 
 [profile.default.fuzz]
 runs = 512
