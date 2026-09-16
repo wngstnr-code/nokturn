@@ -922,6 +922,55 @@ bursa. **Ini memperumit P0-3 dan desain ROO** — token tanpa bursa induk tidak 
 
 ---
 
+## RONDE 6 — feed oracle, diukur ulang 16 September 2026
+
+### P6-1 · Keluarga feed mana yang dipakai `PriceOracle`, dan berapa staleness yang jujur?
+
+**Kenapa ini menentukan arsitektur.** `STALENESS_OPEN` dan `STALENESS_CLOSED` di
+`parameter.md` §7.1 diturunkan dari cadence 24 sampai 31 Juli. Diukur ulang atas
+1 sampai 16 September, angkanya tidak lagi berlaku dan arah kesalahannya berbahaya,
+yaitu nilai yang sekarang tertulis terlalu ketat sehingga token sehat akan dilempar
+ke `PROTECTIVE` di sesi paling ramai.
+
+| Yang berubah | Juli | September |
+|---|---|---|
+| NVDA p95, sesi OPEN | 5.281 dtk | **63.394 dtk** |
+| GOOGL p95, sesi OPEN | tidak diukur | **191.721 dtk** |
+
+**Dan ada dua keluarga feed, bukan satu.** Keluarga `RH*` yang selama ini tercatat,
+dan keluarga bernama polos yang tidak dibaca satu konsumen pun tapi punya heartbeat
+teratur sekitar 2.400 detik dengan p95 sepuluh kali lebih rapat. Harga keduanya
+berselisih 41 bps pada saat yang sama, lebih lebar dari price band `OPEN`.
+
+**Tiga pilihan, dan tidak satu pun boleh dipilih tanpa pengukuran lanjutan.**
+
+1. Tetap di keluarga `RH`, naikkan `STALENESS_OPEN` sampai p95 September. Jujur,
+   tapi berarti harga referensi boleh berumur 17 jam di sesi OPEN.
+2. Pindah ke keluarga polos. p95 jauh lebih rapat, tapi ia mengukur saham biasa,
+   bukan token Robinhood yang benar-benar kita perdagangkan, dan **tidak ada
+   konsumen lain yang memakainya** sehingga tidak ada yang akan memperhatikan
+   kalau ia rusak.
+3. Pakai keduanya, `RH` sebagai referensi dan polos sebagai pemeriksa kedua. Ini
+   menggeser peran TWAP Uniswap V3 dan harus diputuskan bersama §7.3.
+
+**Yang perlu diukur sebelum memilih:** sebaran selisih harga antar keluarga
+sepanjang satu bulan, bukan satu sampel, dan apakah keluarga polos pernah membeku
+lebih lama dari heartbeat-nya.
+
+**Ini tidak memblokir `SessionManager`**, yang tidak menyentuh oracle sama sekali.
+Ia memblokir `PriceOracle`. Alamat lengkap proxy dan aggregator sudah tercatat di
+`parameter.md` §7.1, jadi implementasinya bisa dimulai begitu keluarganya dipilih.
+
+### P6-2 · Apakah allowlist v1.0 masih benar sekarang GOOGL terukur paling buruk?
+
+GOOGL masuk allowlist karena kualitas feed, sementara GME dan SPY ditunda persis
+karena alasan itu. Diukur September, p95 GOOGL di sesi OPEN adalah **191.721 detik**,
+yang terburuk di antara keempat token allowlist dan lebih buruk daripada angka yang
+dulu dipakai untuk menunda GME. Keputusan §7.4 perlu ditinjau dengan data ini,
+bukan dibiarkan berdiri di atas pengukuran Juli.
+
+---
+
 ## RONDE 5 — peta venue lengkap (10 September 2026)
 
 Lahir dari pengukuran 4,9% volume allowlist yang selama ini tidak terpetakan

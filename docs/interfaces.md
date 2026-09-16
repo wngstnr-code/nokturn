@@ -68,7 +68,13 @@ struct Solution {
     uint256[]   prices;        // per token, dalam USDG, 1e18
     Execution[] executions;
     VenueCall[] venueCalls;
-    uint256[]   baselineQuotes; // per pasangan; diverifikasi dgn hitung ulang dari state pool
+    uint256[]   baselineQuotes; // SATU per Execution, sejajar dengan array executions.
+                               // Diverifikasi dengan menghitung ulang dari state pool.
+                               // Dikoreksi 16 September 2026, sebelumnya tertulis
+                               // "per pasangan". Baseline bergantung pada UKURAN
+                               // karena slippage, jadi satu angka per pasangan tidak
+                               // bisa menghasilkan baselineBuy per intent yang
+                               // dituntut event IntentSettled.
     uint256     claimedSavings;
     address     solver;
 }

@@ -19,7 +19,9 @@ contracts/out/
 contracts/cache/
 contracts/broadcast/
 !contracts/broadcast/**/run-latest.json
-contracts/lib/
+# lib is committed as git submodules, the Foundry convention. Verified: with lib
+# ignored, forge install alone does not restore it from foundry.lock and a fresh
+# clone fails to build.
 
 # Stylus and Rust
 verifier/target/

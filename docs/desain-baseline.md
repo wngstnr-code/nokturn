@@ -64,6 +64,28 @@ fee     = f(savings)
 > ia **nilai pembanding** yang menentukan fee. Membulatkannya ke bawah berarti
 > mengklaim penghematan yang tidak terjadi.
 
+> ### Koreksi 16 September 2026, setelah implementasi dan fork test
+>
+> Aturan di atas dan gerbang **nol selisih** di §7.3 tidak bisa benar bersamaan
+> pada keluaran `quoteFromState`, dan yang menang adalah nol selisih.
+>
+> Matematika Uniswap seluruhnya bilangan bulat, jadi `amountOut` sudah eksak.
+> Tidak ada sisa pecahan yang tersisa untuk dibulatkan. Menambahkan pembulatan ke
+> atas berarti baseline selalu satu wei di atas kenyataan, yaitu margin sistematis
+> yang paragraf di atas sendiri melarang, dan fork test nol selisih akan gagal.
+>
+> **Yang berlaku sekarang.** `quoteFromState` mengembalikan angka yang sama persis
+> dengan yang dibayar pool sungguhan, diverifikasi terhadap swap nyata di blok yang
+> sama. Empat kasus sudah hijau pada 16 September 2026, termasuk NVDA dua arah,
+> TSLA dua arah dengan USDG di sisi `token1`, dan satu trade 250.000 USDG yang
+> menyeberangi tick.
+>
+> **Niat §2 tetap terjaga lewat jalur yang berbeda.** Kalau adapter tidak bisa
+> menghitung, ia revert dan batch jatuh ke pass-through dengan fee nol. Ambiguitas
+> tetap berpihak ke pengguna, hanya saja titik penerapannya di kegagalan, bukan di
+> pembulatan. Arah ke atas tetap dipakai kalau kelak baseline diagregasi per
+> pasangan dan agregasi itu melahirkan sisa pecahan.
+
 Konsisten dengan invarian **I8**: baseline yang dibulatkan ke atas membuat
 pemeriksaan `received ≥ baseline` lebih ketat, sehingga batch **lebih mudah** jatuh
 ke pass-through. Ambiguitas selalu berpihak ke pengguna.
