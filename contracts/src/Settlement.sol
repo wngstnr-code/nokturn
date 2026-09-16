@@ -11,13 +11,10 @@ import {ISessionManager} from "./interfaces/ISessionManager.sol";
 import {ISettlement} from "./interfaces/ISettlement.sol";
 import {ISignatureTransfer} from "./interfaces/IPermit2.sol";
 import {ISolverRegistry} from "./interfaces/ISolverRegistry.sol";
+import {IUiMultiplier} from "./interfaces/IUiMultiplier.sol";
 import {IVenueAdapter} from "./interfaces/IVenueAdapter.sol";
 import {IntentLib} from "./libraries/IntentLib.sol";
 import {Execution, Intent, Session, SessionMask, Solution, VenueCall} from "./types/Types.sol";
-
-interface IUiMultiplier {
-    function uiMultiplier() external view returns (uint256);
-}
 
 /// @title Nokturn settlement core
 /// @notice Immutable. No proxy, and no key that can move user funds. Allowlists
