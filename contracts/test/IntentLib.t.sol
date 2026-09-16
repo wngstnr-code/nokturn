@@ -40,6 +40,13 @@ contract IntentLibTest is Test {
         assertTrue(h1 != harness.hash(i));
     }
 
+    function test_digestBindsDomainAndStruct() public pure {
+        bytes32 sep = IntentLib.domainSeparator(4663, address(0xBEEF));
+        bytes32 structHash = keccak256("whatever");
+        bytes32 expected = keccak256(abi.encodePacked(hex"1901", sep, structHash));
+        assertEq(IntentLib.digest(sep, structHash), expected);
+    }
+
     function test_protectiveHasNoSessionBit() public pure {
         assertEq(SessionMask.bit(Session.PROTECTIVE), 0);
         assertEq(SessionMask.bit(Session.OPEN), SessionMask.OPEN);
