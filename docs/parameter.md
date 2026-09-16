@@ -224,6 +224,50 @@ Query Agustus 2026: `8595251` (netting per sesi) · `8595303` (kurva pangsa) ·
 | `CHALLENGE_REWARD` | **50%** bond yang disita | Sisanya ke protokol |
 | `PRINT_MIN_VOLUME` | **1.000 USDG** | Di bawah ini closing print terbit sebagai `insufficient`, **bukan angka menyesatkan** |
 | `PRINT_MIN_PARTICIPANTS` | **5** | Mencegah "lelang" yang isinya satu pihak |
+| `CROSS_BOND` | **500 USDG** | Ditambahkan 16 September 2026. Sisi lawan dari `CHALLENGE_BOND`. Solver yang mengirim cross ikut mempertaruhkan angka yang sama, jadi tantangan tidak pernah gratis di satu sisi saja |
+| `CROSS_DELAY_OPEN` | **300 detik** setelah bel | Sama dengan jendela harga referensi pembukaan. Cross lelang pembukaan baru boleh berjalan setelah referensinya terbentuk, karena tanpa itu ROO tidak punya arti |
+| `MAX_AUCTION_INTENTS` | **256** per lelang | Batas gas. Pencarian harga kliring berbiaya kuadratik terhadap panjang buku, dan buku yang tidak terbatas membuat lelang bisa dimatikan dengan mengisinya |
+| `MAX_CROSS_EXECUTIONS` | **128** per cross | Batas gas untuk penghitungan peserta berbeda, yang juga kuadratik |
+
+### 3.0b Empat keputusan yang lahir saat menulis `AuctionHouse`
+
+> Ditambahkan **16 September 2026**, saat kontraknya ditulis. Keempatnya menutup
+> celah yang tidak terlihat selama desainnya masih berupa dokumen.
+
+**1. Escrow ditarik saat pembekuan, bukan saat commit.** `desain-auction.md` §2.6
+memilih Opsi A dan menyebut jendela freeze sampai cross. Tapi §4 menulis bahwa harga
+indikatif dihitung dari intent yang sudah ter-escrow, padahal harga indikatif terbit
+30 menit sebelum bel dan pembekuan baru terjadi 5 menit sebelumnya. Keduanya tidak
+bisa benar sekaligus. Yang menang adalah `ESCROW_DURATION`, karena ia parameter dan
+karena menahan dana pengguna sepanjang akhir pekan adalah harga yang jauh lebih mahal
+daripada yang hendak dibeli.
+
+Konsekuensinya harus ditulis apa adanya, bukan disamarkan. Harga indikatif selama
+fase pengungkapan berasal dari intent yang **berkomitmen**, bukan yang sudah
+ter-escrow. Angka yang dijamin nyata adalah yang terbit di `AuctionFrozen`, dan itu
+satu-satunya angka yang boleh disebut kredibel. Penarikan escrow lewat Permit2 pada
+saat pembekuan sekaligus menyaring intent yang saldonya sudah pindah, karena
+penarikan yang gagal berarti intent itu gugur dari buku.
+
+**2. Cross lelang pembukaan menunggu 300 detik setelah bel.** Harga referensi
+pembukaan menurut §2.3 adalah TWAP 300 detik pertama sesi `OPEN`. Pada detik bel
+berbunyi, jendela itu belum terisi, jadi cross yang berjalan tepat di bel selalu
+jatuh ke fallback dan ROO kehilangan seluruh maknanya. Cross karena itu baru boleh
+berjalan setelah `CROSS_DELAY_OPEN`. Kalau feed tetap tidak update dua kali dalam
+jendela itu, intent ROO gugur dan escrow-nya kembali penuh, sementara lelang tetap
+berjalan untuk MOO dan LOO dengan harga feed sebagai referensi.
+
+**3. Solver ikut mempertaruhkan bond.** `CHALLENGE_BOND` menghukum penantang yang
+salah. Tanpa sisi lawannya, solver yang mengirim harga buruk tidak menanggung apa
+pun dan penantang jujur membiayai koreksi itu sendirian. `CROSS_BOND` menutup asimetri
+tersebut. Yang kalah kehilangan bond-nya, 50% ke yang menang dan 50% ke protokol,
+persis seperti `CHALLENGE_REWARD` yang sudah tertulis.
+
+**4. Cross v1.0 tidak menyentuh venue.** Sisa imbalance tidak dirutekan ke Uniswap
+dari dalam lelang. Solver yang ingin menyerap sisa itu ikut berkomitmen seperti
+peserta lain dan menanggung risikonya sendiri, yang justru membuat angka imbalance
+di `AuctionFrozen` tetap berarti. Routing venue di dalam cross masuk v1.1, dan itu
+keputusan yang diambil dari pengukuran, bukan dari kekurangan waktu.
 
 ### 3.1 Permukaan baca closing print — konstanta kompatibilitas
 
