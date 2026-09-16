@@ -1,0 +1,5 @@
+IntentLibTest:testFuzz_hashChangesWithNonce(uint256,uint256) (runs: 512, μ: 16165, ~: 16165)
+IntentLibTest:test_domainSeparatorBindsChainAndContract() (gas: 1269)
+IntentLibTest:test_intentHashMatchesIndependentEncoding() (gas: 9346)
+IntentLibTest:test_protectiveHasNoSessionBit() (gas: 1162)
+IntentLibTest:test_typehashIsFrozen() (gas: 245)
