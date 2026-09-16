@@ -1,0 +1,78 @@
+name: contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "contracts/**"
+      - "packages/shared/**"
+      - ".github/workflows/contracts.yml"
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      # lib/ is gitignored by design, so dependencies are restored from
+      # foundry.lock, which pins the exact revision of each one.
+      - run: forge install
+      - run: forge fmt --check
+      - run: forge build --sizes
+      - run: forge test -vvv
+      - name: coverage gate, 95 percent lines on core contracts
+        run: |
+          forge coverage --report summary --no-match-coverage "(test|script)" > coverage.txt || true
+          cat coverage.txt
+          ./tools/coverage-gate.sh coverage.txt
+      - name: gas snapshot is committed and current
+        # Default profile on purpose. The ci profile runs more fuzz iterations, which
+        # moves the mean gas and would make the snapshot fail for no real reason.
+        run: FOUNDRY_PROFILE=default forge snapshot --check
+      - name: storage layout is committed and current
+        run: |
+          ./tools/storage-layout.sh
+          git diff --exit-code storage-layout.txt
+      - name: shared abi is committed and current
+        run: |
+          ./tools/export-abi.sh
+          git diff --exit-code ../packages/shared/abi
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: slither, zero high findings
+        uses: crytic/slither-action@v0.4.0
+        with:
+          target: contracts/
+          fail-on: high
+          slither-args: --exclude-dependencies
+      - name: aderyn, zero high findings
+        run: |
+          curl -L https://raw.githubusercontent.com/Cyfrin/aderyn/dev/cyfrinup/install | bash
+          export PATH="$HOME/.cyfrin/bin:$PATH"
+          cyfrinup
+          aderyn contracts/ --output report.json
+          python3 - <<'PY'
+          import json, sys
+          high = json.load(open("report.json")).get("high_issues", {}).get("issues", [])
+          if high:
+              print(f"{len(high)} high severity findings")
+              for i in high:
+                  print(" -", i.get("title"))
+              sys.exit(1)
+          print("zero high severity findings")
+          PY
