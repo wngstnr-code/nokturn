@@ -163,6 +163,42 @@ contract SessionManagerTest is Test {
         manager.reportHealthy(address(0xBEEF));
     }
 
+    function test_currentSessionReadsTheClock() public {
+        vm.warp(DAY_OPEN + 60);
+        assertEq(uint8(manager.currentSession()), uint8(Session.OPEN));
+        vm.warp(DAY_OPEN + 40_000);
+        assertEq(uint8(manager.currentSession()), uint8(Session.CLOSED_OVERNIGHT));
+    }
+
+    /// A run of holidays still ends at the weekend, because the weekend is checked
+    /// before the calendar. A three day weekend is the common case of this and it
+    /// has to widen the band, so the ordering is load bearing rather than cosmetic.
+    function test_weekendOutranksAHolidayRun() public {
+        SessionManager stuck = new SessionManager(governor);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint32 firstDay = uint32(DAY_OPEN / 1 days);
+
+        uint32[] memory dates = new uint32[](30);
+        uint8[] memory kinds = new uint8[](30);
+        uint32[] memory closes = new uint32[](30);
+        for (uint32 i = 0; i < 30; ++i) {
+            dates[i] = firstDay + i;
+            kinds[i] = 1;
+        }
+
+        vm.startPrank(governor);
+        stuck.setDstBoundaries(CalendarFixture.loadDst());
+        stuck.setCalendarEntries(dates, kinds, closes);
+        vm.stopPrank();
+
+        assertEq(uint8(stuck.sessionAt(DAY_OPEN)), uint8(Session.HOLIDAY));
+
+        uint64 next = stuck.nextTransition(DAY_OPEN);
+        assertEq(uint8(stuck.sessionAt(next)), uint8(Session.CLOSED_WEEKEND));
+        assertEq(uint8(stuck.sessionAt(next - 1)), uint8(Session.HOLIDAY));
+        assertEq(stuck.batchDuration(Session.CLOSED_WEEKEND), 60);
+    }
+
     function test_onlyGovernorMovesTheTables() public {
         uint64[] memory b = new uint64[](1);
         b[0] = 1;
