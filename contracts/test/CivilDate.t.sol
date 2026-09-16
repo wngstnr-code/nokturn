@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.28;
+
+import {Test} from "forge-std/Test.sol";
+import {CivilDate} from "../src/libraries/CivilDate.sol";
+
+contract CivilDateHarness {
+    function toDayIndex(uint32 ymd) external pure returns (uint32) {
+        return CivilDate.toDayIndex(ymd);
+    }
+}
+
+contract CivilDateTest is Test {
+    CivilDateHarness internal harness = new CivilDateHarness();
+
+    string internal constant SESSIONS_PATH = "../data/nyse-calendar/nyse-sessions.csv";
+    uint32 internal constant FIRST_DAY_INDEX = 18_262; // 2020-01-01
+
+    /// Walks every row of the committed calendar, which is one row per day from
+    /// 2020-01-01 to 2035-12-31. The row number is the day index and the first
+    /// column is the date, so the file is a ready made table of expected answers
+    /// that nobody on this project wrote by hand.
+    function test_matchesEveryDayInTheCommittedCalendar() public view {
+        string[] memory lines = _lines(vm.readFile(SESSIONS_PATH));
+        uint32 n = 0;
+        for (uint256 i = 1; i < lines.length; ++i) {
+            string[] memory cols = vm.split(lines[i], ",");
+            if (cols.length < 8) continue;
+
+            uint32 dayIndex = FIRST_DAY_INDEX + n;
+            uint32 expected = _ymd(cols[0]);
+            assertEq(CivilDate.toYmd(dayIndex), expected, cols[0]);
+            assertEq(CivilDate.toDayIndex(expected), dayIndex, cols[0]);
+            n++;
+        }
+        assertEq(n, 5844, "the calendar covers sixteen years");
+    }
+
+    function test_leapDayAndCenturyRulesHold() public pure {
+        assertEq(CivilDate.toYmd(CivilDate.toDayIndex(20_240_229)), 20_240_229);
+        assertEq(CivilDate.toDayIndex(20_240_301) - CivilDate.toDayIndex(20_240_229), 1);
+        // 2100 is not a leap year, so the day after 28 February is 1 March.
+        assertEq(CivilDate.toDayIndex(21_000_301) - CivilDate.toDayIndex(21_000_228), 1);
+        // 2000 is, because the four hundred year rule wins over the hundred year one.
+        assertEq(CivilDate.toDayIndex(20_000_301) - CivilDate.toDayIndex(20_000_228), 2);
+    }
+
+    function test_rejectsDatesThatDoNotExist() public {
+        vm.expectRevert(abi.encodeWithSelector(CivilDate.DateOutOfRange.selector, uint32(20_260_231)));
+        harness.toDayIndex(20_260_231);
+
+        vm.expectRevert(abi.encodeWithSelector(CivilDate.DateOutOfRange.selector, uint32(20_260_000)));
+        harness.toDayIndex(20_260_000);
+
+        vm.expectRevert(abi.encodeWithSelector(CivilDate.DateOutOfRange.selector, uint32(20_261_301)));
+        harness.toDayIndex(20_261_301);
+    }
+
+    function testFuzz_roundTripsOverTheProtocolLifetime(uint32 dayIndex) public pure {
+        dayIndex = uint32(bound(dayIndex, 0, 60_000)); // 1970 to 2134
+        assertEq(CivilDate.toDayIndex(CivilDate.toYmd(dayIndex)), dayIndex);
+    }
+
+    function _ymd(string memory date) internal pure returns (uint32) {
+        string[] memory parts = vm.split(date, "-");
+        return uint32(vm.parseUint(parts[0]) * 10_000 + vm.parseUint(parts[1]) * 100 + vm.parseUint(parts[2]));
+    }
+
+    function _lines(string memory file) internal pure returns (string[] memory) {
+        return vm.split(file, "\n");
+    }
+}
