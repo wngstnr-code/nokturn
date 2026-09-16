@@ -512,6 +512,43 @@ sesi (dalam rentang keras), tabel kalender, tabel DST, exposure cap, parameter f
 | Pool GME-USDG UniV3 (fee 10000) — ✅ berisi GME **asli** | `0xE9713F453ADB9245B19559790C96F470A18F2FDF` |
 | Uniswap V4 PoolManager — memegang **$31,3jt** sisi Stock Token (§10.3) | `0x8366A39CC670B4001A1121B8F6A443A643E40951` |
 | ArcusSettlement | `0x006102B16A04C20306A28B652745D3973D7D24FA` |
+| **Uniswap V3 factory yang benar-benar dipakai** | `0x1f7d7550B1b028f7571E69A784071F0205FD2EfA` |
+
+> ### Factory dan pool allowlist, diverifikasi 16 September 2026
+>
+> **Alamat factory kanonik Uniswap `0x1F98431c…` bukan factory di chain ini.**
+> Kontrak di alamat itu memang ada, tapi tidak menjawab `getPool` maupun `owner`,
+> jadi ia bukan `UniswapV3Factory`. Catatan lama di `pertanyaan-terbuka.md` P2-6
+> yang menyebutnya "Uniswap V3 factory" hanya mengukur ukuran kode, bukan identitas.
+> Factory yang benar-benar membuat pool stock token adalah `0x1f7d7550…`, dibaca
+> dari `factory()` pada pool NVDA dan dikonfirmasi lewat `feeAmountTickSpacing(500)`
+> yang mengembalikan 10, sama dengan Uniswap V3 standar.
+>
+> Ini memperkuat, bukan mengubah, keputusan **adapter agnostik terhadap factory**
+> di `CLAUDE.md` §2 aturan 4. Alamat factory tidak boleh di-hardcode.
+>
+> | Token | Fee | Pool | `token0` | `liquidity` | `tickSpacing` | Cardinality |
+> |---|---|---|---|---|---|---|
+> | **NVDA** | 500 | `0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3` | **USDG** | 1,32e19 | 10 | 6.000 |
+> | **AAPL** | 500 | `0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D` | **USDG** | 1,41e18 | 10 | 1.801 |
+> | **TSLA** | **3000** | `0xf4ACdAEEB7022862A763C9B1B885e11191c889E3` | **TSLA** | 8,85e17 | 60 | 1.801 |
+> | **GOOGL** | 500 | `0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7` | **GOOGL** | 5,65e18 | 10 | 1.801 |
+>
+> Pool lain yang ada tapi tidak dipilih: NVDA fee 100 dan 10000 (likuiditas nol),
+> NVDA fee 3000 `0xB944cec3…`, AAPL fee 3000 `0x783C9bbB…` dan 10000 `0x3714aa81…`,
+> TSLA fee 500 `0xc4f0172D…` dan 10000 `0xB349FB08…`, GOOGL fee 3000 `0x553e9a45…`.
+>
+> **Tiga hal yang mengikat implementasi adapter.**
+>
+> 1. **TSLA satu-satunya yang kedalamannya ada di fee 3000, bukan 500.** Likuiditas
+>    fee 3000 dua belas kali lipat fee 500. Adapter tidak boleh mengunci satu fee
+>    tier, dan pilihan pool per pasangan masuk allowlist.
+> 2. **Urutan token benar-benar tidak konsisten, sekarang terbukti bukan dugaan.**
+>    USDG ada di `token0` untuk NVDA dan AAPL, tapi di `token1` untuk TSLA dan
+>    GOOGL. `zeroForOne` wajib diturunkan dari `token0()`, persis seperti
+>    `desain-baseline.md` §3.1 memperingatkan.
+> 3. **Cardinality pool selain NVDA adalah 1.801, bukan 1.500** seperti tercatat
+>    sebelumnya. `TWAP_WINDOW` 1.800 detik tetap aman.
 
 ### 10.1 Alamat Stock Token — terverifikasi lewat beacon
 

@@ -267,6 +267,11 @@ Dua dari tiga program yang ada masing-masing cuma dipanggil 1–2 kali.
 
 Jendela TWAP 30 menit tercakup dengan sangat longgar. Desain dual-source aman.
 
+> **Diukur ulang 16 September 2026 pada pool allowlist v1.0**, karena tabel di atas
+> memuat GME dan SPCX yang tidak masuk allowlist. Pool AAPL fee 500, TSLA fee 3000,
+> dan GOOGL fee 500 semuanya bercardinality **1.801**, sedangkan NVDA fee 500 tetap
+> 6.000. Alamat pool lengkap ada di `parameter.md` §10.
+
 ---
 
 ### ✅ P1-6 — Stock Token mendukung EIP-2612 `permit`
