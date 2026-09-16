@@ -3,6 +3,8 @@ name: contracts
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "0 3 * * *"
   pull_request:
     paths:
       - "contracts/**"
@@ -25,14 +27,22 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge fmt --check
       - run: forge build --sizes
-      - run: forge test -vvv
+      # Fork tests need a live archive node and belong to the nightly job, where a
+      # flaky endpoint cannot block a pull request.
+      - run: forge test -vvv --no-match-path "test/fork/*"
       - name: coverage gate, 95 percent lines on core contracts
         run: |
           # --ir-minimum because coverage disables the IR pipeline, and the
-          # clearing verifier needs it to compile at all.
-          forge coverage --ir-minimum --report summary --no-match-coverage "(test|script)" > coverage.txt || true
-          cat coverage.txt
-          ./tools/coverage-gate.sh coverage.txt
+          # clearing verifier needs it to compile at all. No "|| true" here: a
+          # coverage run that dies would leave an empty file that the gate reads
+          # as nothing to complain about, which is the same failure the storage
+          # layout gate already had once.
+          forge coverage --ir-minimum --report summary --no-match-coverage "(test|script)" \
+            --no-match-path "test/fork/*" | tee coverage.txt
+          # The adapter reads live pool state, so it has no coverage without a fork.
+          # It is skipped here by name and enforced in the nightly fork job, rather
+          # than quietly dropped from the threshold.
+          ./tools/coverage-gate.sh coverage.txt UniswapV3Adapter
       - name: gas snapshot is committed and current
         # Default profile on purpose. The ci profile runs more fuzz iterations, which
         # moves the mean gas and would make the snapshot fail for no real reason.
@@ -75,3 +85,25 @@ jobs:
               sys.exit(1)
           print("zero high severity findings")
           PY
+
+  fork:
+    # Nightly, per rencana-uji.md section 9. The zero difference test is what makes
+    # the savings number mean anything, so a failure here is a release blocker even
+    # though it does not gate a pull request.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: fork tests against mainnet 4663
+        run: forge test --match-path "test/fork/*" -vv
+
+      - name: coverage gate on the adapter, which only a fork can reach
+        run: |
+          forge coverage --ir-minimum --report summary --no-match-coverage "(test|script)" | tee coverage.txt
+          ./tools/coverage-gate.sh coverage.txt
