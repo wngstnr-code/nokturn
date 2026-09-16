@@ -18,8 +18,8 @@
 | `BATCH_PRE_MARKET` | **30 dtk** | Likuiditas mulai menipis |
 | `BATCH_POST_MARKET` | **30 dtk** | Sama seperti pre-market |
 | `BATCH_OVERNIGHT` | **45 dtk** | **Dikalibrasi ulang dari backtest netting Agustus 2026** — lihat §1B. Pada metrik antar-counterparty, 45 dtk menangkap **90,2%** netting yang tersedia di 300 dtk dengan **15%** latensinya. Lututnya ada di 20–30 dtk; 45 dtk duduk di sisi datar |
-| `BATCH_WEEKEND` | **120 dtk** 🔴 | ⚠️ **Premis lama runtuh — lihat §1B.** Akhir pekan bukan lagi sesi paling tipis: 33,2% seluruh trade, dan 8,01 pedagang/batch di 45 dtk (lebih ramai dari off-hours hari kerja). **Kandidat revisi ke 60 dtk, menunggu keputusan pemilik.** Kalau 120 dtk dipertahankan, alasannya harus diganti |
-| `BATCH_HOLIDAY` | **120 dtk** | Sama seperti akhir pekan |
+| `BATCH_WEEKEND` | **60 dtk** | **Diturunkan dari 120 dtk pada 16 September 2026.** Premis lama, yaitu "arus paling jarang", terbantah data Agustus. Angka baru memakai ambang imbal hasil marginal yang sama dengan `BATCH_OVERNIGHT`. Langkah 45 ke 60 dtk bernilai 0,101 pp/dtk, langkah 60 ke 90 dtk hanya 0,051 pp/dtk. Lihat §1B |
+| `BATCH_HOLIDAY` | **120 dtk** | **Sengaja tidak ikut turun.** Tidak ada satu pun pengukuran untuk hari libur bursa, jadi nilai konservatif dipertahankan dan durasi adaptif yang mempersempitnya kalau arus ternyata tebal |
 | `BATCH_PROTECTIVE` | **180 dtk** | Perlambat saat keadaan tidak dapat dipercaya |
 | `BATCH_ADAPTIVE_MIN` | **20 dtk** | Batas bawah saat arus tebal |
 | `BATCH_ADAPTIVE_MAX` | **180 dtk** | Batas atas saat arus tipis |
@@ -73,7 +73,7 @@ menebal, `BATCH_ADAPTIVE_MIN` = 20 dtk akan sering tersentuh, dan itu memang per
 yang diinginkan. Jangan memperpendek nilai dasarnya karena satu bulan data di pasar
 yang sedang tumbuh cepat — biarkan mekanisme adaptif yang menurunkannya.
 
-### 🔴 `BATCH_WEEKEND` = 120 dtk — premisnya runtuh, butuh keputusan
+### `BATCH_WEEKEND` diturunkan 120 dtk ke 60 dtk (16 September 2026)
 
 Alasan yang tertulis untuk 120 dtk adalah *"arus paling jarang, butuh jendela
 terpanjang untuk menemukan pasangan."* **Data Agustus membatalkan premis itu:**
@@ -89,10 +89,35 @@ lebih ramai daripada off-hours hari kerja. Dan imbal hasil dari menunggu lebih l
 tipis: 60 dtk memberi 51,77%, 120 dtk memberi 54,11%, jadi **+2,34 pp ditukar dengan
 tambahan 60 detik latensi** untuk sepertiga dari seluruh arus.
 
-**Kandidat revisi: `BATCH_WEEKEND` 120 → 60 dtk.** Belum diterapkan — mengubah
-konstanta protokol adalah keputusan pemilik proyek, bukan konsekuensi otomatis dari
-satu bulan data. Yang berubah hari ini hanya **alasannya**: kalau 120 dtk
-dipertahankan, alasannya tidak boleh lagi "arus paling jarang", karena itu tidak benar.
+**Keputusan 16 September 2026: `BATCH_WEEKEND` 120 dtk turun ke 60 dtk.**
+
+Angkanya tidak dipilih dari selera, melainkan dari ambang yang dokumen ini sudah
+pakai untuk berhenti di 45 dtk pada `BATCH_OVERNIGHT`. Imbal hasil marginal akhir
+pekan, metrik antar-counterparty, 100% arus.
+
+| Langkah | Tambahan netting | Per detik |
+|---|---|---|
+| 45 ke 60 dtk | +1,51 pp | **0,101 pp/dtk** |
+| 60 ke 90 dtk | +1,52 pp | 0,051 pp/dtk |
+| 90 ke 120 dtk | +0,82 pp | **0,027 pp/dtk** |
+
+`BATCH_OVERNIGHT` berhenti di 45 dtk karena langkah berikutnya hanya bernilai
+0,079 pp/dtk. Ambang yang sama, diterapkan ke akhir pekan, berhenti tepat di 60 dtk.
+Langkah 45 ke 60 masih di atas ambang, langkah 60 ke 90 sudah di bawahnya. Nilai
+lama 120 dtk membayar 60 detik latensi tambahan dengan imbal 0,027 pp/dtk, yaitu
+tiga kali lebih mahal daripada yang sudah ditolak di overnight.
+
+**Kenapa tidak sekalian disamakan 45 dtk dengan overnight.** Akhir pekan satu-satunya
+sesi tanpa Chainlink hidup, dengan cek ketidaksepakatan nonaktif dan price band
+berjangkar ke TWAP (§7.3). Saat dua angka sama-sama dibela data, yang dipilih adalah
+yang menyisakan lebih sedikit volume untuk dirutekan ke venue dengan referensi lebih
+lemah. Selisihnya kecil dan disebut kecil, yaitu 51,77% lawan 50,26%.
+
+Ini juga bukan pertukaran. Turun dari 120 ke 60 dtk **memperbaiki** latensi untuk
+sepertiga arus, dan yang dilepas hanya 2,34 pp netting.
+
+**`BATCH_HOLIDAY` tetap 120 dtk.** Tidak ada pengukuran hari libur sama sekali, dan
+aturan proyek melarang menulis kode yang bergantung pada sesuatu yang belum diukur.
 
 ### ⚠️ Tiga koreksi kejujuran atas angka di atas
 
@@ -487,13 +512,78 @@ sesi (dalam rentang keras), tabel kalender, tabel DST, exposure cap, parameter f
 | Pool GME-USDG UniV3 (fee 10000) — ✅ berisi GME **asli** | `0xE9713F453ADB9245B19559790C96F470A18F2FDF` |
 | Uniswap V4 PoolManager — memegang **$31,3jt** sisi Stock Token (§10.3) | `0x8366A39CC670B4001A1121B8F6A443A643E40951` |
 | ArcusSettlement | `0x006102B16A04C20306A28B652745D3973D7D24FA` |
+| **Uniswap V3 factory yang benar-benar dipakai** | `0x1f7d7550B1b028f7571E69A784071F0205FD2EfA` |
+
+> ### Factory dan pool allowlist, diverifikasi 16 September 2026
+>
+> **Alamat factory kanonik Uniswap `0x1F98431c…` bukan factory di chain ini.**
+> Kontrak di alamat itu memang ada, tapi tidak menjawab `getPool` maupun `owner`,
+> jadi ia bukan `UniswapV3Factory`. Catatan lama di `pertanyaan-terbuka.md` P2-6
+> yang menyebutnya "Uniswap V3 factory" hanya mengukur ukuran kode, bukan identitas.
+> Factory yang benar-benar membuat pool stock token adalah `0x1f7d7550…`, dibaca
+> dari `factory()` pada pool NVDA dan dikonfirmasi lewat `feeAmountTickSpacing(500)`
+> yang mengembalikan 10, sama dengan Uniswap V3 standar.
+>
+> Ini memperkuat, bukan mengubah, keputusan **adapter agnostik terhadap factory**
+> di `CLAUDE.md` §2 aturan 4. Alamat factory tidak boleh di-hardcode.
+>
+> | Token | Fee | Pool | `token0` | `liquidity` | `tickSpacing` | Cardinality |
+> |---|---|---|---|---|---|---|
+> | **NVDA** | 500 | `0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3` | **USDG** | 1,32e19 | 10 | 6.000 |
+> | **AAPL** | 500 | `0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D` | **USDG** | 1,41e18 | 10 | 1.801 |
+> | **TSLA** | **3000** | `0xf4ACdAEEB7022862A763C9B1B885e11191c889E3` | **TSLA** | 8,85e17 | 60 | 1.801 |
+> | **GOOGL** | 500 | `0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7` | **GOOGL** | 5,65e18 | 10 | 1.801 |
+>
+> Pool lain yang ada tapi tidak dipilih: NVDA fee 100 dan 10000 (likuiditas nol),
+> NVDA fee 3000 `0xB944cec3…`, AAPL fee 3000 `0x783C9bbB…` dan 10000 `0x3714aa81…`,
+> TSLA fee 500 `0xc4f0172D…` dan 10000 `0xB349FB08…`, GOOGL fee 3000 `0x553e9a45…`.
+>
+> **Tiga hal yang mengikat implementasi adapter.**
+>
+> 1. **TSLA satu-satunya yang kedalamannya ada di fee 3000, bukan 500.** Likuiditas
+>    fee 3000 dua belas kali lipat fee 500. Adapter tidak boleh mengunci satu fee
+>    tier, dan pilihan pool per pasangan masuk allowlist.
+> 2. **Urutan token benar-benar tidak konsisten, sekarang terbukti bukan dugaan.**
+>    USDG ada di `token0` untuk NVDA dan AAPL, tapi di `token1` untuk TSLA dan
+>    GOOGL. `zeroForOne` wajib diturunkan dari `token0()`, persis seperti
+>    `desain-baseline.md` §3.1 memperingatkan.
+> 3. **Cardinality pool selain NVDA adalah 1.801, bukan 1.500** seperti tercatat
+>    sebelumnya. `TWAP_WINDOW` 1.800 detik tetap aman.
 
 ### 10.1 Alamat Stock Token — terverifikasi lewat beacon
 
 **Cara verifikasi (wajib sebelum menambah token ke allowlist):** baca slot beacon
 ERC-1967 `0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50`.
 Stock Token asli **selalu** menunjuk ke `0xe10b6f6b275de231345c20d14ab812db62151b00`.
-Cek kedua: `uiMultiplier()` (`0xa60bf13d`) harus ada dan bernilai `1e18`.
+Cek kedua: `uiMultiplier()` (`0xa60bf13d`) harus **ada dan tidak revert**, serta
+bernilai **>= 1e18**.
+
+> ### Koreksi 16 September 2026, dibaca langsung dari mainnet
+> Aturan lama berbunyi *"harus bernilai `1e18`"*. Aturan itu **sudah salah dan
+> berbahaya**, karena kalau ditulis apa adanya ke `Deploy.s.sol` ia menolak jangkar
+> allowlist kita sendiri. Nilai terbaca hari ini.
+>
+> | Token | `uiMultiplier()` | Berubah pada | Waktu New York |
+> |---|---|---|---|
+> | **NVDA** | 1,000775159164630595e18 | blok 58958493, 10 Sep | 20:00, bursa tutup |
+> | **AAPL** | 1,000566080061092436e18 | blok 36351132, 14 Agu | **11:12, bursa buka** |
+> | **MSFT** | 1,000412952576205964e18 | blok 60351979, 11 Sep | **11:10, bursa buka** |
+> | **GOOGL** | 1,000193924414112587e18 | blok 63752473, 15 Sep | **11:10, bursa buka** |
+> | TSLA, GME, SPY, SPCX | tepat 1e18 | belum pernah | — |
+>
+> Tiga hal yang terukur dan mengikat implementasi.
+>
+> 1. **Perubahannya satu lompatan diskret, bukan akrual berjalan.** Nilai bertahan
+>    persis di `1e18` selama berminggu-minggu, lalu naik sekali. Jadi pemeriksaan
+>    multiplier di awal dan saat settle tetap murah.
+> 2. **Tiga dari empat perubahan terjadi di tengah sesi `OPEN`**, sekitar 11:10
+>    waktu New York. Jebakan ini menyala di sesi paling ramai, bukan di jam sepi.
+> 3. **Harga pool tidak ikut melompat.** Tick pool NVDA-USDG fee 500 dibaca di
+>    58955000, 58958492, 58958494, dan 58962000 bergerak 222220 ke 222214, yaitu
+>    kebisingan normal, tanpa lompatan di blok perubahan. Besaran perubahan NVDA
+>    77,5 bps, jadi lompatan sebesar itu akan terlihat jelas kalau ada. Konsekuensi
+>    langsung: **jangan pernah mengalikan dengan `uiMultiplier` di jalur akuntansi
+>    atau baseline.** Saldo mentah yang benar, dan multiplier murni lapisan tampilan.
 
 | Token | Alamat | Vol Juli | **Vol Agustus** | Dompet Agu | Allowlist v1.0 |
 |---|---|---|---|---|---|
@@ -647,7 +737,7 @@ Cek kedua: `uiMultiplier()` (`0xa60bf13d`) harus ada dan bernilai `1e18`.
 > | | GME asli `0x1b0e…` | Penyamar `0xc236…` |
 > |---|---|---|
 > | Slot beacon | `0xe10b6f6b…` ✅ | **kosong** |
-> | `uiMultiplier()` | `1e18` ✅ | **tidak ada** |
+> | `uiMultiplier()` | ada, `>= 1e18` ✅ | **tidak ada** |
 > | `totalSupply` | 46.420 | **100.000.000.000** |
 > | Ukuran kode | 283 byte (beacon proxy) | 44 byte (klon minimal) |
 >

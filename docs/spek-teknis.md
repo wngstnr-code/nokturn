@@ -20,7 +20,7 @@
 3. SessionManager menentukan: sesi apa sekarang?
    ├─ NYSE OPEN      → batch pendek (10 dtk) atau pass-through
    ├─ OFF_HOURS      → batch 30–60 dtk   ← fokus produk
-   └─ WEEKEND        → batch 120 dtk
+   └─ WEEKEND        → batch 60 dtk
 
 4. Jendela solusi dibuka (±10 dtk)
    └─ Solver bersaing mengajukan Solution ke Settlement
@@ -656,7 +656,7 @@ Ringkas hasilnya:
 | Permit2 ter-deploy? | ✅ Ada di mainnet & testnet, sudah dipakai pengguna nyata |
 | Transfer hook bisa gagal? | ✅ **Tidak.** `transfer` & `transferFrom` ke alamat baru berhasil |
 | Feed Chainlink mana? | ✅ 30 feed `DualAggregator`, alamat & cadence terpetakan |
-| Perilaku `uiMultiplier`? | ✅ Ada di semua token, semuanya `1e18` |
+| Perilaku `uiMultiplier`? | ✅ Ada di semua token. ⚠️ Nilainya **tidak** selalu `1e18`, empat token sudah bergeser per 16 Sep 2026 (`parameter.md` §10.1) |
 
 Yang masih terbuka sekarang bersifat **tidak memblokir** — butuh kode (benchmark
 gas), percakapan (mitra, regulasi), atau waktu (kalibrasi dari data mainnet).

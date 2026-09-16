@@ -163,7 +163,7 @@ harga jauh lebih baik daripada lima puluh transaksi kecil.
    diuji. Ini yang menetapkan durasi batch, lebar band, cap, dan sumber harga.
 1. **User menandatangani "niat", bukan transaksi.** Gasless. Dana tetap di dompetnya.
 2. **Niat dikumpulkan** selama jendela sesi — 10 dtk saat bursa buka, 45 dtk
-   overnight, 120 dtk akhir pekan.
+   overnight, 60 dtk akhir pekan.
 3. **Yang saling menutup dieksekusi di harga kliring seragam** — nol spread,
    nol biaya AMM, tidak ada keunggulan urutan yang bisa dipanen.
 4. **Sisa imbalance dirutekan** ke Uniswap V3 sebagai satu order agregat.

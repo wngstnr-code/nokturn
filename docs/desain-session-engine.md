@@ -112,7 +112,7 @@ Inilah yang membuat "struktur pasar berubah mengikuti keadaan pasar" jadi konkre
 | `PRE_MARKET` | 30 dtk | Sedang (~60 bps) | — | Sedang |
 | `POST_MARKET` | 30 dtk | Sedang (~60 bps) | — | Sedang |
 | `CLOSED_OVERNIGHT` | 30–60 dtk | Lebar (~100 bps) | — | Sedang |
-| `CLOSED_WEEKEND` | 120 dtk | Paling lebar (~150 bps) | — | Diturunkan |
+| `CLOSED_WEEKEND` | 60 dtk | Paling lebar (~150 bps) | — | Diturunkan |
 | `AUCTION_OPEN` | fase lelang | Collar + perpanjangan | ✅ | Khusus |
 | `AUCTION_CLOSE` | fase lelang | Collar + perpanjangan | ✅ | Khusus |
 | `HOLIDAY` | 120 dtk | Paling lebar | — | Diturunkan |

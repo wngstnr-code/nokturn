@@ -40,7 +40,7 @@ Satu layar. Ini produknya.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  BATCH #1,247                          Sesi: WEEKEND  ·  120 dtk │
+│  BATCH #1,247                          Sesi: WEEKEND  ·   60 dtk │
 │  Blok 33.769.192  ·  fork mainnet 4663      [lihat di explorer ↗]│
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
@@ -132,7 +132,7 @@ Datanya sudah ada hari ini. Tidak menunggu apa pun.
 ├──────────────────────────────────────────────────────────────────┤
 │  NVDA  0xd060…9EEC                                               │
 │   ✅ slot beacon ERC-1967 = 0xe10b…1b00                          │
-│   ✅ uiMultiplier() = 1e18                                       │
+│   ✅ uiMultiplier() = 1,000775e18  (ada, >= 1e18)                │
 │   → LOLOS                                              [cek ↗]   │
 │                                                                  │
 │  "GME"  0xc236…2aff        volume Juli: $29,6jt / 250rb trade    │
@@ -153,7 +153,7 @@ menunjukkan bahwa kalau salah, salahnya besar.
 ┌──────────────────────────────────────────────────────────────────┐
 │  SEKARANG: WEEKEND        NYSE tutup 61j 12m lagi buka           │
 ├──────────────────────────────────────────────────────────────────┤
-│  Durasi batch      120 dtk    (vs 10 dtk saat OPEN)              │
+│  Durasi batch       60 dtk    (vs 10 dtk saat OPEN)              │
 │  Price band        ±150 bps   `WEEKEND_DRIFT_CAP_BPS` = 1.500    │
 │  Sumber harga      TWAP UniV3 utama · Chainlink = jangkar Jumat  │
 │  Cek ketidaksepakatan   NONAKTIF — feed beku 48–56 jam           │

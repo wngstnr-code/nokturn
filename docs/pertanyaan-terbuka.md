@@ -267,6 +267,11 @@ Dua dari tiga program yang ada masing-masing cuma dipanggil 1–2 kali.
 
 Jendela TWAP 30 menit tercakup dengan sangat longgar. Desain dual-source aman.
 
+> **Diukur ulang 16 September 2026 pada pool allowlist v1.0**, karena tabel di atas
+> memuat GME dan SPCX yang tidak masuk allowlist. Pool AAPL fee 500, TSLA fee 3000,
+> dan GOOGL fee 500 semuanya bercardinality **1.801**, sedangkan NVDA fee 500 tetap
+> 6.000. Alamat pool lengkap ada di `parameter.md` §10.
+
 ---
 
 ### ✅ P1-6 — Stock Token mendukung EIP-2612 `permit`
@@ -399,7 +404,7 @@ bukan disembunyikan karena tidak nyaman.
 ⚠️ SPCX ($212,9jt, nomor tiga) **tidak** ikut pertanyaan ini: ia tidak punya feed
 sama sekali, dan itu tidak berubah karena volume.
 
-### 🔴 P4-2 · Apakah `BATCH_WEEKEND` masih pantas 120 detik?
+### ✅ P4-2 · TERJAWAB 16 September 2026 — `BATCH_WEEKEND` turun ke 60 detik
 
 **Premis lamanya sudah runtuh.** Alasan tertulis untuk 120 dtk adalah *"arus paling
 jarang, butuh jendela terpanjang."* Data Agustus membatalkannya:
@@ -415,10 +420,16 @@ off-hours hari kerja. Dan imbal hasil menunggu lebih lama tipis: 60 dtk memberi
 netting antar-counterparty 51,77%, 120 dtk memberi 54,11%. **+2,34 pp ditukar dengan
 tambahan 60 detik latensi**, untuk sepertiga dari seluruh arus.
 
-**Kandidat: 120 → 60 dtk.** Belum diterapkan — mengubah konstanta protokol adalah
-keputusan pemilik proyek, bukan konsekuensi otomatis dari satu bulan data di pasar
-yang sedang tumbuh cepat. Yang sudah berubah hari ini hanya **alasannya**: kalau
-120 dtk dipertahankan, alasannya tidak boleh lagi "arus paling jarang".
+**Diterapkan 16 September 2026, keputusan pemilik proyek: 120 dtk turun ke 60 dtk.**
+
+Dasar angkanya adalah ambang imbal hasil marginal yang sudah dipakai untuk berhenti
+di 45 dtk pada `BATCH_OVERNIGHT`, yaitu 0,079 pp/dtk. Di akhir pekan, langkah 45 ke
+60 dtk bernilai 0,101 pp/dtk sehingga masih layak dibayar, sedangkan langkah 60 ke
+90 dtk hanya 0,051 pp/dtk. Nilai lama 120 dtk membayar dengan imbal 0,027 pp/dtk.
+Rincian dan alasan kenapa tidak disamakan 45 dtk ada di `parameter.md` §1B.
+
+`BATCH_HOLIDAY` sengaja tidak ikut turun karena hari libur bursa belum pernah diukur
+sama sekali.
 
 **Terkait:** `WEEKEND_DRIFT_CAP_BPS` = 1.500 dikalibrasi dari drift TSLA 781 bps.
 Pergerakan antar-trade TSLA akhir pekan turun dari p90 950,4 bps (Juli) ke 67,8 bps
@@ -573,9 +584,29 @@ curl --resolve rpc.mainnet.chain.robinhood.com:443:172.66.147.70 \
   -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}'
 ```
-Untuk Foundry: pakai VPN, DNS-over-HTTPS di level sistem, atau endpoint provider
-berbayar (Alchemy/QuickNode/Chainstack) di domain berbeda.
-`https://robinhood.drpc.org` bisa diakses tapi **hanya mendukung `eth_chainId`**.
+> ### Terpecahkan 16 September 2026, dan klaim lama di bawahnya salah
+>
+> Catatan lama berbunyi *"`https://robinhood.drpc.org` bisa diakses tapi hanya
+> mendukung `eth_chainId`"*. Diuji ulang hari ini, endpoint itu melayani
+> `eth_call`, `eth_getCode`, `eth_getStorageAt`, dan **state historis**.
+>
+> ```
+> anvil --fork-url https://robinhood.drpc.org --fork-block-number 64420000
+> ```
+>
+> Fork mainnet berjalan di blok lampau, artinya nodenya archive. Tidak butuh
+> `--resolve`, tidak butuh entri `/etc/hosts`, tidak butuh sudo, tidak butuh VPN.
+> Seluruh pengukuran onchain 16 September 2026 di dokumen ini dan di
+> `parameter.md` §10 dikerjakan lewat jalur itu.
+>
+> **Yang belum terpecahkan**, dan tetap butuh `curl --resolve`, adalah Blockscout
+> dan domain `rpc.mainnet.chain.robinhood.com` sendiri. Pencegatan DNS-nya masih
+> hidup, hanya saja sekarang resolve ke `block.gmedia.id` (`103.217.209.188`),
+> bukan lagi `internetpositif.id`. Gejalanya tetap menyesatkan.
+
+Untuk Foundry: pakai `https://robinhood.drpc.org` yang terbukti bekerja di atas.
+VPN, DNS-over-HTTPS di level sistem, atau endpoint provider berbayar tetap jadi
+cadangan kalau endpoint itu jatuh.
 
 ---
 
@@ -629,15 +660,37 @@ Multicall3 · EntryPoint v0.6 · EntryPoint v0.7 · CreateX
 
 ### ✅ P0-4 — Bagaimana perilaku `uiMultiplier` (ERC-8056)?
 
-**Jawaban: fungsi ada, semua token saat ini bernilai `1e18`** (belum ada
-penyesuaian corporate action).
+**Jawaban 1 Agustus 2026: fungsi ada, semua token saat itu bernilai `1e18`.**
 
 Selector `uiMultiplier()` = `0xa60bf13d`. Terverifikasi pada NVDA, TSLA, AAPL,
 SPY, MSFT, META — semuanya `1000000000000000000`.
 
+> ### Diperbarui 16 September 2026, dan bagian "semuanya 1e18" sudah tidak benar
+>
+> Empat token sudah bergeser. Frekuensinya sekarang **terukur**, bukan lagi
+> "belum pernah terjadi". Tabel lengkap dan konsekuensi implementasinya ada di
+> `parameter.md` §10.1.
+>
+> | Token | Nilai sekarang | Berubah | Waktu New York |
+> |---|---|---|---|
+> | NVDA | 1,000775e18 | 10 Sep | 20:00, bursa tutup |
+> | AAPL | 1,000566e18 | 14 Agu | 11:12, bursa buka |
+> | MSFT | 1,000413e18 | 11 Sep | 11:10, bursa buka |
+> | GOOGL | 1,000194e18 | 15 Sep | 11:10, bursa buka |
+>
+> **Jawaban atas pertanyaan aslinya**, yaitu kapan multiplier berubah relatif
+> terhadap jam bursa. Tiga dari empat perubahan jatuh di tengah sesi `OPEN`
+> sekitar pukul 11:10 waktu New York, dan hanya satu di luar jam bursa. Jadi
+> jebakan ini menyala di sesi paling ramai.
+>
+> **Yang berubah di desain.** Gerbang allowlist tidak boleh lagi menuntut nilai
+> tepat `1e18`, karena gerbang seperti itu menolak NVDA, AAPL, GOOGL, dan MSFT.
+> Gerbang yang benar adalah fungsinya ada, tidak revert, dan nilainya >= 1e18.
+> Pemeriksaan awal lawan settle tetap wajib dan tetap murah, karena
+> perubahannya satu lompatan diskret dan jarang.
+
 **Dampak desain:** desain saat ini berlaku. Pemeriksaan multiplier di awal dan
-saat settle tetap wajib. Frekuensi perubahan belum bisa diukur karena belum
-pernah terjadi sejak mainnet — pantau event `UIMultiplierUpdated`.
+saat settle tetap wajib.
 
 ---
 
