@@ -295,10 +295,34 @@ layak dikerjakan.
 
 ## 4B. Baseline (`quoteFromState`)
 
-| Konstanta | Nilai awal | Alasan |
+| Konstanta | Nilai | Alasan |
 |---|---|---|
-| `MAX_TICK_CROSSINGS` | **32** | ⚠️ **Tebakan awal.** Wajib diganti dengan **p99 terukur + margin** dari fork test — lihat `desain-baseline.md` §7.3 |
+| `MAX_TICK_CROSSINGS` | **32** | ✅ **Dikonfirmasi dari pengukuran 16 September 2026**, bukan lagi tebakan. Lihat tabel di bawah |
 | `MAX_LOOP_STEPS` | **128** | Termasuk langkah batas-kata bitmap yang **bukan** penyeberangan likuiditas |
+
+**Penyeberangan tick terukur**, pool NVDA-USDG fee 500 di mainnet, lewat
+`quoteWithStats` pada fork:
+
+| Ukuran trade | Penyeberangan | Langkah loop |
+|---|---|---|
+| 1.000 USDG | **0** | 1 |
+| **5.000 USDG** (= `CAP_PER_BATCH`) | **0** | 1 |
+| 10.000 USDG | 0 | 1 |
+| 50.000 USDG | 1 | 2 |
+| 250.000 USDG | 3 | 4 |
+| 1.000.000 USDG | **16** | 17 |
+
+Dua hal yang sekarang berdiri di atas data.
+
+1. **Pada cap peluncuran, penyeberangan nol.** `desain-baseline.md` §6 menyebut ini
+   asumsi yang harus diverifikasi dan bukan diandalkan. Sudah diverifikasi.
+2. **32 memberi margin dua kali lipat terhadap trade 1 juta USD**, yaitu 200 kali
+   `CAP_PER_BATCH`. Bahkan di plafon governance `CAP_PER_BATCH` $500.000,
+   penyeberangan terukur masih di sekitar 5.
+
+⚠️ Angka ini dari satu pool pada satu blok. Pool dengan `tickSpacing` lebih rapat
+atau likuiditas lebih tipis akan menyeberang lebih sering, jadi ukur ulang sebelum
+menambah pool baru ke allowlist adapter.
 
 > **Arah pembulatan `baselineReceived`: KE ATAS.** Ini pengecualian sadar terhadap
 > §9 ("kuantitas diterima pengguna dibulatkan ke bawah") — baseline bukan jumlah
