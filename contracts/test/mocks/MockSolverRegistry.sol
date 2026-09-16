@@ -14,6 +14,21 @@ contract MockSolverRegistry is ISolverRegistry {
         return active[solver];
     }
 
+    address public lastWinner;
+    uint256 public lastSavings;
+    uint256 public failedFinalizes;
+
+    function recordWin(address solver, uint256 savingsUsd) external {
+        lastWinner = solver;
+        lastSavings = savingsUsd;
+    }
+
+    function reportFailedFinalize(address) external {
+        failedFinalizes += 1;
+    }
+
+    function reportInvalidSurplus(address) external {}
+
     function bond(uint256) external {}
     function requestUnbond() external {}
     function withdrawBond() external {}
