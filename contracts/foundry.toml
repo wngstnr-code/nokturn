@@ -54,8 +54,13 @@ runs = 4096
 runs = 512
 depth = 128
 
+# Nightly, one runner per suite. Depth is what is being bought here rather than
+# runs, because the bugs left in this protocol are shaped like sequences and not
+# like single wrong values. The bond paid twice needed a cross, then a failed
+# challenge, then an abort, on the same auction. See parameter.md section 13 for
+# the measurement behind these two numbers.
 [profile.deep.invariant]
-runs = 20000
+runs = 2000
 depth = 256
 
 [fmt]
