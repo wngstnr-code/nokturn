@@ -109,6 +109,62 @@ jobs:
           print("zero high severity findings")
           PY
 
+  invariant-deep:
+    # Nightly, per rencana-uji.md section 9. Every pull request already runs these
+    # same campaigns at 512 runs by 128 depth through the ci profile. This is the
+    # long walk at 2000 by 256, which is where a sequence that needs twenty actions
+    # in the right order finally shows up. parameter.md section 13 has the
+    # measurement behind the two numbers.
+    #
+    # One runner per suite, because the auction suite runs a whole auction per
+    # action and takes 109 of every 111 seconds on its own. Sharing a runner with
+    # it would mean the other three wait for nothing.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [SettlementInvariants, AuctionInvariants, MandateInvariants, SessionInvariants]
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: ${{ matrix.suite }}, the long run
+        run: FOUNDRY_PROFILE=deep forge test --match-contract "${{ matrix.suite }}" -vv
+
+  halmos:
+    # Nightly, per rencana-uji.md section 9. What forge runs as bounded fuzz over
+    # these same functions, halmos runs symbolically, so a pass here is a proof
+    # over the whole stated range rather than over 512 draws from it.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: install halmos
+        # Pinned for the same reason the toolchain is. A solver that changes
+        # version changes which proofs close inside the timeout, and a gate that
+        # goes red on somebody else's release is a gate people learn to ignore.
+        run: pip install halmos==0.3.3
+      - name: every clearing property is proved, not sampled
+        run: ./tools/halmos.sh
+
   fork:
     # Nightly, per rencana-uji.md section 9. The zero difference test is what makes
     # the savings number mean anything, so a failure here is a release blocker even
