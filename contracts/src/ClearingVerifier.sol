@@ -55,6 +55,11 @@ contract ClearingVerifier is IClearingVerifier {
     /// any pair is the USDG side.
     uint16 internal constant QUOTE_TOKEN_INDEX = 0;
 
+    /// @dev Prices reaching verify are USD with 18 decimals per smallest unit of
+    /// the token, scaled by 1e18. Every check here is homogeneous in price, so that
+    /// one convention is what lets a six decimal token clear against an eighteen
+    /// decimal one at all. See parameter.md section 4C.
+
     /// @inheritdoc IClearingVerifier
     function verify(
         bytes calldata packedIntents,

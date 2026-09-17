@@ -44,6 +44,9 @@ interface IClearingVerifier {
 
     /// @notice Evaluates the volume curve at a single price in O(N), without sorting.
     /// This is what makes verifying an auction challenge cheap.
+    /// @notice A solver side helper, not part of the settlement path. Its price is
+    /// a relative one, quote token smallest units per 1e18 base token smallest
+    /// units, which is a different quantity from the USD prices verify takes.
     function evaluateVolume(bytes calldata packedIntents, uint256 price)
         external
         pure

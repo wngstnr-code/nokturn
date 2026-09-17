@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
@@ -23,6 +24,11 @@ import {Execution, Intent, Session, SessionMask, Solution, VenueCall} from "./ty
 /// The contract verifies validity and lets competition decide optimality. It also
 /// caps what a solver can take, because at launch there is only one solver and
 /// the code has to be what restrains it rather than good intentions.
+///
+/// Prices on this surface are USD with 18 decimals per SMALLEST unit of the token,
+/// scaled by 1e18. Not per whole token. USDG has six decimals and is the quote asset
+/// for nearly every pair, so a price per whole token cannot be multiplied by a raw
+/// amount and still mean dollars. See parameter.md section 4C.
 contract Settlement is ISettlement, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -265,7 +271,8 @@ contract Settlement is ISettlement, ReentrancyGuard {
             if (!tokenAllowed[s.tokens[t]]) revert TokenNotAllowed(s.tokens[t]);
             (uint256 price,, bool healthy) = oracle.refPrice(s.tokens[t]);
             if (!healthy) revert OracleUnhealthy(s.tokens[t]);
-            oraclePrices[t] = price;
+            // Per smallest unit, not per whole token. See the note on this contract.
+            oraclePrices[t] = (price * WAD) / (10 ** IERC20Metadata(s.tokens[t]).decimals());
         }
 
         Session session = sessions.sessionAt(s.batchId);
