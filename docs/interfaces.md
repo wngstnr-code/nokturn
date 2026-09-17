@@ -345,17 +345,33 @@ event SolverScoreUpdated(address indexed solver, uint256 batchesWon, uint256 sav
 interface IAgentMandate {
     function createMandate(Mandate calldata m) external returns (bytes32 id);
     function revokeMandate(bytes32 id) external;
+    function authorize(bytes32 id, Intent calldata i, bytes calldata agentSig)
+        external returns (bytes32 digest);
+    function releaseUnspent(bytes32 id, Intent calldata i) external;
     function validate(bytes32 id, Intent calldata i) external view returns (bool, bytes32 reason);
     function spentToday(bytes32 id) external view returns (uint256);
+    function accountOf(bytes32 id) external view returns (address);
+    function mandateOf(address account) external view returns (bytes32);
+    function accountOwner(address account) external view returns (address);
+    function accountAuthorized(address account, bytes32 digest) external view returns (bool);
 }
 ```
 
 ```solidity
 event MandateCreated(bytes32 indexed id, address indexed owner, address indexed agent, uint64 expiry);
+event MandateAccountDeployed(bytes32 indexed id, address indexed account);
 event MandateRevoked(bytes32 indexed id);
 event MandateUsed(bytes32 indexed id, bytes32 indexed intentHash, uint256 notionalUsd);
 event MandateRejected(bytes32 indexed id, bytes32 rule);
+event MandateBudgetReleased(bytes32 indexed id, bytes32 indexed intentHash, uint256 notionalUsd);
 ```
+
+> Koreksi 17 September 2026, saat kontraknya ditulis. `Settlement` tidak memanggil
+> `AgentMandate` sama sekali, dan `MandateViolated` dihapus dari `ISettlement`.
+> Alasannya di `parameter.md` §5B. Mandat ditegakkan di titik dana bergerak, lewat
+> EIP-1271 pada akun mandat, sehingga pemeriksaan kedua di Settlement tidak menambah
+> apa pun kecuali kopling dan urutan deploy yang melingkar. Yang berubah cuma nama
+> kesalahannya, bukan sifatnya. Intent di luar mandat tetap tidak pernah tereksekusi.
 
 ---
 
