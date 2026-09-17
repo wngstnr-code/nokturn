@@ -25,6 +25,13 @@ jobs:
         with:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
+        # Pinned, because the gas snapshot is a committed number. The stable tag
+        # moved from 1.7.0 to 1.8.3 and every AuctionHouse test read between 17 and
+        # 160 percent more gas, which made the gate fail on days when nothing in
+        # this repo had changed. Raising this pin and regenerating the snapshot go
+        # in the same commit.
+        with:
+          version: v1.8.3
       - run: forge fmt --check
       - run: forge build --sizes
       # Fork tests need a live archive node and belong to the nightly job, where a
@@ -70,6 +77,13 @@ jobs:
         with:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
+        # Pinned, because the gas snapshot is a committed number. The stable tag
+        # moved from 1.7.0 to 1.8.3 and every AuctionHouse test read between 17 and
+        # 160 percent more gas, which made the gate fail on days when nothing in
+        # this repo had changed. Raising this pin and regenerating the snapshot go
+        # in the same commit.
+        with:
+          version: v1.8.3
       - name: slither, zero high findings
         uses: crytic/slither-action@v0.4.0
         with:
@@ -78,9 +92,11 @@ jobs:
           slither-args: --exclude-dependencies
       - name: aderyn, zero high findings
         run: |
-          curl -L https://raw.githubusercontent.com/Cyfrin/aderyn/dev/cyfrinup/install | bash
-          export PATH="$HOME/.cyfrin/bin:$PATH"
-          cyfrinup
+          # The cyfrinup installer this used to call is gone and answered 404,
+          # which bash then tried to run as a command. The release asset is pinned
+          # for the same reason the toolchain is.
+          curl -sL https://github.com/Cyfrin/aderyn/releases/download/aderyn-v0.6.8/aderyn-installer.sh | sh
+          export PATH="$HOME/.cargo/bin:$PATH"
           aderyn contracts/ --output report.json
           python3 - <<'PY'
           import json, sys
@@ -107,6 +123,13 @@ jobs:
         with:
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
+        # Pinned, because the gas snapshot is a committed number. The stable tag
+        # moved from 1.7.0 to 1.8.3 and every AuctionHouse test read between 17 and
+        # 160 percent more gas, which made the gate fail on days when nothing in
+        # this repo had changed. Raising this pin and regenerating the snapshot go
+        # in the same commit.
+        with:
+          version: v1.8.3
       - name: fork tests against mainnet 4663
         run: forge test --match-path "test/fork/*" -vv
 
