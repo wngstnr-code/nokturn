@@ -545,7 +545,36 @@ contract AuctionHouseTest is Test {
 
         assertEq(usdg.balanceOf(challenger), 500e6, "the bond is gone");
         assertEq(usdg.balanceOf(treasury), 250e6, "half of it to the protocol");
+        assertEq(usdg.balanceOf(solver), 9750e6, "the solver took the other half and nothing else");
         assertEq(house.commitment(house.bookAt(id, 0)).filledSell, 400e6, "the cross still stands");
+    }
+
+    /// The solver bond stays in the contract across a failed challenge, because
+    /// executeCross is what hands it back. Paying it at the challenge as well would
+    /// have taken the second one out of the escrow, and the escrow is what every
+    /// owner in the book is still owed.
+    function test_aFailedChallengeDoesNotPayTheSolverBondEarly() public {
+        uint64 id = _twoTieredBook();
+        _thinCross(id);
+
+        address challenger = address(0xC4A11);
+        usdg.mint(challenger, 1000e6);
+        vm.prank(challenger);
+        usdg.approve(address(house), type(uint256).max);
+        vm.prank(challenger);
+        house.challenge(id, 198e6);
+
+        uint256 owed = 900e6 - 400e6;
+        assertEq(usdg.balanceOf(address(house)), 900e6 + BOND, "the solver bond is still held");
+
+        vm.warp(block.timestamp + 121);
+        house.executeCross(id);
+
+        assertEq(usdg.balanceOf(solver), 10_250e6, "bond back once, plus the seized half");
+        assertEq(usdg.balanceOf(address(house)), owed, "and the unfilled escrow is untouched");
+
+        house.refundEscrow(house.bookAt(id, 0));
+        assertEq(usdg.balanceOf(address(house)), 0, "which the owner can take back in full");
     }
 
     /// A cross may not leave matchable volume on the table. Without this an intent
