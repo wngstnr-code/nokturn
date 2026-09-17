@@ -564,6 +564,42 @@ contract SettlementTest is Test {
         settlement.finalize(BATCH_ID, s);
     }
 
+    /// The word in the name of the cap is daily. Two hundred dollars of each token
+    /// on Wednesday must not count against Thursday, or the cap stops being an
+    /// exposure limit and becomes a lifetime quota that eventually retires the
+    /// token for good. Settlement is immutable, so there is no second chance.
+    function test_theDailyTokenCapStartsOverOnTheNextDay() public {
+        vm.prank(governor);
+        settlement.setExposureCaps(5000e18, 300e18, 200_000e18);
+
+        Solution memory first = _submit(_nettedSolution());
+        vm.warp(BATCH_ID + 20);
+        settlement.finalize(BATCH_ID, first);
+
+        uint64 nextDay = BATCH_ID + 1 days;
+        usdg.mint(alice, 200e6);
+        nvda.mint(bob, 1e18);
+
+        vm.warp(nextDay - 60);
+        usdgFeed.push(1e8, block.timestamp);
+        nvdaFeed.push(200e8, block.timestamp);
+
+        Solution memory second = _nettedSolution();
+        second.batchId = nextDay;
+        second.intents[0].nonce = 11;
+        second.intents[1].nonce = 12;
+        second.claimedSavings = 0.01e18 * 200 + 2e18;
+
+        vm.warp(nextDay + 1);
+        vm.prank(solver);
+        settlement.submitSolution(second);
+
+        vm.warp(nextDay + 20);
+        settlement.finalize(nextDay, second);
+
+        assertEq(nvda.balanceOf(alice), 2e18, "two days of settlement, both of them cleared");
+    }
+
     /// USDG has no uiMultiplier at all, so the read has to survive a token that
     /// simply does not implement it rather than assuming every token is a Stock
     /// Token.

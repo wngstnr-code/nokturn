@@ -40,9 +40,13 @@ contract Settlement is ISettlement, ReentrancyGuard {
         bytes32 multiplierHash;
     }
 
+    /// @dev The per token total is keyed by day outside this struct rather than
+    /// inside it. A mapping cannot be cleared on a day rollover without walking its
+    /// keys, and a total that is never cleared is a lifetime quota wearing the word
+    /// daily. Settlement is immutable, so a token that reached it would have been
+    /// retired for good.
     struct Day {
         uint32 index;
-        mapping(address => uint256) perToken;
         uint256 global;
     }
 
@@ -87,6 +91,7 @@ contract Settlement is ISettlement, ReentrancyGuard {
     uint256 public capGlobalDailyUsd = 200_000e18;
 
     Day internal today;
+    mapping(uint32 => mapping(address => uint256)) internal perTokenOnDay;
 
     error NotGovernor();
     error SolverNotActive(address solver);
@@ -469,12 +474,12 @@ contract Settlement is ISettlement, ReentrancyGuard {
             revert ExposureCapExceeded("global", today.global, (capGlobalDailyUsd * scale) / 2);
         }
 
+        uint256 tokenCap = (capPerTokenDailyUsd * scale) / 2;
         for (uint256 t = 0; t < s.tokens.length; ++t) {
             uint256 tokenNotional = _tokenNotional(s, s.tokens[t], s.prices[t]);
-            today.perToken[s.tokens[t]] += tokenNotional;
-            if (today.perToken[s.tokens[t]] > (capPerTokenDailyUsd * scale) / 2) {
-                revert ExposureCapExceeded("token", today.perToken[s.tokens[t]], capPerTokenDailyUsd);
-            }
+            uint256 spent = perTokenOnDay[dayIndex][s.tokens[t]] + tokenNotional;
+            perTokenOnDay[dayIndex][s.tokens[t]] = spent;
+            if (spent > tokenCap) revert ExposureCapExceeded("token", spent, tokenCap);
         }
     }
 
