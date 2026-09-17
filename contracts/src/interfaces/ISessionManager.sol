@@ -23,4 +23,10 @@ interface ISessionManager {
     function tokenSession(address token) external view returns (Session);
 
     function nextTransition(uint64 from) external view returns (uint64);
+
+    /// @notice The New York calendar day a timestamp falls on, as YYYYMMDD. Daily
+    /// budgets reset on this rather than on UTC midnight, which lands in the
+    /// middle of the post market session and would hand out two budgets in one
+    /// American evening.
+    function easternDay(uint64 timestamp) external view returns (uint32 ymd);
 }

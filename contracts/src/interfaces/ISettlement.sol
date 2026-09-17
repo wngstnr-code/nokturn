@@ -72,7 +72,6 @@ interface ISettlement {
     error AdapterNotQuotable(address adapter);
     error TokenNotAllowed(address token);
     error MultiplierChanged(address token, uint256 atStart, uint256 atSettle);
-    error MandateViolated(uint256 intentIndex, bytes32 rule);
 
     function submitSolution(Solution calldata s) external;
 

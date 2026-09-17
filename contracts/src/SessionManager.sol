@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {ISessionManager} from "./interfaces/ISessionManager.sol";
+import {CivilDate} from "./libraries/CivilDate.sol";
 import {Session} from "./types/Types.sol";
 
 /// @title Market session state machine
@@ -229,6 +230,16 @@ contract SessionManager is ISessionManager {
         return n == 0 ? 0 : dstBoundaries[n - 1];
     }
 
+    /// @inheritdoc ISessionManager
+    function easternDay(uint64 timestamp) external view returns (uint32) {
+        (uint32 day,) = _easternDay(timestamp);
+        return CivilDate.toYmd(day);
+    }
+
+    // The modulo below splits a timestamp into a date and a time of day. Nothing
+    // here is drawn, sampled, or kept secret, so the weak PRNG detector has nothing
+    // to say about it.
+    // slither-disable-start weak-prng
     function _easternDay(uint64 timestamp) internal view returns (uint32 day, uint32 secondOfDay) {
         // _covered has already bounded timestamp by the last table entry, which is
         // far below uint32 seconds, so neither cast can truncate.
@@ -238,6 +249,7 @@ contract SessionManager is ISessionManager {
         // forge-lint: disable-next-line(unsafe-typecast)
         secondOfDay = uint32(local % SECONDS_PER_DAY);
     }
+    // slither-disable-end weak-prng
 
     function _utcOffset(uint64 timestamp) internal view returns (uint32) {
         uint256 crossed = _boundariesBefore(timestamp);
@@ -257,6 +269,7 @@ contract SessionManager is ISessionManager {
 
     /// @dev Day 0 is 1 January 1970, a Thursday. 0 is Sunday, 6 is Saturday.
     function _dayOfWeek(uint32 day) internal pure returns (uint8) {
+        // slither-disable-next-line weak-prng
         return uint8((day + 4) % 7);
     }
 }
