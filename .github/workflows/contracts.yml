@@ -4,7 +4,12 @@ on:
   push:
     branches: [main]
   schedule:
+    # Nightly for the long invariant walk and the proofs, Sunday morning for
+    # mutation testing. They are separate entries because the jobs below select
+    # on which one fired, and a weekly job on a nightly cron would run seven
+    # times for every result anyone reads.
     - cron: "0 3 * * *"
+    - cron: "0 5 * * 0"
   pull_request:
     paths:
       - "contracts/**"
@@ -119,7 +124,7 @@ jobs:
     # One runner per suite, because the auction suite runs a whole auction per
     # action and takes 109 of every 111 seconds on its own. Sharing a runner with
     # it would mean the other three wait for nothing.
-    if: github.event_name == 'schedule'
+    if: github.event.schedule == '0 3 * * *'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -142,7 +147,7 @@ jobs:
     # Nightly, per rencana-uji.md section 9. What forge runs as bounded fuzz over
     # these same functions, halmos runs symbolically, so a pass here is a proof
     # over the whole stated range rather than over 512 draws from it.
-    if: github.event_name == 'schedule'
+    if: github.event.schedule == '0 3 * * *'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -169,7 +174,7 @@ jobs:
     # Nightly, per rencana-uji.md section 9. The zero difference test is what makes
     # the savings number mean anything, so a failure here is a release blocker even
     # though it does not gate a pull request.
-    if: github.event_name == 'schedule'
+    if: github.event.schedule == '0 3 * * *'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -193,3 +198,28 @@ jobs:
         run: |
           forge coverage --ir-minimum --report summary --no-match-coverage "(test|script)" | tee coverage.txt
           ./tools/coverage-gate.sh coverage.txt
+
+  mutation:
+    # Weekly, per rencana-uji.md section 9. Coverage says the tests executed a
+    # line. This says they would have noticed if the line had been wrong, which
+    # is the only one of the two that is worth putting in a pitch.
+    #
+    # Settlement and SessionManager are the two the document names as core and
+    # holds to 90 percent. Both sit at 100 over their scoring mutants today, so
+    # the threshold is headroom rather than a target, and a survivor that turns
+    # up here is either a missing test or an entry in tools/mutants-explained.txt
+    # with a written reason.
+    if: github.event.schedule == '0 5 * * 0'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: mutation score on the core contracts
+        run: python3 tools/mutate.py src/Settlement.sol src/SessionManager.sol --threshold 90
