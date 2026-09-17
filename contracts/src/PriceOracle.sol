@@ -176,7 +176,7 @@ contract PriceOracle is IPriceOracle {
         price = _toWad(answer, AggregatorV3Interface(feed.aggregator).decimals());
         // A Chainlink timestamp past uint64 is past the year 584 billion.
         // forge-lint: disable-next-line(unsafe-typecast)
-        updatedAt = uint64(ts);
+        updatedAt = uint64(ts); // aderyn-fp(unsafe-casting)
     }
 
     function _twap(address token) internal view returns (uint256) {

@@ -153,6 +153,8 @@ contract Settlement is ISettlement, ReentrancyGuard {
 
     /// @inheritdoc ISettlement
     function submitSolution(Solution calldata s) external {
+        // SolverRegistry is immutable and this reads it.
+        // aderyn-fp-next-line(reentrancy-state-change)
         if (!solvers.isActive(msg.sender)) revert SolverNotActive(msg.sender);
 
         uint8 count = solutionsSubmitted[s.batchId][msg.sender] + 1;

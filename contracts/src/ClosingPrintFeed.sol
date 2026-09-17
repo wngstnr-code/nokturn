@@ -60,7 +60,7 @@ contract ClosingPrintFeed is AggregatorV3Interface {
         returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
         // forge-lint: disable-next-line(unsafe-typecast)
-        uint32 day = uint32(roundId_);
+        uint32 day = uint32(roundId_); // aderyn-fp(unsafe-casting)
         (int256 storedAnswer, uint64 storedStart, uint64 storedUpdate) = auctionHouse.printRound(token, day);
         if (storedUpdate == 0) revert NoPrintForDay(token, day);
         return (roundId_, storedAnswer, storedStart, storedUpdate, roundId_);
