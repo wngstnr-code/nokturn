@@ -113,6 +113,18 @@ Ini menjawab keberatan terbesar terhadap agentic finance —
 **kamu tidak perlu percaya. Kontraknya yang membatasi.** Bahkan agent yang
 sepenuhnya dikompromikan tidak bisa keluar dari kotaknya.
 
+> **Koreksi 17 September 2026, saat `AgentMandate.sol` ditulis.** Kalimat di atas,
+> bahwa Settlement memvalidasi tiap intent bertanda-agent, ternyata tidak bisa
+> berdiri apa adanya. `Settlement._pull` memindahkan dana lewat Permit2, dan Permit2
+> hanya menerima tanda tangan yang berasal dari pemilik intent. Tanda tangan agent
+> ditolak sebelum Settlement sempat berpendapat.
+>
+> Yang dibangun karena itu adalah satu akun klon per pasangan pemilik dan agent.
+> Alamat klon itu yang jadi pemilik intent, dan ia menjawab EIP-1271 dengan
+> bertanya ke registry. Sifat yang dijanjikan paragraf di atas tetap utuh, malah
+> lebih kuat, karena pemilik cuma menyetor sebesar yang boleh diperdagangkan agent.
+> Aturan lengkap dan dua alternatif yang gugur ada di `parameter.md` §5B.
+
 ### 3.3 Yang penting: batas dinyatakan dalam bahasa keuangan
 
 Perhatikan `maxDeviationFromRefBps`. Ini bukan batas teknis seperti "boleh panggil

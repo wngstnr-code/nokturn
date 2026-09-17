@@ -449,6 +449,58 @@ tetap `pure`.
 
 ---
 
+## 5B. Mandat agent
+
+Ditulis 17 September 2026, saat `AgentMandate.sol` dibuat.
+
+| Konstanta | Nilai | Alasan |
+|---|---|---|
+| `MANDATE_MAX_TOKENS` | **8** | Batas panjang `allowedTokens`. Validasi menyapu array ini di tiap otorisasi, jadi panjangnya harus terbatas supaya biayanya bisa dihitung. Allowlist v1.0 sendiri cuma empat token |
+| `MANDATE_MAX_DURATION` | **90 hari** | Jarak terjauh `expiry` boleh berada dari saat mandat dibuat. Mandat yang tidak pernah kedaluwarsa adalah approval tak terbatas dengan nama lain |
+| `MANDATE_DAY` | **hari kalender New York** | Batas reset `maxNotionalPerDay`. Bukan tengah malam UTC, karena tengah malam UTC jatuh di tengah sesi `POST_MARKET` dan akan memberi agent dua anggaran harian dalam satu malam Amerika |
+
+### 5B.1 Celah yang ditemukan saat menulis kontraknya
+
+`desain-agent.md` §3.2 mengandaikan intent bertanda-agent bisa langsung
+dieksekusi Settlement. Ternyata tidak bisa. `Settlement._pull` memindahkan dana
+lewat `permit2.permitWitnessTransferFrom(..., i.owner, ...)`, dan Permit2 hanya
+menerima tanda tangan yang berasal dari `i.owner` sendiri. Tanda tangan agent
+ditolak Permit2 sebelum Settlement sempat berpendapat.
+
+Keputusan pemilik proyek, 17 September 2026. `AgentMandate` men-deploy satu akun
+klon deterministik per pasangan pemilik dan agent. Alamat klon itulah yang jadi
+`i.owner` pada intent agent, dan ia menjawab EIP-1271 dengan bertanya balik ke
+registry. Permit2 tidak berubah, `Settlement._pull` tidak berubah, dan pemilik
+menyetor ke akun itu hanya sebesar yang boleh diperdagangkan agent. Radius
+ledakan agent yang dikompromikan dibatasi dua kali, oleh setoran dan oleh mandat.
+
+Dua alternatif digugurkan. Delegasi EIP-7702 lebih bersih secara pengalaman
+pengguna tapi mengganti seluruh kode EOA pemilik, jadi bentrok dengan delegasi
+dompet lain, dan toleransi dompet Robinhood terhadapnya belum pernah diukur di
+chain 4663. Mode AllowanceTransfer Permit2 paling sedikit kodenya tapi
+membatalkan properti satu tanda tangan menutupi transfer sekaligus syarat dagang,
+lalu meninggalkan allowance berdiri ke Settlement.
+
+### 5B.2 Otorisasi dulu, validasi kemudian
+
+EIP-1271 `isValidSignature` adalah fungsi `view`, jadi ia tidak bisa mencatat
+apa pun. Anggaran harian karena itu dibukukan di panggilan terpisah. Agent
+memanggil `authorize`, kontrak menjalankan seluruh aturan mandat, membukukan
+notional, lalu menandai digest Permit2 itu sebagai sah. Setelah itu
+`isValidSignature` cuma membaca tanda yang sudah ada.
+
+Harganya satu transaksi tambahan per intent. Imbalannya, setiap pemakaian mandat
+jadi peristiwa onchain yang bisa diaudit lewat `MandateUsed`, bukan konsekuensi
+diam dari sebuah tanda tangan. Biaya data L1 di chain ini nol, jadi transaksi
+tambahan itu murah.
+
+Intent yang diotorisasi tapi tidak pernah terisi mengembalikan anggarannya lewat
+`releaseUnspent`, yang membaca bitmap nonce Permit2 untuk memastikan nonce-nya
+memang belum pernah terpakai. Isian sebagian tetap membebani anggaran penuh.
+Arah pembulatan itu berpihak ke pemilik, sesuai aturan pembulatan §9.
+
+---
+
 ## 6. Exposure cap (peluncuran → skala)
 
 | Konstanta | Nilai awal | Plafon governance |

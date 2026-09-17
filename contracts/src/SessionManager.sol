@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {ISessionManager} from "./interfaces/ISessionManager.sol";
+import {CivilDate} from "./libraries/CivilDate.sol";
 import {Session} from "./types/Types.sol";
 
 /// @title Market session state machine
@@ -227,6 +228,12 @@ contract SessionManager is ISessionManager {
     function coveredUntil() external view returns (uint64) {
         uint256 n = dstBoundaries.length;
         return n == 0 ? 0 : dstBoundaries[n - 1];
+    }
+
+    /// @inheritdoc ISessionManager
+    function easternDay(uint64 timestamp) external view returns (uint32) {
+        (uint32 day,) = _easternDay(timestamp);
+        return CivilDate.toYmd(day);
     }
 
     // The modulo below splits a timestamp into a date and a time of day. Nothing
