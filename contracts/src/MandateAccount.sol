@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.28;
 
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -13,7 +14,7 @@ import {IAgentMandate} from "./interfaces/IAgentMandate.sol";
 /// address answers EIP-1271. This is that address, and it holds only what the
 /// owner deposited for that one agent.
 /// @dev parameter.md section 5B
-contract MandateAccount {
+contract MandateAccount is IERC1271 {
     using SafeERC20 for IERC20;
 
     bytes4 internal constant ERC1271_ACCEPT = 0x1626ba7e;

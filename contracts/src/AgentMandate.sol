@@ -41,8 +41,6 @@ contract AgentMandate is IAgentMandate {
         bool released;
     }
 
-    uint256 internal constant WAD = 1e18;
-
     uint8 public constant MANDATE_MAX_TOKENS = 8;
     uint64 public constant MANDATE_MAX_DURATION = 90 days;
 
@@ -158,7 +156,11 @@ contract AgentMandate is IAgentMandate {
             revert BadAgentSignature(id, digest);
         }
 
-        uint256 notional = notionalUsd(i.sellToken, i.sellAmount);
+        (uint256 notional, bool healthy) = _notional(i.sellToken, i.sellAmount);
+        if (!healthy) {
+            emit MandateRejected(id, "oracle unhealthy");
+            revert MandateRuleBroken(id, "oracle unhealthy");
+        }
         if (notional > r.maxNotionalPerBatch) {
             emit MandateRejected(id, "per batch cap");
             revert MandateRuleBroken(id, "per batch cap");
@@ -205,9 +207,9 @@ contract AgentMandate is IAgentMandate {
         if (r.account == address(0)) return (false, "unknown mandate");
         reason = _checkRules(r, i);
         if (reason != bytes32(0)) return (false, reason);
-        if (notionalUsd(i.sellToken, i.sellAmount) > r.maxNotionalPerBatch) {
-            return (false, "per batch cap");
-        }
+        (uint256 notional, bool healthy) = _notional(i.sellToken, i.sellAmount);
+        if (!healthy) return (false, "oracle unhealthy");
+        if (notional > r.maxNotionalPerBatch) return (false, "per batch cap");
         return (true, bytes32(0));
     }
 
@@ -278,10 +280,16 @@ contract AgentMandate is IAgentMandate {
     /// @notice USD with 18 decimals, normalised by the token decimals so that a
     /// cap on a six decimal stablecoin means the same thing as a cap on an
     /// eighteen decimal stock token.
-    function notionalUsd(address token, uint256 amount) public view returns (uint256) {
-        (uint256 price,,) = oracle.refPrice(token);
+    function notionalUsd(address token, uint256 amount) public view returns (uint256 value) {
+        (value,) = _notional(token, amount);
+    }
+
+    /// @dev A cap priced off a stale feed is not a cap, so the health flag travels
+    /// with the number rather than being dropped at the call site.
+    function _notional(address token, uint256 amount) internal view returns (uint256, bool) {
+        (uint256 price,, bool healthy) = oracle.refPrice(token);
         uint256 unit = 10 ** IERC20Metadata(token).decimals();
-        return (amount * price) / unit;
+        return ((amount * price) / unit, healthy);
     }
 
     function _checkRules(Record storage r, Intent calldata i) internal view returns (bytes32) {
