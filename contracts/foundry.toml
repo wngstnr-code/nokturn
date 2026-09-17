@@ -41,6 +41,12 @@ runs = 128
 depth = 64
 fail_on_revert = false
 
+# Halmos finds its test functions by reading the solidity AST out of the build
+# artifacts, and the default profile does not emit it because doing so roughly
+# doubles the size of out/. tools/halmos.sh selects this profile.
+[profile.halmos]
+ast = true
+
 [profile.ci.fuzz]
 runs = 4096
 

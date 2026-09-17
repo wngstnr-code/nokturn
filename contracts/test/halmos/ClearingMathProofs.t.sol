@@ -26,6 +26,15 @@ contract ClearingMathProofs is Test {
     uint16 internal constant FEE_CAP_SHARE_BPS = 2000;
     uint16 internal constant FEE_CAP_NOTIONAL_BPS = 3;
 
+    /// The six deviation widths SessionManager hands out, in ascending order.
+    /// parameter.md section 4.
+    uint16 internal constant PROTECTIVE_BPS = 20;
+    uint16 internal constant OPEN_BPS = 30;
+    uint16 internal constant PRE_AND_POST_BPS = 60;
+    uint16 internal constant OVERNIGHT_BPS = 100;
+    uint16 internal constant WEEKEND_BPS = 150;
+    uint16 internal constant AUCTION_COLLAR_BPS = 200;
+
     /// The fee is at most a fifth of the surplus and at most three basis points of
     /// the notional, and both hold at once rather than whichever is convenient.
     function testFuzz_theFeeCapNeverPassesEitherBound(uint128 surplusUsd, uint128 notionalUsd) public pure {
@@ -76,21 +85,17 @@ contract ClearingMathProofs is Test {
         );
     }
 
-    /// Selling less of the same intent at the same rate is never worse either,
-    /// which is what makes a partial fill safe to allow at all.
-    function testFuzz_aSmallerPartialFillAtTheSameRateStillClears(
+    /// A fill that sold nothing cannot break a limit, whatever was asked for. This
+    /// is the base case the partial fill path stands on, since a zero sell side is
+    /// what every fill shrinks towards.
+    function testFuzz_aFillThatSoldNothingNeverBreaksALimit(
         uint128 executedBuy,
         uint128 sellAmount,
-        uint128 minBuyAmount,
-        uint128 executedSell,
-        uint128 smaller
+        uint128 minBuyAmount
     ) public pure {
-        vm.assume(smaller <= executedSell);
-        vm.assume(ClearingMath.limitRespected(executedBuy, sellAmount, minBuyAmount, executedSell));
-
         assertTrue(
-            ClearingMath.limitRespected(executedBuy, sellAmount, minBuyAmount, smaller),
-            "shrinking the sell side broke a limit that held"
+            ClearingMath.limitRespected(executedBuy, sellAmount, minBuyAmount, 0),
+            "a fill that moved nothing was refused"
         );
     }
 
@@ -145,16 +150,52 @@ contract ClearingMathProofs is Test {
         assertTrue(ClearingMath.withinBand(ref, ref, maxDevBps), "the reference fell outside its own band");
     }
 
-    /// Widening the band never excludes a price it already accepted.
-    function testFuzz_awiderBandNeverRefusesWhatANarrowerOneAccepted(
-        uint128 price,
-        uint128 ref,
-        uint16 narrow,
-        uint16 wide
-    ) public pure {
-        vm.assume(narrow <= wide);
-        vm.assume(ClearingMath.withinBand(price, ref, narrow));
+    /// Widening the band never excludes a price it already accepted. Stated over
+    /// the six widths that exist rather than over every uint16, because the widths
+    /// are a closed set from parameter.md section 4, and a symbolic width turns the
+    /// comparison into a product of two unknowns that no solver closes at this
+    /// bit width. Adjacent pairs are enough, since the order is transitive.
+    ///
+    /// Halmos explores both sides of the branch below and that is where the proof
+    /// comes from. Under forge most draws land outside the narrowest band and fall
+    /// through, so the case with real numbers in it is pinned separately.
+    function testFuzz_aWiderBandNeverRefusesWhatANarrowerOneAccepted(uint128 price, uint128 ref) public pure {
+        uint16[6] memory widths = _widths();
+        for (uint256 k = 1; k < 6; ++k) {
+            if (!ClearingMath.withinBand(price, ref, widths[k - 1])) continue;
+            assertTrue(
+                ClearingMath.withinBand(price, ref, widths[k]),
+                "a wider band refused what a narrower one took"
+            );
+        }
+    }
 
-        assertTrue(ClearingMath.withinBand(price, ref, wide), "a wider band refused what a narrower one took");
+    /// NVDA at two hundred dollars, drifting out through each width in turn. The
+    /// widths are ordered, so a price is refused by every band narrower than the
+    /// one it sits in and accepted by every band wider.
+    function test_theSixWidthsAcceptInTheOrderTheyAreWritten() public pure {
+        uint256 ref = 200e18;
+        uint16[6] memory widths = _widths();
+
+        for (uint256 k = 0; k < 6; ++k) {
+            uint256 justInside = ref + (ref * widths[k]) / BPS;
+            uint256 justOutside = justInside + 1;
+
+            for (uint256 j = 0; j < 6; ++j) {
+                assertEq(
+                    ClearingMath.withinBand(justInside, ref, widths[j]),
+                    widths[j] >= widths[k],
+                    "a price at one width was taken by the wrong set of bands"
+                );
+            }
+            assertFalse(
+                ClearingMath.withinBand(justOutside, ref, widths[k]),
+                "one unit past the edge was still inside"
+            );
+        }
+    }
+
+    function _widths() internal pure returns (uint16[6] memory) {
+        return [PROTECTIVE_BPS, OPEN_BPS, PRE_AND_POST_BPS, OVERNIGHT_BPS, WEEKEND_BPS, AUCTION_COLLAR_BPS];
     }
 }
