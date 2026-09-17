@@ -166,8 +166,9 @@ contract AgentMandate is IAgentMandate {
             revert MandateRuleBroken(id, "per batch cap");
         }
 
+        // SessionManager is immutable and this reads it.
         // forge-lint: disable-next-line(block-timestamp)
-        uint32 day = sessions.easternDay(uint64(block.timestamp));
+        uint32 day = sessions.easternDay(uint64(block.timestamp)); // aderyn-fp(reentrancy-state-change)
         uint256 spent = budgetDay[id] == day ? budgetSpent[id] : 0;
         if (spent + notional > r.maxNotionalPerDay) {
             emit MandateRejected(id, "per day cap");
