@@ -33,10 +33,10 @@ jobs:
       - name: coverage gate, 95 percent lines on core contracts
         run: |
           # --ir-minimum because coverage disables the IR pipeline, and the
-          # clearing verifier needs it to compile at all. No "|| true" here: a
-          # coverage run that dies would leave an empty file that the gate reads
-          # as nothing to complain about, which is the same failure the storage
-          # layout gate already had once.
+          # clearing verifier needs it to compile at all. There is no "|| true"
+          # here, because a coverage run that dies would leave an empty file that
+          # the gate reads as nothing to complain about, which is the same failure
+          # the storage layout gate already had once.
           forge coverage --ir-minimum --report summary --no-match-coverage "(test|script)" \
             --no-match-path "test/fork/*" | tee coverage.txt
           # The adapter reads live pool state, so it has no coverage without a fork.
@@ -46,10 +46,14 @@ jobs:
       - name: gas snapshot is committed and current
         # Default profile on purpose. The ci profile runs more fuzz iterations, which
         # moves the mean gas and would make the snapshot fail for no real reason.
-        # Fork tests are excluded for a stronger reason: their gas depends on live
+        # Fork tests are excluded for a stronger reason. Their gas depends on live
         # pool state, so a committed number for them can never stay true and the
         # gate would fail on days when nothing in this repo changed.
-        run: FOUNDRY_PROFILE=default forge snapshot --check --no-match-path "test/fork/*"
+        # --force because the coverage step above compiles with --ir-minimum, which
+        # turns the optimizer off. Without a rebuild forge sees an up to date cache
+        # and measures the unoptimized artifacts, which read about 2.5 times the
+        # committed gas on the short revert paths.
+        run: FOUNDRY_PROFILE=default forge snapshot --check --force --no-match-path "test/fork/*"
       - name: storage layout is committed and current
         run: |
           ./tools/storage-layout.sh
