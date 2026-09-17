@@ -14,6 +14,7 @@ import {ISignatureTransfer} from "./interfaces/IPermit2.sol";
 import {ISolverRegistry} from "./interfaces/ISolverRegistry.sol";
 import {IUiMultiplier} from "./interfaces/IUiMultiplier.sol";
 import {IVenueAdapter} from "./interfaces/IVenueAdapter.sol";
+import {ClearingMath} from "./libraries/ClearingMath.sol";
 import {IntentLib} from "./libraries/IntentLib.sol";
 import {Execution, Intent, Session, SessionMask, Solution, VenueCall} from "./types/Types.sol";
 
@@ -445,9 +446,7 @@ contract Settlement is ISettlement, ReentrancyGuard {
     }
 
     function _feeCap(uint256 surplusUsd, uint256 notionalUsd) internal pure returns (uint256) {
-        uint256 byShare = (surplusUsd * FEE_CAP_SHARE_BPS) / BPS;
-        uint256 byNotional = (notionalUsd * FEE_CAP_NOTIONAL_BPS) / BPS;
-        return byShare < byNotional ? byShare : byNotional;
+        return ClearingMath.feeCap(surplusUsd, notionalUsd, FEE_CAP_SHARE_BPS, FEE_CAP_NOTIONAL_BPS);
     }
 
     function _chargeExposure(Solution calldata s, uint256 notionalUsd) internal {
