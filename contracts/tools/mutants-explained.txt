@@ -1,0 +1,13 @@
+# Mutants that cannot be killed because they do not change behaviour. One line
+# each, in the form file:line:column:from>to | why.
+#
+# rencana-uji.md section 5 says a survivor has to be explained one at a time
+# rather than waved through, so this file is the place that happens. A mutant
+# belongs here only when it is genuinely equivalent. A survivor that is merely
+# hard to reach is a missing test, not an entry here.
+#
+# Line numbers move when the file moves, so an entry that stops matching starts
+# counting again, which is the behaviour we want.
+
+src/libraries/ClearingMath.sol:39:29:>>>= | The two branches subtract in opposite orders, so at price equal to ref both give zero and the boundary the mutation moves is the one case where the answer is the same either way.
+src/libraries/ClearingMath.sol:52:23:<><= | Picking the smaller of two equal numbers returns that number whichever branch is taken.
