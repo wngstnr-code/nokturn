@@ -187,7 +187,7 @@ tentang serangan nyata.
 | A12 | Exposure cap terlampaui | Revert `ExposureCapExceeded` sebelum dana bergerak |
 | A13 | Semua solver berkolusi mengajukan solusi buruk | Pass-through aktif; fee nol |
 | A14 | Warp waktu tepat ke batas sesi | Guard band aktif; parameter konservatif dipakai |
-| A15 | Intent agent melanggar mandat | Revert `MandateViolated` |
+| A15 | Intent agent melanggar mandat | Revert `MandateRuleBroken` di `AgentMandate.authorize`, dan Permit2 menolak penarikannya. `MandateViolated` dihapus, lihat `parameter.md` §5B |
 
 ---
 
