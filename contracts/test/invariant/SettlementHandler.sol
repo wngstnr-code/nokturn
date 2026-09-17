@@ -207,7 +207,7 @@ contract SettlementHandler is Test {
     /// uniform over a year, because the boundaries are where the session engine is
     /// interesting and a uniform jump lands on one roughly never.
     function actWarpTime(uint256 seed) external {
-        uint64 now_ = uint64(block.timestamp);
+        uint64 now_ = uint64(vm.getBlockTimestamp());
         uint64 step = uint64(bound(seed, 1, 3600));
 
         // Half the time, land within a guard band of the next boundary instead.
@@ -358,7 +358,7 @@ contract SettlementHandler is Test {
     /// @dev The last aligned instant that is already behind us, so the collection
     /// window is closed and the solution window is open.
     function _nextBatch() internal returns (uint64 batchId) {
-        uint64 now_ = uint64(block.timestamp);
+        uint64 now_ = uint64(vm.getBlockTimestamp());
         Session session = sessions.sessionAt(now_);
         uint32 duration = sessions.batchDuration(session);
         if (duration == 0) return 0;
