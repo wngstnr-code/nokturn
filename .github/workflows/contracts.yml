@@ -46,7 +46,10 @@ jobs:
       - name: gas snapshot is committed and current
         # Default profile on purpose. The ci profile runs more fuzz iterations, which
         # moves the mean gas and would make the snapshot fail for no real reason.
-        run: FOUNDRY_PROFILE=default forge snapshot --check
+        # Fork tests are excluded for a stronger reason: their gas depends on live
+        # pool state, so a committed number for them can never stay true and the
+        # gate would fail on days when nothing in this repo changed.
+        run: FOUNDRY_PROFILE=default forge snapshot --check --no-match-path "test/fork/*"
       - name: storage layout is committed and current
         run: |
           ./tools/storage-layout.sh

@@ -210,19 +210,42 @@ event DstTableUpdated(uint64[] boundaries);
 
 ```solidity
 interface IAuctionHouse {
-    function commitAuctionIntent(Intent calldata i, bytes calldata sig) external; // + escrow
+    function openAuction(address token, uint8 kind) external returns (uint64 auctionId);
+    function commitAuctionIntent(Intent calldata i, bytes calldata sig) external;
     function cancelBeforeFreeze(bytes32 intentHash) external;
     function publishIndicative(uint64 auctionId) external;
+    function freeze(uint64 auctionId) external;           // escrow ditarik di sini
+    function extend(uint64 auctionId) external;
     function submitCross(uint64 auctionId, uint256 price, Execution[] calldata e) external;
-    function challenge(uint64 auctionId, uint256 betterPrice) external payable;
+    function challenge(uint64 auctionId, uint256 betterPrice) external;
     function executeCross(uint64 auctionId) external;
+    function abortAuction(uint64 auctionId) external;
     function refundEscrow(bytes32 intentHash) external;   // selalu bisa dipanggil siapa pun
 
     function closingPrice(address token, uint32 day)
         external view returns (uint256 price, uint256 volume, uint32 participants, bool sufficient);
     function lastClose(address token) external view returns (uint256 price, uint64 ts, bool sufficient);
+
+    // Dibaca ClosingPrintFeed, satu instance per token, untuk permukaan §5.1.
+    function printRound(address token, uint32 day)
+        external view returns (int256 answer, uint64 startedAt, uint64 updatedAt);
+    function latestPrintDay(address token) external view returns (uint32 day);
 }
 ```
+
+> **Diperbarui 16 September 2026, saat kontraknya ditulis.** Empat fungsi
+> lifecycle ditambahkan karena memang dipanggil, yaitu `openAuction`, `freeze`,
+> `extend`, dan `abortAuction`. `challenge` kehilangan penanda `payable` karena
+> `parameter.md` §3 menetapkan bond-nya 500 USDG, dan bond dalam USDG tidak bisa
+> datang sebagai `msg.value`.
+>
+> `day` di permukaan ini adalah tanggal kalender `YYYYMMDD`, bukan indeks hari.
+> `parameter.md` §3.1 mengunci `PRINT_ROUND_ID` begitu supaya
+> `getRoundData(20260910)` menjawab sendirian. Kontrak lain menghitung hari sejak
+> epoch, dan konversinya terjadi hanya di batas ini.
+>
+> `CommitmentDropped(auctionId, intentHash, reason)` menyusul di daftar event,
+> untuk intent yang escrow-nya gagal ditarik saat pembekuan.
 
 ```solidity
 event AuctionOpened(uint64 indexed auctionId, address indexed token, uint8 kind, uint64 crossAt);
@@ -239,6 +262,7 @@ event ClosingPrintPublished(address indexed token, uint32 indexed day, uint256 p
 event ClosingPrintWithheld(address indexed token, uint32 indexed day, bytes32 reason, uint256 volume, uint32 participants); // gerbang PRINT_MIN_VOLUME/PRINT_MIN_PARTICIPANTS tidak terpenuhi — tidak ada ronde baru, latestRoundData tetap kembalikan print lama
 event AuctionAborted(uint64 indexed auctionId, bytes32 reason);
 event EscrowRefunded(bytes32 indexed intentHash, address indexed owner, uint256 amount);
+event CommitmentDropped(uint64 indexed auctionId, bytes32 indexed intentHash, bytes32 reason);
 ```
 
 > `IndicativePublished` adalah **event paling penting di seluruh protokol untuk

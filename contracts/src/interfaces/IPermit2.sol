@@ -33,6 +33,10 @@ interface ISignatureTransfer {
         bytes calldata signature
     ) external;
 
+    /// @notice EIP-712 domain of the deployed Permit2. Read rather than rebuilt,
+    /// because Permit2 recomputes its own when the chain id changes.
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+
     /// @notice Unordered nonce bitmap. Cancelling an intent means calling
     /// invalidateUnorderedNonces on Permit2 directly, as its owner.
     function nonceBitmap(address owner, uint256 word) external view returns (uint256);
