@@ -66,6 +66,20 @@ contract PriceOracleTest is Test {
         assertFalse(healthy);
     }
 
+    /// The Orbit sequencer sets block.timestamp, so a round can carry a stamp a
+    /// few seconds ahead of the block it is read in. Early is not stale, and the
+    /// subtraction that would have panicked here took every batch on the token with
+    /// it. Found by the settlement invariant run.
+    function test_aRoundStampedAheadOfTheBlockIsEarlyRatherThanStale() public {
+        vm.warp(DAY_OPEN + 1000);
+        feed.push(21_304_000_000, DAY_OPEN + 1030);
+
+        (uint256 price, uint64 ts, bool healthy) = oracle.refPrice(nvda);
+        assertEq(price, 213.04e18);
+        assertEq(ts, DAY_OPEN + 1030);
+        assertTrue(healthy);
+    }
+
     /// The closed session limit is wider than the open one, and the switch happens
     /// because the session changed, not because anyone reconfigured anything.
     function test_stalenessLimitFollowsTheSession() public {
