@@ -93,15 +93,18 @@ contract SettlementTest is Test {
         usdgFeed.push(1e8, DAY_OPEN);
         nvdaFeed.push(200e8, DAY_OPEN);
 
-        usdg.mint(alice, 1000e18);
+        usdg.mint(alice, 1000e6);
         nvda.mint(bob, 10e18);
         vm.prank(alice);
         usdg.approve(address(permit2), type(uint256).max);
         vm.prank(bob);
         nvda.approve(address(permit2), type(uint256).max);
 
-        adapter.setRate(address(usdg), address(nvda), 0.005e18);
-        adapter.setRate(address(nvda), address(usdg), 200e18);
+        // The adapter quotes out = in * rate / 1e18 in raw units, so the rate has
+        // to carry the decimal gap between a six decimal quote and an eighteen
+        // decimal base. 200 USDG in gives 1 NVDA out.
+        adapter.setRate(address(usdg), address(nvda), 5e27);
+        adapter.setRate(address(nvda), address(usdg), 200e6);
     }
 
     function _intent(
@@ -135,25 +138,27 @@ contract SettlementTest is Test {
     function _nettedSolution() internal view returns (Solution memory s) {
         s.batchId = BATCH_ID;
         s.intents = new Intent[](2);
-        s.intents[0] = _intent(alice, address(usdg), address(nvda), 200e18, 1e18, 1);
-        s.intents[1] = _intent(bob, address(nvda), address(usdg), 1e18, 200e18, 2);
+        s.intents[0] = _intent(alice, address(usdg), address(nvda), 200e6, 1e18, 1);
+        s.intents[1] = _intent(bob, address(nvda), address(usdg), 1e18, 200e6, 2);
 
         s.signatures = new bytes[](2);
         s.tokens = new address[](2);
         s.tokens[0] = address(usdg);
         s.tokens[1] = address(nvda);
         s.prices = new uint256[](2);
-        s.prices[0] = 1e18;
+        // Per smallest unit. A dollar of USDG is 1e30 here because USDG has six
+        // decimals, and one NVDA at 200 dollars is 200e18 because it has eighteen.
+        s.prices[0] = 1e30;
         s.prices[1] = 200e18;
 
         s.executions = new Execution[](2);
-        s.executions[0] = Execution({intentIndex: 0, executedSell: 200e18, executedBuy: 1e18});
-        s.executions[1] = Execution({intentIndex: 1, executedSell: 1e18, executedBuy: 200e18});
+        s.executions[0] = Execution({intentIndex: 0, executedSell: 200e6, executedBuy: 1e18});
+        s.executions[1] = Execution({intentIndex: 1, executedSell: 1e18, executedBuy: 200e6});
 
         s.venueCalls = new VenueCall[](0);
         s.baselineQuotes = new uint256[](2);
         s.baselineQuotes[0] = 0.99e18; // the venue would have given less
-        s.baselineQuotes[1] = 198e18;
+        s.baselineQuotes[1] = 198e6;
         s.solver = solver;
     }
 
@@ -175,8 +180,8 @@ contract SettlementTest is Test {
         settlement.finalize(BATCH_ID, s);
 
         assertEq(nvda.balanceOf(alice), 1e18, "alice got her NVDA");
-        assertEq(usdg.balanceOf(bob), 200e18, "bob got his USDG");
-        assertEq(usdg.balanceOf(alice), 800e18, "alice spent exactly her sell amount");
+        assertEq(usdg.balanceOf(bob), 200e6, "bob got his USDG");
+        assertEq(usdg.balanceOf(alice), 800e6, "alice spent exactly her sell amount");
         assertTrue(settlement.finalized(BATCH_ID));
     }
 
@@ -281,7 +286,7 @@ contract SettlementTest is Test {
 
     /// The escape hatch has to be usable, so it publishes the signature too.
     function test_escapeHatchPublishesTheWholeIntent() public {
-        Intent memory i = _intent(alice, address(usdg), address(nvda), 200e18, 1e18, 9);
+        Intent memory i = _intent(alice, address(usdg), address(nvda), 200e6, 1e18, 9);
         vm.recordLogs();
         settlement.submitIntentOnchain(i, hex"1234");
         assertEq(vm.getRecordedLogs().length, 1);
@@ -302,22 +307,22 @@ contract SettlementTest is Test {
         Solution memory s;
         s.batchId = BATCH_ID;
         s.intents = new Intent[](1);
-        s.intents[0] = _intent(alice, address(usdg), address(nvda), 200e18, 0.99e18, 1);
+        s.intents[0] = _intent(alice, address(usdg), address(nvda), 200e6, 0.99e18, 1);
         s.signatures = new bytes[](1);
         s.tokens = new address[](2);
         s.tokens[0] = address(usdg);
         s.tokens[1] = address(nvda);
         s.prices = new uint256[](2);
-        s.prices[0] = 1e18;
+        s.prices[0] = 1e30;
         s.prices[1] = 200e18;
         s.executions = new Execution[](1);
-        s.executions[0] = Execution({intentIndex: 0, executedSell: 200e18, executedBuy: 1e18});
+        s.executions[0] = Execution({intentIndex: 0, executedSell: 200e6, executedBuy: 1e18});
         s.venueCalls = new VenueCall[](1);
         s.venueCalls[0] = VenueCall({
             adapter: address(adapter),
             tokenIn: address(usdg),
             tokenOut: address(nvda),
-            amountIn: 200e18,
+            amountIn: 200e6,
             minOut: 1e18
         });
         s.baselineQuotes = new uint256[](1);
@@ -333,7 +338,7 @@ contract SettlementTest is Test {
         settlement.finalize(BATCH_ID, s);
 
         assertEq(nvda.balanceOf(alice), 1e18);
-        assertEq(usdg.balanceOf(address(adapter)), 200e18, "the venue took the flow");
+        assertEq(usdg.balanceOf(address(adapter)), 200e6, "the venue took the flow");
         assertEq(usdg.allowance(address(settlement), address(adapter)), 0, "allowance taken back");
     }
 
@@ -382,14 +387,15 @@ contract SettlementTest is Test {
         // Without that there is no room for a fee, and the user's own limit is the
         // first thing that stops one.
         s.intents[0].minBuyAmount = 0.99e18;
-        s.intents[1].minBuyAmount = 198e18;
+        s.intents[1].minBuyAmount = 198e6;
         // Both sides give up 3 bps, which is the most the uniform price check allows.
         s.executions[0].executedBuy = 1e18 - 0.0003e18;
-        s.executions[1].executedBuy = 200e18 - 0.06e18;
+        s.executions[1].executedBuy = 200e6 - 0.06e6;
         s.baselineQuotes[0] = 0.99e18;
-        s.baselineQuotes[1] = 198e18;
+        s.baselineQuotes[1] = 198e6;
 
-        uint256 savings = ((1e18 - 0.0003e18 - 0.99e18) * 200e18) / 1e18 + (200e18 - 0.06e18 - 198e18);
+        uint256 savings =
+            ((1e18 - 0.0003e18 - 0.99e18) * 200e18) / 1e18 + ((200e6 - 0.06e6 - 198e6) * 1e30) / 1e18;
         s.claimedSavings = savings;
 
         vm.warp(BATCH_ID + 1);
@@ -401,7 +407,7 @@ contract SettlementTest is Test {
 
         assertEq(nvda.balanceOf(solver), (0.0003e18 * 7500) / 10_000, "solver takes 75 percent of the fee");
         assertEq(nvda.balanceOf(treasury), 0.0003e18 - (0.0003e18 * 7500) / 10_000, "protocol takes the rest");
-        assertEq(usdg.balanceOf(solver), (0.06e18 * 7500) / 10_000);
+        assertEq(usdg.balanceOf(solver), (0.06e6 * 7500) / 10_000);
         assertEq(nvda.balanceOf(address(settlement)), 0, "nothing is left behind");
     }
 
@@ -413,7 +419,7 @@ contract SettlementTest is Test {
         // refused outright by the fee cap, which this test relies on staying true.
         Solution memory s = _nettedSolution();
         s.baselineQuotes[0] = 1e18 - 1;
-        s.baselineQuotes[1] = 200e18;
+        s.baselineQuotes[1] = 200e6;
         s.claimedSavings = 200;
 
         vm.warp(BATCH_ID + 1);
@@ -446,6 +452,23 @@ contract SettlementTest is Test {
         settlement.finalize(BATCH_ID, s);
     }
 
+    /// Two hundred dollars of USDG against two hundred dollars of NVDA is four
+    /// hundred dollars of notional, and the cap is what that number is for. USDG
+    /// has six decimals, so a price per whole token would have made its half of
+    /// this batch read as two ten billionths of a dollar and the cap would have
+    /// stopped binding on the asset that quotes nearly every pair.
+    function test_aSixDecimalLegIsMeasuredInDollarsLikeEveryOtherLeg() public {
+        vm.prank(governor);
+        settlement.setExposureCaps(399e18, 50_000e18, 200_000e18);
+
+        Solution memory s = _submit(_nettedSolution());
+        vm.warp(BATCH_ID + 20);
+        vm.expectRevert(
+            abi.encodeWithSelector(ISettlement.ExposureCapExceeded.selector, bytes32("batch"), 400e18, 399e18)
+        );
+        settlement.finalize(BATCH_ID, s);
+    }
+
     function test_bestSolutionReportsTheWinner() public {
         Solution memory s = _submit(_nettedSolution());
         (bytes32 hash, uint256 savings, address winner) = settlement.bestSolution(BATCH_ID);
@@ -463,8 +486,8 @@ contract SettlementTest is Test {
         registry.setActive(rival, true);
         Solution memory worse = _nettedSolution();
         worse.baselineQuotes[0] = 0.995e18;
-        worse.baselineQuotes[1] = 199e18;
-        worse.claimedSavings = (0.005e18 * 200e18) / 1e18 + 1e18;
+        worse.baselineQuotes[1] = 199e6;
+        worse.claimedSavings = (0.005e18 * 200e18) / 1e18 + ((200e6 - 199e6) * 1e30) / 1e18;
 
         vm.prank(rival);
         settlement.submitSolution(worse);

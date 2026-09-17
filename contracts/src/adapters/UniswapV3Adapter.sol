@@ -50,15 +50,19 @@ contract UniswapV3Adapter is IVenueAdapter {
     function setPool(address pool) external {
         if (msg.sender != governor) revert NotGovernor();
 
+        // The governor is naming this pool for the first time, so these four reads
+        // are what decide whether it is usable at all. A pool that reenters here
+        // can only refuse its own listing.
         IUniswapV3Pool p = IUniswapV3Pool(pool);
+        // aderyn-fp-next-line(reentrancy-state-change)
         (uint160 sqrtPriceX96,,,,,,) = p.slot0();
         if (sqrtPriceX96 == 0) revert PoolNotInitialized(pool);
 
-        uint24 fee = p.fee();
+        uint24 fee = p.fee(); // aderyn-fp(reentrancy-state-change)
         if (fee >= DYNAMIC_FEE_FLAG) revert DynamicFeeUnsupported(pool);
 
-        address token0 = p.token0();
-        address token1 = p.token1();
+        address token0 = p.token0(); // aderyn-fp(reentrancy-state-change)
+        address token1 = p.token1(); // aderyn-fp(reentrancy-state-change)
         poolFor[token0][token1] = pool;
         poolFor[token1][token0] = pool;
 

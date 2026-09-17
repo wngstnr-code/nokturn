@@ -387,6 +387,55 @@ menambah pool baru ke allowlist adapter.
 
 ---
 
+## 4C. Satuan harga di permukaan settlement
+
+Ditemukan 17 September 2026, saat menormalkan desimal di `AgentMandate`.
+
+**Harga di `Solution.prices` dan di `oraclePrices` adalah USD 18 desimal per satuan
+terkecil token, dikali 1e18. Bukan per satu token utuh.**
+
+| Token | Desimal | Harga pasar | Nilai di permukaan ini |
+|---|---|---|---|
+| USDG | 6 | 1 USD | `1e30` |
+| NVDA | 18 | 200 USD | `200e18` |
+
+### 4C.1 Kenapa ini bukan soal gaya penulisan
+
+Sebelum perbaikan, `Settlement` dan `ClearingVerifier` menghitung nilai sebagai
+`jumlah * harga / 1e18` sementara harganya per token utuh. Untuk token 18 desimal
+itu kebetulan benar. Untuk USDG yang 6 desimal, angkanya 1e12 kali terlalu kecil.
+
+Yang ikut salah karena itu, seluruhnya. Exposure cap per batch, per token, dan
+global. Plafon fee. Angka savings. Volume netted dan routed di event. Ambang
+passthrough satu basis poin. Dengan kata lain setiap angka dolar yang diterbitkan
+protokol ini, untuk aset yang mengutip hampir semua pasangan di chain ini.
+
+Lebih dari itu, `_checkUniformPrice` juga homogen dalam harga. Dengan harga per
+token utuh, satu batch USDG lawan NVDA berukuran wajar akan terbaca sebagai dua
+ratus dolar masuk dan empat puluh ribu miliar dolar keluar, lalu ditolak
+`NonUniformPrice`. Jadi pasangan yang paling umum di chain ini sebenarnya tidak
+bisa kliring sama sekali.
+
+### 4C.2 Kenapa test tidak menangkapnya
+
+Karena fixture-nya menjual **200e18 USDG**, yaitu dua ratus triliun dolar kalau
+satuannya dibaca benar. Suite-nya konsisten dengan dirinya sendiri dan salah
+bersama-sama. Itu bentuk kegagalan yang sama dengan data mock, cuma letaknya di
+test, jadi aturan 9 tidak menangkapnya.
+
+Fixture sekarang memakai 200e6 USDG, dan ada dua test yang mengunci akibatnya.
+Satu memastikan batch enam desimal terukur sebagai empat ratus dolar di exposure
+cap. Satu lagi memastikan harga per token utuh **ditolak**, bukan diselesaikan.
+
+### 4C.3 Kewajiban solver
+
+Solver mengutip harga dalam konvensi yang sama. `Settlement` menormalkan harga
+oracle di batasnya sendiri, jadi band check membandingkan dua angka yang satu
+satuan. Tidak ada array desimal yang dioper ke mana-mana, dan `ClearingVerifier`
+tetap `pure`.
+
+---
+
 ## 5. Solver
 
 | Konstanta | Nilai | Alasan |

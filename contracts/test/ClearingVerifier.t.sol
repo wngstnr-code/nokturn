@@ -7,7 +7,9 @@ import {ClearingVerifier} from "../src/ClearingVerifier.sol";
 contract ClearingVerifierTest is Test {
     ClearingVerifier verifier;
 
-    /// Token 0 is USDG scaled to 18 for the verifier, token 1 is NVDA.
+    /// Token 0 is USDG, token 1 is NVDA. Prices are per smallest unit, so most of
+    /// these cases give both tokens eighteen decimals to keep the arithmetic
+    /// readable. The mixed decimal case that every real batch has is below.
     uint256 constant USDG_PRICE = 1e18;
     uint256 constant NVDA_PRICE = 200e18;
 
@@ -68,6 +70,39 @@ contract ClearingVerifierTest is Test {
 
         // 0.01 NVDA at 200 plus 2 USDG at 1.
         assertEq(savings, 4e18);
+    }
+
+    /// The same pair with USDG at the six decimals it actually has. The decimal gap
+    /// lives in the price rather than in the amounts, so conservation still balances
+    /// and the savings still come out in dollars. This is the shape of every real
+    /// batch on this chain, because USDG quotes nearly every pair.
+    function test_aSixDecimalQuoteClearsAgainstAnEighteenDecimalBase() public view {
+        uint256[] memory p = new uint256[](2);
+        p[0] = 1e30;
+        p[1] = 200e18;
+
+        bytes memory intents =
+            bytes.concat(packIntent(0, 1, 0, 200e6, 1e18), packIntent(1, 0, 0, 1e18, 200e6));
+        bytes memory executions = bytes.concat(packExecution(0, 200e6, 1e18), packExecution(1, 1e18, 200e6));
+
+        uint256[] memory baselines = new uint256[](2);
+        baselines[0] = 0.99e18;
+        baselines[1] = 198e6;
+
+        uint256 savings = verifier.verify(intents, executions, tokens(), p, noDeltas(), p, baselines, 30, 3);
+
+        assertEq(savings, 4e18, "two dollars of NVDA plus two dollars of USDG");
+    }
+
+    /// And the same pair priced per whole token, which is what this contract used to
+    /// be handed. The value check sees two hundred dollars going in and forty
+    /// thousand billion coming out, so it refuses rather than settling it.
+    function test_aPricePerWholeTokenIsRefusedRatherThanSettled() public {
+        bytes memory intents = packIntent(0, 1, 0, 200e6, 1e18);
+        bytes memory executions = packExecution(0, 200e6, 1e18);
+
+        vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.NonUniformPrice.selector, 0));
+        verifier.verify(intents, executions, tokens(), prices(), noDeltas(), prices(), one(0), 30, 3);
     }
 
     function test_limitViolationReverts() public {

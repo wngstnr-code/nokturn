@@ -84,6 +84,9 @@ struct Solution {
     Intent[] intents;
     bytes[] signatures;
     address[] tokens;
+    /// USD with 18 decimals per smallest unit of the token, scaled by 1e18. A price
+    /// per whole token would be 1e12 too small the moment a six decimal token like
+    /// USDG is on one side, and USDG is the quote asset for nearly every pair.
     uint256[] prices;
     Execution[] executions;
     VenueCall[] venueCalls;
