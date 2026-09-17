@@ -216,7 +216,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     }
 
     /// @inheritdoc IAuctionHouse
-    function commitAuctionIntent(Intent calldata i, bytes calldata sig) external {
+    function commitAuctionIntent(Intent calldata i, bytes calldata sig) external nonReentrant {
         bytes32 intentHash = IntentLib.hash(i);
         if (commitments[intentHash].owner != address(0)) revert AlreadyCommitted(intentHash);
         if (i.flags & IntentFlags.AUCTION == 0) revert NotAnAuctionIntent(intentHash);
@@ -283,7 +283,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     }
 
     /// @inheritdoc IAuctionHouse
-    function openAuction(address token, uint8 kind) external returns (uint64 auctionId) {
+    function openAuction(address token, uint8 kind) external nonReentrant returns (uint64 auctionId) {
         Session session = sessions.sessionAt(uint64(block.timestamp));
         if (session != _auctionSession(kind)) revert NotInAuctionSession(kind, uint8(session));
 
@@ -297,7 +297,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     }
 
     /// @inheritdoc IAuctionHouse
-    function cancelBeforeFreeze(bytes32 intentHash) external {
+    function cancelBeforeFreeze(bytes32 intentHash) external nonReentrant {
         Commitment storage c = commitments[intentHash];
         if (c.owner == address(0)) revert CommitmentUnknown(intentHash);
         if (c.owner != msg.sender) revert NotCommitmentOwner(intentHash);
@@ -380,7 +380,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     /// @dev Widening the collar is the onchain equivalent of a delayed opening.
     /// The indicative price keeps being published while it widens, so the incentive
     /// to step in grows with the delay rather than shrinking.
-    function extend(uint64 auctionId) external {
+    function extend(uint64 auctionId) external nonReentrant {
         Auction storage a = auctions[auctionId];
         if (a.phase != Phase.FROZEN) revert WrongPhase(auctionId, uint8(a.phase));
         if (a.extensions >= MAX_EXTENSIONS) revert ExtensionsExhausted(auctionId);
@@ -395,7 +395,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     }
 
     /// @inheritdoc IAuctionHouse
-    function submitCross(uint64 auctionId, uint256 price, Execution[] calldata e) external {
+    function submitCross(uint64 auctionId, uint256 price, Execution[] calldata e) external nonReentrant {
         Auction storage a = auctions[auctionId];
         if (a.phase != Phase.FROZEN) revert WrongPhase(auctionId, uint8(a.phase));
         if (!solvers.isActive(msg.sender)) revert SolverNotActive(msg.sender);
@@ -484,7 +484,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     /// @dev Anyone, because an auction that cannot cross must not be able to keep
     /// the escrow either. The corporate action path is here too, since a multiplier
     /// that moves between the freeze and the cross changes what every intent meant.
-    function abortAuction(uint64 auctionId) external {
+    function abortAuction(uint64 auctionId) external nonReentrant {
         Auction storage a = auctions[auctionId];
         if (a.phase == Phase.EXECUTED || a.phase == Phase.ABORTED || a.phase == Phase.NONE) {
             revert WrongPhase(auctionId, uint8(a.phase));
@@ -502,13 +502,13 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
             reason = "no cross in time";
         }
 
-        if (a.phase == Phase.CROSSED) {
-            _rollbackCross(auctionId, a);
-            quote.safeTransfer(a.solver, bond);
-        }
+        address solver = a.solver;
+        bool returnBond = a.phase == Phase.CROSSED;
+        if (returnBond) _rollbackCross(auctionId, a);
 
         a.phase = Phase.ABORTED;
         emit AuctionAborted(auctionId, reason);
+        if (returnBond) quote.safeTransfer(solver, bond);
     }
 
     /// @inheritdoc IAuctionHouse
