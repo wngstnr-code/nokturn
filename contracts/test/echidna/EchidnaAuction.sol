@@ -57,13 +57,20 @@ contract AuctionChallenger {
 /// always recoverable once the auction settles, by anyone, and a closing print is
 /// never published below the volume or the participant floor.
 ///
-/// One thing this campaign does not reach yet is the publishing branch of I13.
-/// It settles crosses and it withholds prints below the floor, but a book large
-/// enough to clear a thousand dollars of volume with five distinct owners has to
-/// survive the whole chain of commit, open, freeze, cross and execute inside one
-/// auction session, and the search has not landed that combination. The floor
-/// itself is asserted here on every published round, and the foundry campaign is
-/// what reaches a published one today.
+/// Both branches of I13 are reached. Prints are withheld below the floor and
+/// published above it, which matters because a campaign that only ever reaches the
+/// withholding branch has not tested the one that writes a number the outside world
+/// reads.
+///
+/// Getting there was a clock problem rather than a book problem. Probes on each
+/// stage showed close auctions being booked, frozen, crossed and executed, and only
+/// the print never published, and the participant floor was never the reason. The
+/// first AUCTION_CLOSE window sits about seventy thousand seconds past where
+/// echidna starts its clock, which at this step was most of a thousand call
+/// sequence, so the sequence ran out before the freeze, the cross and the execute
+/// behind it. The sequence is longer now, three books in four are sized over the
+/// print floor, and actAdvance stops a three hundred second freeze window being
+/// spent on a draw for one action out of a dozen.
 ///
 /// The phases only mean anything in order, and echidna has no warp, so the order
 /// is not driven from here. Every phase is its own action that returns when the
@@ -208,7 +215,14 @@ contract EchidnaAuction {
         // three actors and the two sides have to divide evenly. A book that needs a
         // partial fill on its last entry loses up to one quote unit of token to the
         // flooring, and the contract allows one per fill.
-        uint256 qty = (1 + (seed >> 32) % 7) * 6e17;
+        //
+        // Three books in four are sized over the thousand dollar print floor and
+        // the fourth under it, because I13 has two branches and a campaign that
+        // only ever reaches the withholding one has not tested the other. Two
+        // buyers at three tokens each clear twelve hundred dollars at the two
+        // hundred dollar reference, which is the smallest book that always passes.
+        uint256 steps = (seed >> 48) % 4 == 0 ? 1 + (seed >> 32) % 4 : 5 + (seed >> 32) % 3;
+        uint256 qty = steps * 6e17;
         uint256 perSeller = (buyers * qty) / sellers;
 
         for (uint256 k = 0; k < buyers; ++k) {
@@ -222,6 +236,32 @@ contract EchidnaAuction {
         }
         if (committed.length > 0) lastBooked[kind] = committed[committed.length - 1].auctionId;
         _checkInvariants();
+    }
+
+    /// @notice Takes whichever step the picked auction is currently ready for.
+    /// The phases still only happen in order and the clock still decides which one
+    /// is legal, so this drives nothing. It exists because the first auction
+    /// session sits most of a day past where echidna starts its clock, and the
+    /// freeze window at the end of it is three hundred seconds wide. Spending that
+    /// window on a draw for one action out of a dozen is how a campaign reaches a
+    /// cross and never a print.
+    function actAdvance(uint256 seed) public {
+        uint64 id = _pickByPhase(PHASE_CROSSED, seed);
+        if (id != 0) {
+            actExecute(seed);
+            return;
+        }
+        id = _pickByPhase(PHASE_FROZEN, seed);
+        if (id != 0) {
+            actCross(seed);
+            return;
+        }
+        id = _pickByPhase(PHASE_DISCLOSURE, seed);
+        if (id != 0) {
+            actFreeze(seed);
+            return;
+        }
+        actOpen(seed);
     }
 
     function actOpen(uint256 seed) public {

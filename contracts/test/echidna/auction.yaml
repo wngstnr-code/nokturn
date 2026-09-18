@@ -10,11 +10,19 @@ testMode: assertion
 # At six hundred seconds a step the campaign reached auction sessions and opened
 # auctions, but never once froze one, because a thirty minute window holds about
 # three steps and only a tenth of them are the freeze call.
-seqLen: 1000
+#
+# Measured again on 18 September 2026 with probes on each stage of the close
+# auction chain. Booking, freezing, crossing and executing a close auction were
+# all reached. Publishing a print was not, and the reason is the clock rather
+# than the book. The first AUCTION_CLOSE window sits about seventy thousand
+# seconds past where echidna starts, which at this step is most of a thousand
+# call sequence, so the sequence ran out before the freeze, cross and execute
+# behind it. The length is what changed.
+seqLen: 2500
 maxTimeDelay: 150
 maxBlockDelay: 50
 
-testLimit: 30000
+testLimit: 100000
 # Shrinking a thousand call sequence is what this costs. Two thousand attempts
 # over a sequence that long took longer than the search that found it.
 shrinkLimit: 200
