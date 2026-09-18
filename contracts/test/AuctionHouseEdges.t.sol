@@ -334,6 +334,112 @@ contract AuctionHouseEdgesTest is AuctionFixture {
         assertEq(matched, 5e18);
     }
 
+    /// The matchable check allows one unit of rounding per fill and not a unit
+    /// more. This book is short by exactly that allowance, which is the only place
+    /// the tolerance can be told apart from no tolerance at all.
+    function test_aCrossShortByExactlyTheRoundingAllowanceIsStillEnough() public {
+        _buyMoo(alice, 500e6, 1);
+        _sellMoo(bob, 2e18 + 2, 2);
+        uint64 id = _openAndFreeze();
+        _passOpeningReference(200e8);
+
+        Execution[] memory e = new Execution[](2);
+        e[0] = _exec(0, 400e6, 2e18);
+        e[1] = _exec(1, 2e18, 400e6);
+
+        vm.prank(solver);
+        house.submitCross(id, 200e6, e);
+        (,, uint8 phase,,,) = house.auctionState(id);
+        assertEq(phase, 3, "two units of rounding over two fills is the allowance");
+    }
+
+    /// The reference resolves on the second it is due, not on the one after. An
+    /// auction that waited for the opening reference has to be crossing against it
+    /// by then, because that is the second the collar moves.
+    function test_theReferenceResolvesOnTheSecondItIsDue() public {
+        _buyMoo(alice, 500e6, 1);
+        _sellMoo(bob, 2e18, 2);
+        uint64 id = _openAndFreeze();
+
+        vm.warp(BELL + 1);
+        _pushFeeds(220e8, uint64(block.timestamp));
+        vm.warp(BELL + 150);
+        _pushFeeds(220e8, uint64(block.timestamp));
+        vm.warp(REFERENCE_AT);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint32 day = uint32(BELL / 1 days);
+        oracle.finalizeOpenReference(address(nvda), day);
+
+        (uint256 openRef,) = oracle.openReference(address(nvda), day);
+        uint256 crossPrice = (openRef * 1e6) / 1e18;
+        assertGt(crossPrice, 204e6, "the opening reference is outside the collar the freeze drew");
+
+        uint256 quoteLeg = (2e18 * crossPrice) / 1e18;
+        Execution[] memory e = new Execution[](2);
+        e[0] = _exec(0, quoteLeg, (quoteLeg * 1e18) / crossPrice);
+        e[1] = _exec(1, 2e18, quoteLeg);
+
+        vm.prank(solver);
+        house.submitCross(id, crossPrice, e);
+
+        (uint256 refPrice,,,,,) = house.auctionResult(id);
+        assertEq(refPrice, crossPrice, "the opening reference, not the price at the freeze");
+    }
+
+    /// And it resolves once. A reference that moved every time someone touched the
+    /// auction would let the collar drift under a book that already committed to it.
+    function test_theReferenceIsResolvedOnlyOnce() public {
+        _enterClosingAuction();
+        _commitClose(alice, true, 400e6, 1);
+        _commitClose(bob, false, 2e18, 2);
+        uint64 id = _closeAuctionFrozen();
+
+        vm.warp(CLOSE_BELL + 300);
+        house.extend(id);
+
+        vm.warp(CLOSE_BELL + 400);
+        _pushFeeds(300e8, uint64(block.timestamp));
+        vm.warp(CLOSE_BELL + 600);
+        house.extend(id);
+
+        (uint256 price,,) = house.indicative(id);
+        assertEq(price, 200e6, "the reference the book was frozen against");
+    }
+
+    /// A relative order names a band around the reference, and the band opens
+    /// downward for a seller. A cross inside it clears.
+    function test_aSellerInsideItsRelativeBandIsFilled() public {
+        _buyMoo(alice, 500e6, 1);
+        _commit(_intent(bob, false, 2e18, 0, IntentKind.ROO, 100, SessionMask.AUCTION_OPEN, 2));
+        uint64 id = _openAndFreeze();
+        _passOpeningReference(200e8);
+
+        Execution[] memory e = new Execution[](2);
+        e[0] = _exec(0, 398e6, 2e18);
+        e[1] = _exec(1, 2e18, 398e6);
+
+        vm.prank(solver);
+        house.submitCross(id, 199e6, e);
+        (,, uint8 phase,,,) = house.auctionState(id);
+        assertEq(phase, 3, "one percent below the reference is inside a one percent band");
+    }
+
+    /// And a cross below the band does not, at the exact limit the band names.
+    function test_aSellerBelowItsRelativeBandIsRefusedAtTheBandItself() public {
+        _buyMoo(alice, 500e6, 1);
+        _commit(_intent(bob, false, 2e18, 0, IntentKind.ROO, 100, SessionMask.AUCTION_OPEN, 2));
+        uint64 id = _openAndFreeze();
+        _passOpeningReference(200e8);
+
+        Execution[] memory e = new Execution[](2);
+        e[0] = _exec(0, 394e6, 2e18);
+        e[1] = _exec(1, 2e18, 394e6);
+
+        vm.prank(solver);
+        vm.expectRevert(abi.encodeWithSelector(AuctionHouse.LimitNotRespected.selector, 1, 198e6, 197e6));
+        house.submitCross(id, 197e6, e);
+    }
+
     function _openId() internal view returns (uint64) {
         return house.auctionIdOf(address(nvda), DAY, kindOpen);
     }
