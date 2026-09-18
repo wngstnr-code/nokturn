@@ -13,6 +13,7 @@ on:
   pull_request:
     paths:
       - "contracts/**"
+      - "verifier/**"
       - "packages/shared/**"
       - ".github/workflows/contracts.yml"
 
@@ -260,3 +261,63 @@ jobs:
           echidna --version
       - name: every invariant on the second engine
         run: ./tools/echidna.sh --format text
+
+  differential:
+    # Nightly, per rencana-uji.md section 9. Two implementations in two languages
+    # with two arithmetic models, handed the same input, have to agree on the
+    # answer and on the revert. The Solidity side runs inside revm rather than over
+    # RPC, because a million inputs is out of reach of a node.
+    if: github.event.schedule == '0 3 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: build the artifact the harness compares against
+        run: forge build
+        working-directory: contracts
+      - name: one million inputs, zero differences
+        # The seed is the day, so a failure names a run that can be repeated and
+        # consecutive nights do not walk the same ground.
+        run: |
+          seed=$(date -u +%Y%m%d)
+          cargo run --release -q -p differential -- 1000000 "$seed" | tee report.txt
+          grep -q "zero differences" report.txt
+        working-directory: verifier
+      - name: keep the report, because section 3 asks for it in the repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: differential-report
+          path: verifier/report.txt
+
+  stylus-abi:
+    # Every pull request. The Stylus program is a v1.1 candidate and is not
+    # deployed, but the whole point of the differential is that both sides answer
+    # the same question, and they stop doing that the moment one of them takes
+    # uint8[] where the other takes bytes. That difference reads the same in a diff
+    # and is a different function onchain.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: install cargo stylus
+        run: cargo install cargo-stylus --locked --version 0.10.9
+      - run: forge build
+        working-directory: contracts
+      - name: the two programs expose the same functions, by selector
+        run: ./tools/abi-match.sh
+        working-directory: verifier
+      - name: the rust core agrees with the solidity on a short run
+        run: cargo run --release -q -p differential -- 20000 1
+        working-directory: verifier

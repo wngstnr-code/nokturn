@@ -56,3 +56,5 @@ contracts/echidna-corpus*/
 contracts/crytic-export/
 
 verifier/target/
+verifier/stylus/target/
+verifier/report.txt
