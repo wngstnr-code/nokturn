@@ -1,0 +1,17 @@
+# The stateful targets, which drive the real contracts rather than a pure library.
+testMode: assertion
+
+# Long sequences on purpose. Echidna moves the clock by a small random step per
+# transaction, and the session engine only reaches pre market and open after
+# several hours of that. A short sequence would run the whole campaign inside one
+# session and never see a boundary at all.
+seqLen: 500
+maxTimeDelay: 120
+maxBlockDelay: 40
+
+testLimit: 50000
+shrinkLimit: 5000
+
+corpusDir: echidna-corpus-stateful
+coverage: true
+seed: 5197047

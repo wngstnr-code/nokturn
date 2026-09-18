@@ -1,0 +1,23 @@
+# Assertion mode, because these properties are stated as assertions inside the
+# functions that take the inputs rather than as a separate echidna_ predicate over
+# stored state. A property that reads its own arguments is easier to keep honest
+# than one that reads a ghost variable somebody has to remember to update.
+testMode: assertion
+
+# A hundred thousand calls per contract. The stateless targets exhaust their
+# interesting shapes long before this, and the number is here so a slow property
+# cannot quietly turn into a short run.
+testLimit: 100000
+shrinkLimit: 5000
+
+# Echidna reverts count as neither pass nor fail in assertion mode, and these
+# targets are written so a premise that does not hold returns instead of
+# reverting, so a high revert rate here means a property stopped reaching its
+# assertion. Worth reading the coverage report when that happens.
+corpusDir: echidna-corpus
+coverage: true
+
+# Deterministic by default for the same reason the fuzz seed in foundry.toml is
+# pinned. The nightly job passes --seed with the run number so the search does
+# move, but a failure on a laptop reproduces from the same starting point.
+seed: 5197047
