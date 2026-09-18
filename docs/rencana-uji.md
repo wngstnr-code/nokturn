@@ -262,7 +262,7 @@ tapi "kami menguji **setiap batas kalender selama 15 tahun**".
 
 Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 
-- [ ] 14 invarian hijau di Foundry **dan** Echidna
+- [x] 14 invarian hijau di Foundry **dan** Echidna · lima target Echidna, nol falsifikasi, 19 September 2026
 - [x] Differential ≥ 1 juta input, nol perbedaan · laporan `verifier/reports/differential-2026-09-18.md`
 - [ ] Semua properti Halmos terbukti
 - [ ] Skor mutasi ≥ 90% pada kontrak inti
