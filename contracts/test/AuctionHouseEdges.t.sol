@@ -440,6 +440,92 @@ contract AuctionHouseEdgesTest is AuctionFixture {
         house.submitCross(id, 197e6, e);
     }
 
+    /// The book cap is a cap. An auction holding exactly the maximum is full, and
+    /// the entry that would make it one too many is the one refused.
+    function test_aBookHoldingExactlyTheMaximumIsFull() public {
+        uint256 max = house.MAX_AUCTION_INTENTS();
+        for (uint256 k = 0; k < max; ++k) {
+            _buyMoo(alice, 1e6, k + 1);
+        }
+
+        uint64 id = _openId();
+        Intent memory one = _intent(alice, true, 1e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, max + 1);
+        bytes memory sig = _commitSignature(one);
+
+        vm.expectRevert(abi.encodeWithSelector(AuctionHouse.BookFull.selector, id));
+        house.commitAuctionIntent(one, sig);
+    }
+
+    /// Third rule of the hierarchy, reached through a challenge, which is the only
+    /// path where the price being compared against is not the reference itself.
+    /// Both prices trade the same hundred shares and leave the same share unfilled,
+    /// so the nearer one wins.
+    function test_theNearerPriceWinsAClearTieFromBelow() public {
+        _fundChallenger();
+        uint64 id = _tiedBook(199_980_000, 19_998e6);
+        _crossFor(id, 198e6, 19_800e6);
+
+        vm.expectEmit(true, true, false, true);
+        emit IAuctionHouse.CrossChallenged(id, challenger, 198e6, 199_980_000, true);
+        vm.prank(challenger);
+        house.challenge(id, 199_980_000);
+
+        (,, uint8 phase,,,) = house.auctionState(id);
+        assertEq(phase, 2, "the cross was rolled back");
+    }
+
+    /// The same tie from the other side of the reference.
+    function test_theNearerPriceWinsAClearTieFromAbove() public {
+        _fundChallenger();
+        uint64 id = _tiedBook(203_010_000, 20_301e6);
+        _crossFor(id, 203_010_000, 20_301e6);
+
+        vm.expectEmit(true, true, false, true);
+        emit IAuctionHouse.CrossChallenged(id, challenger, 203_010_000, 201e6, true);
+        vm.prank(challenger);
+        house.challenge(id, 201e6);
+
+        (,, uint8 phase,,,) = house.auctionState(id);
+        assertEq(phase, 2, "the cross was rolled back");
+    }
+
+    /// And the further price loses the same tie. A challenge that names a price the
+    /// hierarchy does not prefer keeps its bond seized rather than reverting, so
+    /// the phase is what says it failed.
+    function test_theFurtherPriceLosesTheSameTie() public {
+        _fundChallenger();
+        uint64 id = _tiedBook(203_010_000, 20_301e6);
+        _crossFor(id, 201e6, 20_100e6);
+
+        vm.expectEmit(true, true, false, true);
+        emit IAuctionHouse.CrossChallenged(id, challenger, 201e6, 203_010_000, false);
+        vm.prank(challenger);
+        house.challenge(id, 203_010_000);
+
+        (,, uint8 phase,,,) = house.auctionState(id);
+        assertEq(phase, 3, "the cross stands");
+    }
+
+    /// A book that ties on volume and on imbalance at two prices at once. The
+    /// hundred share offer is the whole supply below the limit price, and the one
+    /// share above it is what makes the two imbalances the same size on opposite
+    /// sides.
+    function _tiedBook(uint256 limitPrice, uint256 buyQuote) internal returns (uint64 id) {
+        _buyMoo(alice, buyQuote, 1);
+        _sellMoo(bob, 100e18, 2);
+        _commit(_intent(carol, false, 1e18, limitPrice, IntentKind.LOO, 0, SessionMask.AUCTION_OPEN, 3));
+        id = _openAndFreeze();
+        _passOpeningReference(200e8);
+    }
+
+    function _crossFor(uint64 id, uint256 price, uint256 quoteLeg) internal {
+        Execution[] memory e = new Execution[](2);
+        e[0] = _exec(0, quoteLeg, (quoteLeg * 1e18) / price);
+        e[1] = _exec(1, 100e18, (100e18 * price) / 1e18);
+        vm.prank(solver);
+        house.submitCross(id, price, e);
+    }
+
     function _openId() internal view returns (uint64) {
         return house.auctionIdOf(address(nvda), DAY, kindOpen);
     }
