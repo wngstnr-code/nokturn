@@ -223,3 +223,40 @@ jobs:
           version: v1.8.3
       - name: mutation score on the core contracts
         run: python3 tools/mutate.py src/Settlement.sol src/SessionManager.sol --threshold 90
+
+  echidna:
+    # Nightly, per rencana-uji.md section 9. Foundry drives these same invariants
+    # on every pull request. This is the second engine on them, and it is a
+    # different engine rather than a second opinion. It builds its values from a
+    # dictionary mined out of the source, mutates whole call sequences rather than
+    # single arguments, and shrinks differently.
+    if: github.event.schedule == '0 3 * * *'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install crytic-compile
+        # Echidna reads the project through crytic-compile, which shells out to
+        # forge. Pinned for the same reason the toolchain is.
+        run: pip install crytic-compile==0.3.7 slither-analyzer==0.11.4
+      - name: install echidna
+        # The release binary rather than a container, because the job already has
+        # a pinned foundry on the runner and a container would carry its own.
+        run: |
+          curl -sL -o echidna.tar.gz \
+            https://github.com/crytic/echidna/releases/download/v2.3.3/echidna-2.3.3-x86_64-linux.tar.gz
+          tar -xzf echidna.tar.gz
+          sudo mv echidna /usr/local/bin/echidna
+          echidna --version
+      - name: every invariant on the second engine
+        run: ./tools/echidna.sh --format text
