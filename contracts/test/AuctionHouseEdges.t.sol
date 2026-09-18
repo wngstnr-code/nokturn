@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {AuctionHouse} from "../src/AuctionHouse.sol";
 import {IAuctionHouse} from "../src/interfaces/IAuctionHouse.sol";
 import {Execution, Intent, IntentKind, SessionMask} from "../src/types/Types.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {AuctionFixture} from "./fixtures/AuctionFixture.sol";
 
 /// @notice One test per operator the auction suite could flip without noticing.
@@ -109,6 +110,54 @@ contract AuctionHouseEdgesTest is AuctionFixture {
 
         vm.warp(REFERENCE_AT + 1201);
         house.abortAuction(id);
+    }
+
+    /// Dust only exists when the two sides did not divide evenly, and a cross that
+    /// divided evenly must not hand the treasury a transfer of nothing. A zero
+    /// value transfer is a real call on a real token, and some tokens revert on it.
+    function test_anEvenCrossSendsTheTreasuryNoDustTransfer() public {
+        uint64 id = _crossedAuction();
+        vm.warp(block.timestamp + 121);
+
+        vm.recordLogs();
+        house.executeCross(id);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        assertEq(_transfersTo(logs, address(nvda), treasury), 0, "no token dust, no token transfer");
+        assertEq(_transfersTo(logs, address(usdg), treasury), 0, "no quote dust, no quote transfer");
+    }
+
+    /// The same on the refund path. A commitment the cross filled entirely has
+    /// nothing left to send back, and sending zero anyway would say it did.
+    function test_aFullyFilledCommitmentRefundsWithoutATransfer() public {
+        bytes32 hash = _buyMoo(alice, 400e6, 1);
+        _sellMoo(bob, 2e18, 2);
+        uint64 id = _openAndFreeze();
+        _passOpeningReference(200e8);
+
+        Execution[] memory e = new Execution[](2);
+        e[0] = _exec(0, 400e6, 2e18);
+        e[1] = _exec(1, 2e18, 400e6);
+        vm.prank(solver);
+        house.submitCross(id, 200e6, e);
+        vm.warp(block.timestamp + 121);
+        house.executeCross(id);
+
+        vm.recordLogs();
+        house.refundEscrow(hash);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        assertEq(_transfersTo(logs, address(usdg), alice), 0, "nothing was left to refund");
+    }
+
+    function _transfersTo(Vm.Log[] memory logs, address token, address to) internal pure returns (uint256 n) {
+        bytes32 sig = keccak256("Transfer(address,address,uint256)");
+        for (uint256 k = 0; k < logs.length; ++k) {
+            if (logs[k].emitter != token) continue;
+            if (logs[k].topics.length != 3 || logs[k].topics[0] != sig) continue;
+            if (address(uint160(uint256(logs[k].topics[2]))) != to) continue;
+            n += 1;
+        }
     }
 
     function _crossedAuction() internal returns (uint64 id) {
