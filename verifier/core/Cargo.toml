@@ -1,0 +1,13 @@
+[package]
+name = "clearing-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "The clearing checks, in Rust, as the differential counterpart to ClearingVerifier.sol"
+
+[dependencies]
+alloy-primitives = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["alloy-primitives/std"]
