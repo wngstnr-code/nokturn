@@ -263,7 +263,7 @@ tapi "kami menguji **setiap batas kalender selama 15 tahun**".
 Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 
 - [ ] 14 invarian hijau di Foundry **dan** Echidna
-- [ ] Differential ≥ 1 juta input, nol perbedaan
+- [x] Differential ≥ 1 juta input, nol perbedaan · laporan `verifier/reports/differential-2026-09-18.md`
 - [ ] Semua properti Halmos terbukti
 - [ ] Skor mutasi ≥ 90% pada kontrak inti
 - [ ] Semua fork test lulus terhadap mainnet nyata
