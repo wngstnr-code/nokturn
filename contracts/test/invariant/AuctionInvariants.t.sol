@@ -167,10 +167,17 @@ contract AuctionInvariants is Test {
 
     /// The bond is quote denominated and sits in the same contract as the quote
     /// escrow, so the treasury only ever receives the losing half of a challenge.
+    /// @dev A challenge takes half a bond to the protocol whichever way it goes.
+    /// A wrong one forfeits what the challenger posted and a right one forfeits what
+    /// the solver posted, and in both cases the other half pays whoever was right.
+    /// The bound counts challenges for that reason. Leaving them out made this read
+    /// as a claim about executions and aborts alone, and it held only until the
+    /// campaign ran three challenges without an execution beside them.
     function invariant_theTreasuryOnlyGrowsFromDustAndLostBonds() public view {
+        uint256 bondEvents = handler.crossesExecuted() + handler.auctionsAborted() + handler.challengesHeard();
         assertLe(
             usdg.balanceOf(treasury),
-            house.bond() * (handler.crossesExecuted() + handler.auctionsAborted() + 1),
+            house.bond() * (bondEvents + 1),
             "the treasury took more than the bonds that passed through"
         );
     }

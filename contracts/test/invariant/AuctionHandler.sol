@@ -52,6 +52,7 @@ contract AuctionHandler is Test {
     uint256 public nextNonce = 1;
     uint256 public crossesExecuted;
     uint256 public auctionsAborted;
+    uint256 public challengesHeard;
     uint256 public refundsPaid;
     uint256 public doubleRefunds;
     uint256 public printsPublished;
@@ -367,7 +368,9 @@ contract AuctionHandler is Test {
         if (price == 0) return;
         uint256 better = seed & 2 == 0 ? (price * 10_050) / BPS : (price * 9950) / BPS;
         vm.prank(challenger);
-        try house.challenge(auctionId, better) {} catch {}
+        try house.challenge(auctionId, better) {
+            challengesHeard += 1;
+        } catch {}
     }
 
     function _execute(uint64 auctionId) internal {
