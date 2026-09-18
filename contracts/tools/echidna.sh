@@ -24,3 +24,5 @@ run() {
 
 run EchidnaClearing echidna.yaml "$@"
 run EchidnaSettlement stateful.yaml "$@"
+run EchidnaSession stateful.yaml "$@"
+run EchidnaMandate stateful.yaml "$@"
