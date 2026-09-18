@@ -37,3 +37,20 @@ src/PriceOracle.sol:258:34:<=>< | nextTransition answers the first second after 
 src/PriceOracle.sol:258:26:||>&& | A next of zero satisfies both sides of the and, so the walk still stops when the table runs out. The only case the two forms disagree on is a transition at or behind the cursor, which nextTransition does not produce.
 src/PriceOracle.sol:277:19:||>&& | With one side missing the mutant measures ten thousand basis points instead of the sixteen bit ceiling. Every caller compares that number against a limit of at most fifteen hundred, so both answers land on the same side of every comparison in this contract. A limit above ten thousand basis points would end that.
 src/libraries/CivilDate.sol:33:38:||>&& | A month cannot be both zero and above twelve, so the mutation makes that clause dead rather than wrong. A month of zero then falls through to the round trip check, which rebuilds the date, finds a different one, and reverts with the same error carrying the same argument. A month of zero with a day of zero or above thirty one is still caught by the day clauses ahead of it.
+
+src/AuctionHouse.sol:733:50:>>>= | Reached only when the two matched volumes differ, so the equality this mutation moves is not a case the branch can see.
+src/AuctionHouse.sol:737:38:<><= | Reached only when the two gaps differ, for the same reason as the line above it.
+src/AuctionHouse.sol:735:31:>>>= | The gap is an absolute difference, and two equal numbers differ by zero whichever order they are subtracted in.
+src/AuctionHouse.sol:736:31:>>>= | The same absolute difference on the incumbent side.
+src/AuctionHouse.sol:739:34:>>>= | The distance to the reference is an absolute difference, and a candidate sitting on the reference is zero away from it either way.
+src/AuctionHouse.sol:740:34:>>>= | The same distance on the incumbent side.
+src/AuctionHouse.sol:795:25:<><= | The matched volume is the smaller of demand and supply, and picking either when they are equal returns that number.
+src/AuctionHouse.sol:976:22:<=>< | A print answer of zero converts to zero either way, because the branch that does the scaling multiplies a zero.
+src/AuctionHouse.sol:899:36:<><= | The lookahead is a guard against a malformed table rather than a working limit. The walk reaches an auction session within a handful of transitions and returns, so one more iteration of a loop that has already returned changes nothing a caller can see.
+src/AuctionHouse.sol:909:34:<=>< | nextTransition answers the first second after its argument whose session differs, so it is either zero or strictly ahead of the cursor. The equality this mutation moves is not a value it produces.
+src/AuctionHouse.sol:909:26:||>&& | A next of zero satisfies both sides of the and, so the walk still stops when the table runs out. The only case the two forms disagree on is a transition at or behind the cursor, which nextTransition does not produce.
+src/AuctionHouse.sol:858:16:>>>= | A token gets at most one closing print per day, because the auction is keyed by day and kind and it only prints once it has executed. The day being written is therefore never the day already recorded, and writing the same number again would change nothing if it were.
+src/AuctionHouse.sol:692:29:==>!= | The rollback zeroes two fields that are already zero on a commitment that never filled, so taking the continue or falling past it leaves the same state behind.
+src/AuctionHouse.sol:692:49:==>!= | The same idempotence on the other half of the condition.
+src/AuctionHouse.sol:692:34:&&>|| | The same idempotence again. The loop body cannot be wrong about a commitment it has nothing to clear on.
+src/AuctionHouse.sol:651:45:->+ | A commitment is reached at most once per cross, because the executions are checked to be strictly ascending, and a cross that is rolled back zeroes the fills before another one can be submitted. The filled amount is therefore zero on this line, and adding or subtracting a zero is the same.
