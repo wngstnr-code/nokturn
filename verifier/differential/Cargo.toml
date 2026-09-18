@@ -1,0 +1,13 @@
+[package]
+name = "differential"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Runs the rust clearing core against ClearingVerifier.sol on the same inputs"
+
+[dependencies]
+clearing-core = { path = "../core" }
+alloy-primitives = { workspace = true, features = ["std"] }
+alloy-sol-types = "1.7"
+revm = "43"
+serde_json = "1"
