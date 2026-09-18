@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {AuctionHouse} from "../src/AuctionHouse.sol";
 import {IAuctionHouse} from "../src/interfaces/IAuctionHouse.sol";
 import {Execution, Intent, IntentKind, SessionMask} from "../src/types/Types.sol";
+import {stdError} from "forge-std/StdError.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {AuctionFixture} from "./fixtures/AuctionFixture.sol";
 
@@ -148,6 +149,139 @@ contract AuctionHouseEdgesTest is AuctionFixture {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         assertEq(_transfersTo(logs, address(usdg), alice), 0, "nothing was left to refund");
+    }
+
+    /// A token nobody has crossed at the close has no print, and the surface has to
+    /// say so rather than hand out a zero that reads like a price.
+    function test_aTokenWithNoClosingPrintSaysSo() public view {
+        (uint256 price, uint64 ts, bool sufficient) = house.lastClose(address(nvda));
+        assertEq(price, 0);
+        assertEq(ts, 0);
+        assertFalse(sufficient, "nothing has printed here yet");
+    }
+
+    /// The volume floor is a floor. An auction that traded exactly a thousand
+    /// dollars is at the minimum rather than under it, so it prints.
+    function test_anAuctionExactlyOnTheVolumeFloorStillPrints() public {
+        address dave2 = vm.addr(DAVE_KEY);
+        address erin = vm.addr(ERIN_KEY);
+        _fund(dave2, DAVE_KEY);
+        _fund(erin, ERIN_KEY);
+        _enterClosingAuction();
+
+        _commitClose(alice, true, 400e6, 1);
+        _commitClose(carol, true, 300e6, 2);
+        _commitClose(dave2, true, 300e6, 3);
+        _commitClose(bob, false, 2.5e18, 4);
+        _commitClose(erin, false, 2.5e18, 5);
+        uint64 id = _closeAuctionFrozen();
+
+        Execution[] memory e = new Execution[](5);
+        e[0] = _exec(0, 400e6, 2e18);
+        e[1] = _exec(1, 300e6, 1.5e18);
+        e[2] = _exec(2, 300e6, 1.5e18);
+        e[3] = _exec(3, 2.5e18, 500e6);
+        e[4] = _exec(4, 2.5e18, 500e6);
+        vm.prank(solver);
+        house.submitCross(id, 200e6, e);
+
+        vm.warp(block.timestamp + 121);
+        vm.expectEmit(true, true, false, true);
+        emit IAuctionHouse.ClosingPrintPublished(address(nvda), DAY, 200e18, 1000e6, 5, true);
+        house.executeCross(id);
+
+        assertEq(house.printMinVolume(), 1000e6, "the floor is a thousand dollars in quote units");
+    }
+
+    /// The collar is inclusive on both edges. A price sitting exactly on the bound
+    /// is inside it, and refusing it would narrow every collar in the protocol by
+    /// one unit without anything saying so.
+    function test_aCrossOnEitherCollarEdgeIsInsideIt() public {
+        _buyMoo(alice, 500e6, 1);
+        _sellMoo(bob, 2e18, 2);
+        uint64 id = _openAndFreeze();
+        _passOpeningReference(200e8);
+
+        uint256 low = (200e6 * (10_000 - 200)) / 10_000;
+        uint256 high = (200e6 * (10_000 + 200)) / 10_000;
+
+        uint256 snapshot = vm.snapshotState();
+        _crossAt(id, low);
+        vm.revertToState(snapshot);
+        _crossAt(id, high);
+    }
+
+    /// The length guard names a maximum, and a cross of exactly that length is at
+    /// it rather than over it. The second submission fails on the book instead,
+    /// which is the whole point. It got past the length check to fail there.
+    function test_aCrossOfExactlyTheMaximumLengthIsNotTooLong() public {
+        _buyMoo(alice, 400e6, 1);
+        _sellMoo(bob, 2e18, 2);
+        uint64 id = _openAndFreeze();
+        _passOpeningReference(200e8);
+
+        uint256 max = house.MAX_CROSS_EXECUTIONS();
+
+        Execution[] memory tooMany = new Execution[](max + 1);
+        for (uint256 k = 0; k < tooMany.length; ++k) {
+            tooMany[k] = _exec(k, 0, 0);
+        }
+        vm.prank(solver);
+        vm.expectRevert(abi.encodeWithSelector(AuctionHouse.TooManyExecutions.selector, max + 1));
+        house.submitCross(id, 200e6, tooMany);
+
+        Execution[] memory exactly = new Execution[](max);
+        for (uint256 k = 0; k < exactly.length; ++k) {
+            exactly[k] = _exec(k, 0, 0);
+        }
+        vm.prank(solver);
+        vm.expectRevert(stdError.indexOOBError);
+        house.submitCross(id, 200e6, exactly);
+    }
+
+    /// A seller who named a limit is not filled under it. The buy side has its own
+    /// clause, and the two can be broken one at a time.
+    function test_aCrossUnderASellLimitIsRefused() public {
+        _buyMoo(alice, 800e6, 1);
+        _commit(_intent(bob, false, 2e18, 420e6, IntentKind.LOO, 0, SessionMask.AUCTION_OPEN, 2));
+        uint64 id = _openAndFreeze();
+        _passOpeningReference(200e8);
+
+        Execution[] memory e = new Execution[](2);
+        e[0] = _exec(0, 400e6, 2e18);
+        e[1] = _exec(1, 2e18, 400e6);
+
+        vm.prank(solver);
+        vm.expectRevert(abi.encodeWithSelector(AuctionHouse.LimitNotRespected.selector, 1, 210e6, 200e6));
+        house.submitCross(id, 200e6, e);
+    }
+
+    /// Executions are indexed strictly upward, so the same commitment cannot be
+    /// filled twice inside one cross.
+    function test_theSameCommitmentCannotAppearTwiceInOneCross() public {
+        _buyMoo(alice, 400e6, 1);
+        _sellMoo(bob, 2e18, 2);
+        uint64 id = _openAndFreeze();
+        _passOpeningReference(200e8);
+
+        Execution[] memory e = new Execution[](2);
+        e[0] = _exec(0, 200e6, 1e18);
+        e[1] = _exec(0, 200e6, 1e18);
+
+        vm.prank(solver);
+        vm.expectRevert(abi.encodeWithSelector(AuctionHouse.ExecutionsNotAscending.selector, 1));
+        house.submitCross(id, 200e6, e);
+    }
+
+    function _crossAt(uint64 id, uint256 price) internal {
+        Execution[] memory e = new Execution[](2);
+        uint256 quote = (2e18 * price) / 1e18;
+        e[0] = _exec(0, quote, (quote * 1e18) / price);
+        e[1] = _exec(1, 2e18, quote);
+        vm.prank(solver);
+        house.submitCross(id, price, e);
+        (,, uint8 phase,,,) = house.auctionState(id);
+        assertEq(phase, 3, "the collar edge cleared");
     }
 
     function _transfersTo(Vm.Log[] memory logs, address token, address to) internal pure returns (uint256 n) {

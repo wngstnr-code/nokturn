@@ -243,6 +243,38 @@ abstract contract AuctionFixture is Test {
         vm.warp(REFERENCE_AT + 1);
     }
 
+    function _fund(address who, uint256 key) internal {
+        keyOf[who] = key;
+        _fund(who);
+    }
+
+    function _fund(address who) internal {
+        usdg.mint(who, 100_000e6);
+        nvda.mint(who, 100e18);
+        vm.startPrank(who);
+        usdg.approve(address(permit2), type(uint256).max);
+        nvda.approve(address(permit2), type(uint256).max);
+        vm.stopPrank();
+    }
+
+    function _commitClose(address owner, bool buy, uint256 amount, uint256 nonce) internal {
+        _commit(_intent(owner, buy, amount, 0, IntentKind.MOO, 0, SessionMask.AUCTION_CLOSE, nonce));
+    }
+
+    function _closeAuctionFrozen() internal returns (uint64 id) {
+        id = house.auctionIdOf(address(nvda), DAY, kindClose);
+        house.openAuction(address(nvda), kindClose);
+        vm.warp(CLOSE_BELL - 300);
+        _pushFeeds(200e8, uint64(block.timestamp));
+        house.freeze(id);
+        vm.warp(CLOSE_BELL);
+    }
+
+    function _enterClosingAuction() internal {
+        vm.warp(CLOSE_BELL - 1800 + 60);
+        _pushFeeds(200e8, uint64(block.timestamp));
+    }
+
     function _exec(uint256 index, uint256 sell, uint256 buy) internal pure returns (Execution memory) {
         return Execution({intentIndex: index, executedSell: sell, executedBuy: buy});
     }
