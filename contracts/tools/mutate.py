@@ -10,6 +10,12 @@ Survivors are printed one by one with the line they sit on, because the standard
 this repo holds itself to is explaining each of them rather than reporting a
 percentage and moving on. A survivor that is genuinely equivalent goes in
 tools/mutants-explained.txt with its reason and stops counting against the score.
+
+One contract is not a target here. The Uniswap V3 adapter reads live pool state
+and is covered by the fork tests, which this runner excludes because they need a
+live node. Mutating it against a suite that cannot reach it measures the exclusion
+rather than the tests. It is held to the coverage gate in the nightly fork job for
+the same reason, by name and with the same reasoning.
 """
 
 import argparse
