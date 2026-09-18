@@ -103,7 +103,13 @@ def load_explained(path: Path):
         raw = raw.strip()
         if not raw or raw.startswith("#"):
             continue
-        key, _, reason = raw.partition("|")
+        # Split on the spaced separator rather than the first pipe. A mutant that
+        # turns an or into an and carries two pipes inside its own key, and
+        # partitioning on the bare character cut those entries in half so they
+        # never matched anything.
+        key, sep, reason = raw.partition(" | ")
+        if not sep:
+            raise SystemExit(f"explained entry has no reason: {raw}")
         explained[key.strip()] = reason.strip()
     return explained
 

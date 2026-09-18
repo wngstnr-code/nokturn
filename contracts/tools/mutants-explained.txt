@@ -22,3 +22,17 @@ src/Settlement.sol:369:34:>>>= | The wedge is the balance minus what was there b
 src/Settlement.sol:376:62:*>/ | MIN_SAVINGS_BPS is 1, so multiplying the notional by it and dividing the notional by it produce the same number. This stops being equivalent the moment the threshold moves off one basis point.
 src/Settlement.sol:388:27:>>>= | SOLVER_SHARE_OF_FEE_BPS is 7500, so the solver share of any positive wedge is strictly less than the wedge, which leaves the treasury share strictly positive. The loop has already skipped the zero wedge case by then, so the branch is never reached with zero.
 src/Settlement.sol:450:32:>>>= | When the routed volume equals the notional there is nothing netted either way, and equal is the only case the mutation moves.
+
+src/PriceOracle.sol:113:38:>>>= | The age floors at zero, so at a stamp equal to the block both branches give zero and equal is the only case the mutation moves.
+src/PriceOracle.sol:214:48:>>>= | The segment starts at the later of the round and the window, and when the two are the same second both branches name that second.
+src/PriceOracle.sol:215:31:>>>= | A segment of zero length weighs zero and covers zero, so adding it changes neither the numerator nor the denominator, and the cursor it moves is already where it would move to.
+src/PriceOracle.sol:222:30:<=>< | A round stamped exactly on the window start has already been counted and has already contributed every second it can. Walking one round further adds a segment that ends where it starts, which is nothing, and that round is outside the window so it counts nothing either.
+src/PriceOracle.sol:255:22:<><= | The walk stops at the first OPEN second or at a table that has run out, and the day after next is two days of transitions away. One more iteration of a loop that has already returned or broken is unreachable.
+src/PriceOracle.sol:269:19:<=>< | A feed answer of zero converts to zero either way, because the scaling below multiplies or divides a zero and gets a zero back.
+src/PriceOracle.sol:273:24:<><= | Eighteen decimals returned on the line above, so the comparison here never sees equality.
+src/PriceOracle.sol:278:25:>>>= | The absolute difference of two equal numbers is zero whichever order they are subtracted in.
+src/PriceOracle.sol:279:40:>>>= | The larger of two equal numbers is that number whichever branch is taken.
+src/PriceOracle.sol:281:19:>=>> | The cap and the value are the same number at the boundary, so returning the cap and casting the value produce the same sixteen bits.
+src/PriceOracle.sol:258:34:<=>< | nextTransition answers the first second after its argument whose session differs, so it is either zero or strictly ahead of the cursor. The equality this mutation moves is a guard against a malformed table rather than a case the committed calendar reaches.
+src/PriceOracle.sol:258:26:||>&& | A next of zero satisfies both sides of the and, so the walk still stops when the table runs out. The only case the two forms disagree on is a transition at or behind the cursor, which nextTransition does not produce.
+src/PriceOracle.sol:277:19:||>&& | With one side missing the mutant measures ten thousand basis points instead of the sixteen bit ceiling. Every caller compares that number against a limit of at most fifteen hundred, so both answers land on the same side of every comparison in this contract. A limit above ten thousand basis points would end that.

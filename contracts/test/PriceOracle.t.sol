@@ -222,4 +222,141 @@ contract PriceOracleTest is Test {
         vm.expectRevert(abi.encodeWithSelector(PriceOracle.TwapSourceNotSet.selector, unknown));
         oracle.dualCheck(unknown);
     }
+
+    // ---- boundaries, one assertion each, from the mutation run ----
+
+    /// Fifteen hundred basis points is the weekend drift cap, and a token sitting
+    /// exactly on it is still healthy. parameter.md 7.2 picked that number because
+    /// TSLA drifts 781 over a real weekend, so the edge has to be inclusive.
+    function test_driftExactlyOnTheWeekendCapIsStillHealthy() public {
+        vm.warp(WEEKEND);
+        feed.push(200e8, WEEKEND - 1 days);
+        // Fifteen percent below the Friday close is exactly the cap.
+        adapter.setTwap(170e18);
+
+        (uint256 price,, bool healthy) = oracle.refPrice(nvda);
+        assertEq(price, 170e18, "the weekend answer is the pool, not the frozen feed");
+        assertTrue(healthy, "a drift of exactly the cap is inside it");
+
+        adapter.setTwap(169.9e18);
+        (,, healthy) = oracle.refPrice(nvda);
+        assertFalse(healthy, "one step past the cap is outside it");
+    }
+
+    /// A round whose age is exactly the staleness limit is fresh. One second more
+    /// is not.
+    function test_ageExactlyOnTheStalenessLimitIsStillFresh() public {
+        feed.push(200e8, DAY_OPEN);
+        vm.warp(DAY_OPEN + STALENESS_OPEN);
+        (,, bool healthy) = oracle.refPrice(nvda);
+        assertTrue(healthy, "exactly the limit is inside it");
+
+        vm.warp(DAY_OPEN + STALENESS_OPEN + 1);
+        (,, healthy) = oracle.refPrice(nvda);
+        assertFalse(healthy, "one second past it is not");
+    }
+
+    /// Fifty basis points is the disagreement limit inside OPEN, and two sources
+    /// exactly that far apart still agree.
+    function test_disagreementExactlyOnTheLimitStillAgrees() public {
+        vm.warp(DAY_OPEN + 60);
+        feed.push(200e8, DAY_OPEN + 30);
+        // A dollar away from two hundred, measured against the larger of the two,
+        // is exactly fifty basis points.
+        adapter.setTwap(199e18);
+
+        (,, bool agree) = oracle.dualCheck(nvda);
+        assertTrue(agree, "exactly the limit is agreement");
+
+        adapter.setTwap(198.9e18);
+        (,, agree) = oracle.dualCheck(nvda);
+        assertFalse(agree, "past it is not");
+    }
+
+    /// The opening reference window closes at its last second, and the call is
+    /// allowed from that second on rather than one after it.
+    function test_theOpenReferenceWindowIsClosedOnItsLastSecond() public {
+        feed.push(200e8, DAY_OPEN - 10);
+        feed.push(201e8, DAY_OPEN + 100);
+        feed.push(202e8, DAY_OPEN + 200);
+
+        vm.warp(DAY_OPEN + 299);
+        vm.expectRevert(
+            abi.encodeWithSelector(PriceOracle.OpenReferenceWindowNotClosed.selector, nvda, DAY_INDEX)
+        );
+        oracle.finalizeOpenReference(nvda, DAY_INDEX);
+
+        vm.warp(DAY_OPEN + 300);
+        assertGt(oracle.finalizeOpenReference(nvda, DAY_INDEX), 0, "the window is closed on its edge");
+    }
+
+    /// A round stamped on the closing second of the window is inside it, and one
+    /// stamped on the opening second counts towards the update floor.
+    function test_roundsOnBothEdgesOfTheWindowCount() public {
+        feed.push(200e8, DAY_OPEN - 10);
+        feed.push(210e8, DAY_OPEN); // exactly the first second of the window
+        feed.push(220e8, DAY_OPEN + 300); // exactly the last
+
+        vm.warp(DAY_OPEN + 300);
+        uint256 price = oracle.finalizeOpenReference(nvda, DAY_INDEX);
+        assertEq(price, 210e18, "the round on the opening second held the window");
+    }
+
+    /// Two sources cannot be compared when one of them is missing, and a missing
+    /// source is not the same as a source that reads zero away.
+    function test_aMissingSourceIsTheWidestPossibleDisagreement() public {
+        vm.warp(DAY_OPEN + 60);
+        feed.push(200e8, DAY_OPEN + 30);
+        adapter.setTwap(0);
+
+        (,, bool agree) = oracle.dualCheck(nvda);
+        assertFalse(agree, "nothing to compare against is not agreement");
+    }
+
+    /// The staleness bounds are inclusive at both ends, which is what makes six
+    /// hundred and two hundred thousand the stated range rather than the open one.
+    function test_theStalenessBoundsAreInclusive() public {
+        vm.startPrank(governor);
+        oracle.setFeed(usdg, address(feed), 600, 200_000);
+
+        vm.expectRevert(abi.encodeWithSelector(PriceOracle.StalenessOutOfRange.selector, uint32(599)));
+        oracle.setFeed(usdg, address(feed), 599, 200_000);
+
+        vm.expectRevert(abi.encodeWithSelector(PriceOracle.StalenessOutOfRange.selector, uint32(200_001)));
+        oracle.setFeed(usdg, address(feed), 600, 200_001);
+        vm.stopPrank();
+    }
+
+    /// A feed carrying more than eighteen decimals is scaled down rather than up.
+    /// No allowlist feed does today, and the branch exists so that one arriving
+    /// later is a configuration change rather than a silent factor of 1e4.
+    function test_aFeedWithMoreThanEighteenDecimalsIsScaledDown() public {
+        MockAggregator wide = new MockAggregator(20, "WIDE / USD");
+        vm.prank(governor);
+        oracle.setFeed(usdg, address(wide), STALENESS_OPEN, STALENESS_CLOSED);
+
+        wide.push(200e20, DAY_OPEN);
+        vm.warp(DAY_OPEN + 60);
+        (uint256 price,,) = oracle.refPrice(usdg);
+        assertEq(price, 200e18, "twenty decimals divides down to eighteen");
+    }
+
+    /// The opening reference walks at most sixteen rounds back. A feed that
+    /// updated more often than that inside the window is answered from the most
+    /// recent sixteen, not from all of them, and the bound has to be the number
+    /// the contract actually stops at.
+    function test_theOpenReferenceStopsAfterSixteenRounds() public {
+        feed.push(100e8, DAY_OPEN - 10);
+        // Twenty rounds fifteen seconds apart fill the whole five minute window.
+        for (uint256 k = 0; k < 20; ++k) {
+            feed.push(int256(200e8 + int256(k) * 1e8), DAY_OPEN + k * 15);
+        }
+
+        vm.warp(DAY_OPEN + 300);
+        uint256 price = oracle.finalizeOpenReference(nvda, DAY_INDEX);
+        // The window is three hundred seconds. The last sixteen rounds cover the
+        // final two hundred and forty of them, and everything before that is
+        // beyond the walk, so it contributes nothing at all.
+        assertEq(price, 211.5e18, "the walk stopped at sixteen rounds");
+    }
 }

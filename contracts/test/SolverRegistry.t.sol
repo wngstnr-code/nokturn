@@ -172,4 +172,21 @@ contract SolverRegistryTest is Test {
         vm.expectRevert(abi.encodeWithSelector(SolverRegistry.NothingBonded.selector, solver));
         registry.requestUnbond();
     }
+
+    /// A slash may take the whole bond and no more. The bound is inclusive at the
+    /// top, because the worst behaviour has to be answerable with everything the
+    /// solver put up rather than with all but one unit of it.
+    function test_aSlashMayTakeTheWholeBondAndNotOneUnitMore() public {
+        vm.prank(solver);
+        registry.bond(5000e6);
+
+        vm.prank(governor);
+        vm.expectRevert(abi.encodeWithSelector(SolverRegistry.SlashExceedsBond.selector, 5000e6 + 1, 5000e6));
+        registry.slash(solver, 5000e6 + 1, "too much");
+
+        vm.prank(governor);
+        registry.slash(solver, 5000e6, "everything");
+        assertEq(usdg.balanceOf(treasury), 5000e6, "the whole bond reached the treasury");
+        assertFalse(registry.isActive(solver), "nothing left to stand on");
+    }
 }

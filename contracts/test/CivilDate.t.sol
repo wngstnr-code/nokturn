@@ -69,4 +69,28 @@ contract CivilDateTest is Test {
     function _lines(string memory file) internal pure returns (string[] memory) {
         return vm.split(file, "\n");
     }
+
+    /// The last day of a four hundred year era, which is the only day where the
+    /// fourth term of the year-of-era formula is not zero. 2400 is a leap year
+    /// because the four hundred year rule wins, so that day is 29 February.
+    function test_theLastDayOfAnEraIsTheLeapDayOfTwentyFourHundred() public pure {
+        assertEq(CivilDate.toYmd(157_113), 24_000_229);
+        assertEq(CivilDate.toYmd(157_114), 24_000_301);
+        assertEq(CivilDate.toDayIndex(24_000_229), 157_113);
+    }
+
+    /// Each clause of the range guard turned away on its own. A date that breaks
+    /// exactly one rule has to be refused by that rule, because the round trip
+    /// check behind it cannot catch a year below the epoch or a day of zero
+    /// without underflowing first.
+    function test_eachRangeRuleRefusesOnItsOwn() public {
+        vm.expectRevert(abi.encodeWithSelector(CivilDate.DateOutOfRange.selector, uint32(19_691_231)));
+        harness.toDayIndex(19_691_231);
+
+        vm.expectRevert(abi.encodeWithSelector(CivilDate.DateOutOfRange.selector, uint32(20_260_300)));
+        harness.toDayIndex(20_260_300);
+
+        vm.expectRevert(abi.encodeWithSelector(CivilDate.DateOutOfRange.selector, uint32(20_260_332)));
+        harness.toDayIndex(20_260_332);
+    }
 }

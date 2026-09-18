@@ -688,4 +688,125 @@ contract AgentMandateTest is Test {
             ""
         );
     }
+
+    // ---- boundaries, one assertion each, from the mutation run ----
+
+    /// Eight tokens is the cap and eight is allowed. The rule is a bound on how
+    /// much one signature can reach, so the number in the document has to be the
+    /// number the contract takes.
+    function test_exactlyEightTokensIsAllowed() public {
+        address[] memory tokens = new address[](8);
+        for (uint256 k = 0; k < 8; ++k) {
+            tokens[k] = address(uint160(0xA000 + k));
+        }
+        bytes32 id = _createForTokens(tokens);
+        assertTrue(mandates.accountOf(id) != address(0), "eight is inside the cap");
+    }
+
+    /// Ninety days is the longest a mandate may live, and a mandate that lives
+    /// exactly that long is allowed.
+    function test_anExpiryExactlyAtTheMaximumDurationIsAllowed() public {
+        Mandate memory m = _template();
+        m.expiry = uint64(block.timestamp) + 90 days;
+
+        vm.prank(owner);
+        bytes32 id = mandates.createMandate(m);
+        assertTrue(mandates.accountOf(id) != address(0), "ninety days is inside the range");
+    }
+
+    /// Both caps are inclusive. An intent that spends the budget exactly to the
+    /// last dollar is inside it, and the dollar after that is not.
+    function test_bothNotionalCapsAreInclusiveAtTheirEdge() public {
+        bytes32 id = _create();
+        // Two thousand dollars is the per batch cap, five thousand the per day.
+        _authorize(id, _intent(id, 2000e6, 1));
+        assertEq(mandates.spentToday(id), 2000e18, "the first batch spent the cap exactly");
+
+        (bool ok, bytes32 reason) = mandates.validate(id, _intent(id, 2000e6, 2));
+        assertTrue(ok, "a second batch at the cap is still inside it");
+        assertEq(reason, bytes32(0));
+
+        (ok, reason) = mandates.validate(id, _intent(id, 2000e6 + 1, 3));
+        assertFalse(ok, "one unit past the batch cap is outside it");
+        assertEq(reason, RULE_PER_BATCH_CAP);
+
+        _authorize(id, _intent(id, 2000e6, 2));
+        _authorize(id, _intent(id, 1000e6, 3));
+        assertEq(mandates.spentToday(id), 5000e18, "the day is spent to its cap exactly");
+
+        Intent memory over = _intent(id, 1e6, 4);
+        bytes memory sig = _sign(AGENT_KEY, over);
+        vm.expectRevert(abi.encodeWithSelector(AgentMandate.MandateRuleBroken.selector, id, RULE_PER_DAY_CAP));
+        mandates.authorize(id, over, sig);
+    }
+
+    /// An intent that expires exactly when the mandate does does not outlive it,
+    /// and a deviation exactly as wide as the mandate allows is not too wide.
+    function test_theIntentMayMatchTheMandateExactlyOnBothEdges() public {
+        bytes32 id = _create();
+        Intent memory i = _intent(id, 100e6, 1);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        i.validUntil = uint32(uint64(block.timestamp) + 30 days);
+        i.maxDevFromRefBps = 200;
+
+        (bool ok, bytes32 reason) = mandates.validate(id, i);
+        assertTrue(ok, "matching the mandate exactly is inside it");
+        assertEq(reason, bytes32(0));
+
+        i.validUntil += 1;
+        (, reason) = mandates.validate(id, i);
+        assertEq(reason, RULE_OUTLIVES_MANDATE, "one second longer outlives it");
+
+        // forge-lint: disable-next-line(unsafe-typecast)
+        i.validUntil = uint32(uint64(block.timestamp) + 30 days);
+        i.maxDevFromRefBps = 201;
+        (, reason) = mandates.validate(id, i);
+        assertEq(reason, RULE_DEVIATION_TOO_WIDE, "one basis point wider is too wide");
+    }
+
+    /// Release hands the budget back only once the intent can no longer be spent,
+    /// and the last second it is valid is not that moment.
+    function test_releaseWaitsUntilTheIntentIsPastItsLastSecond() public {
+        bytes32 id = _create();
+        Intent memory i = _intent(id, 1000e6, 1);
+        _authorize(id, i);
+
+        vm.warp(uint64(i.validUntil));
+        vm.expectRevert(abi.encodeWithSelector(AgentMandate.NothingToRelease.selector, _digest(i)));
+        mandates.releaseUnspent(id, i);
+
+        vm.warp(uint64(i.validUntil) + 1);
+        mandates.releaseUnspent(id, i);
+        assertEq(mandates.spentToday(id), 0, "the reservation came back");
+    }
+
+    /// A token the mandate never listed is refused even when the list is long
+    /// enough that the first entry is not the one being asked about.
+    function test_aTokenPastTheFirstEntryIsStillCheckedAgainstTheWholeList() public {
+        bytes32 id = _create();
+        Intent memory i = _intent(id, 100e6, 1);
+        i.buyToken = address(0xDEAD);
+
+        (bool ok, bytes32 reason) = mandates.validate(id, i);
+        assertFalse(ok, "a token off the list is off the list");
+        assertEq(reason, RULE_TOKEN_NOT_ALLOWED);
+    }
+
+    /// A digest booked against one mandate authorizes nothing on another. Permit2
+    /// reads this through EIP-1271, so a yes here is a yes to moving somebody
+    /// else's tokens out of an account that never agreed to it.
+    function test_aDigestBookedOnOneMandateAuthorizesNothingOnAnother() public {
+        bytes32 first = _create();
+        bytes32 second = _create();
+
+        Intent memory i = _intent(first, 100e6, 1);
+        _authorize(first, i);
+        bytes32 digest = _digest(i);
+
+        assertTrue(mandates.accountAuthorized(mandates.accountOf(first), digest), "its own account, yes");
+        assertFalse(
+            mandates.accountAuthorized(mandates.accountOf(second), digest),
+            "a booking belongs to the mandate that made it"
+        );
+    }
 }
