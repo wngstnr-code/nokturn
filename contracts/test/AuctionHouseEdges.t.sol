@@ -273,6 +273,71 @@ contract AuctionHouseEdgesTest is AuctionFixture {
         house.submitCross(id, 200e6, e);
     }
 
+    /// A limit sitting exactly on the bottom of the collar is a price the auction
+    /// is allowed to clear at, so the search has to consider it. Skipping it would
+    /// leave two shares untraded that the book says can trade.
+    function test_aLimitOnTheBottomOfTheCollarIsStillACandidate() public {
+        _commit(_intent(alice, true, 392e6, 2e18, IntentKind.LOO, 0, SessionMask.AUCTION_OPEN, 1));
+        _sellMoo(bob, 3e18, 2);
+
+        (uint256 price, uint256 matched,) = house.indicative(_openId());
+        assertEq(price, 196e6, "the bottom of the collar clears more than the reference");
+        assertEq(matched, 2e18);
+    }
+
+    /// And the same on the top.
+    function test_aLimitOnTheTopOfTheCollarIsStillACandidate() public {
+        _buyMoo(alice, 1000e6, 1);
+        _commit(_intent(bob, false, 2e18, 408e6, IntentKind.LOO, 0, SessionMask.AUCTION_OPEN, 2));
+
+        (uint256 price, uint256 matched,) = house.indicative(_openId());
+        assertEq(price, 204e6, "the top of the collar clears more than the reference");
+        assertEq(matched, 2e18);
+    }
+
+    /// A limit outside the collar is not a price this auction may clear at, however
+    /// much volume it would trade. The collar is the whole reason the search is
+    /// bounded, and a book can always name a better price outside it.
+    function test_aLimitOutsideTheCollarIsNotACandidateHoweverGoodItLooks() public {
+        _commit(_intent(alice, true, 380e6, 2e18, IntentKind.LOO, 0, SessionMask.AUCTION_OPEN, 1));
+        _sellMoo(bob, 3e18, 2);
+
+        (uint256 price, uint256 matched,) = house.indicative(_openId());
+        assertEq(price, 200e6, "the reference stands");
+        assertEq(matched, 0, "and nothing trades, because the only bid is out of bounds");
+    }
+
+    /// First rule of the hierarchy, on a book where it disagrees with the second.
+    /// The candidate trades five times the volume and leaves a worse imbalance
+    /// behind, and volume is what the exchanges settle it on.
+    function test_volumeWinsEvenWhenItLeavesTheWorseImbalance() public {
+        _buyMoo(alice, 200e6, 1);
+        _commit(_intent(carol, true, 3724e6, 19e18, IntentKind.LOO, 0, SessionMask.AUCTION_OPEN, 2));
+        _sellMoo(bob, 5e18, 3);
+
+        (uint256 price, uint256 matched, int256 imbalance) = house.indicative(_openId());
+        assertEq(price, 196e6, "five shares beat one");
+        assertEq(matched, 5e18);
+        assertGt(imbalance, int256(15e18), "and it leaves the larger imbalance behind");
+    }
+
+    /// Second rule, on a book where it disagrees with the third. Both prices trade
+    /// the same five shares, the candidate leaves less unfilled, and it is the one
+    /// further from the reference.
+    function test_theSmallerImbalanceWinsEvenFromFurtherAway() public {
+        _buyMoo(alice, 980e6, 1);
+        _commit(_intent(carol, true, 1020e6, 5e18, IntentKind.LOO, 0, SessionMask.AUCTION_OPEN, 2));
+        _sellMoo(bob, 5e18, 3);
+
+        (uint256 price, uint256 matched,) = house.indicative(_openId());
+        assertEq(price, 204e6, "four dollars away and still the better price");
+        assertEq(matched, 5e18);
+    }
+
+    function _openId() internal view returns (uint64) {
+        return house.auctionIdOf(address(nvda), DAY, kindOpen);
+    }
+
     function _crossAt(uint64 id, uint256 price) internal {
         Execution[] memory e = new Execution[](2);
         uint256 quote = (2e18 * price) / 1e18;
