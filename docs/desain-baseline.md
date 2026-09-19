@@ -323,6 +323,136 @@ lebih menguntungkan dengan **memecah** kuotasi — celah manipulasi fee yang hal
 
 ---
 
+## 9. Implementasi terbangun — rujukan untuk kalkulator offchain
+
+> Ditulis 20 September 2026 sebagai titik sinkronisasi 4 di `pembagian-tugas.md`.
+> Bagian §4 di atas adalah rancangan. Bagian ini adalah **kode yang berjalan**, dan
+> kalau keduanya berbeda, yang di sini yang benar. Uji diferensial nol selisih
+> membandingkan kalkulator solver dengan kontrak, bukan dengan pseudocode.
+
+Sumbernya `contracts/src/adapters/UniswapV3Adapter.sol`, fungsi `quoteWithStats`.
+`quoteFromState` hanya membuang dua penghitungnya.
+
+### 9.1 Lima beda dari pseudocode §4, dan semuanya menggigit
+
+**1. Pustakanya `v4-core`, bukan `v3-core`.** Ini yang paling mudah salah karena
+nama fungsinya berubah dan satu konvensinya terbalik.
+
+| §4 menulis | Yang dipakai kode |
+|---|---|
+| `getSqrtRatioAtTick` | `TickMath.getSqrtPriceAtTick` |
+| `getTickAtSqrtRatio` | `TickMath.getTickAtSqrtPrice` |
+| `computeSwapStep(..., amountRemain, fee)` | `SwapMath.computeSwapStep(..., int256 amountRemaining, fee)` |
+
+🔴 **`amountRemaining` bertanda, dan exact input adalah nilai NEGATIF.** Kode
+menulis `-int256(remaining)`. Memberi nilai positif ke fungsi yang sama berarti
+meminta exact **output**, dan hasilnya akan tampak masuk akal sambil salah. Ini satu
+satunya tempat di seluruh jalur yang salah tandanya tidak akan revert.
+
+**2. Tidak ada clamp ke `MIN_TICK` atau `MAX_TICK`.** §4 menulis
+`nextTick = clamp(...)`. Kode tidak, dan `getSqrtPriceAtTick` yang akan revert kalau
+ticknya di luar rentang. Akibatnya sama, yaitu tidak ada kuotasi, tapi errornya
+datang dari `TickMath` dan bukan dari adapter.
+
+**3. Batas langkah ada di kondisi loop, bukan di dalamnya.**
+`for (; steps < MAX_LOOP_STEPS && remaining > 0; ++steps)`. Kalau loop habis dengan
+`remaining > 0`, penjaga terakhir `if (remaining != 0) revert LiquidityExhausted`
+yang menangkapnya. Tidak ada error khusus untuk kehabisan langkah.
+
+**4. `L == 0` hanya diperiksa saat tick yang diseberangi terinisialisasi.** §4
+memeriksanya setiap kali langkah berhenti di target. Hasilnya sama karena `L` hanya
+berubah saat menyeberangi tick terinisialisasi, tapi jumlah pemeriksaannya berbeda.
+
+**5. `TokenNotInPool` tidak ada.** Pasangan yang tidak dikenal keluar sebagai
+`PoolNotSet(tokenIn, tokenOut)` dari `_pool`, sebelum satu pun state dibaca.
+
+### 9.2 Dua detail bit yang gampang meleset
+
+**`_position` memakai cast bertanda.**
+
+```solidity
+wordPos = int16(tick >> 8);
+bitPos  = uint8(int8(tick % 256));
+```
+
+Cast `int8` di tengah itu bukan hiasan. Untuk tick negatif, `tick % 256` di Solidity
+bertanda, dan memotongnya langsung ke `uint8` memberi kata bitmap yang salah. Pool
+GME ada di tick **negatif** (`-245.446`), jadi kesalahan ini tidak akan terlihat di
+NVDA dan akan terlihat di GME.
+
+**Langkah batas kata bukan penyeberangan.** `_nextInitializedTick` berhenti di batas
+kata 256 tick meski tidak ada tick terinisialisasi di sana. Kode menghitung dua
+angka terpisah, `steps` dan `crossings`, dan hanya `crossings` yang dibandingkan
+dengan `MAX_TICK_CROSSINGS`. Menggabungkan keduanya membuat kuotasi ditolak jauh
+lebih cepat daripada yang seharusnya.
+
+### 9.3 🔴 Kewajiban baru sejak 20 September 2026, lantai baseline
+
+`Settlement` sekarang menolak solusi yang baseline totalnya di bawah kuotasi venue.
+`parameter.md` §4C. **Solver wajib menghitung angka ini, bukan menebaknya.**
+
+Per arah pasangan yang muncul di batch:
+
+```
+floor(sellToken, buyToken) = quoteFromState(
+    sellToken,
+    buyToken,
+    Σ executedSell untuk seluruh intent pada arah itu
+)
+
+wajib: Σ baselineQuotes untuk arah itu >= floor(sellToken, buyToken)
+```
+
+Satu kuotasi per arah, atas **volume kotor arah itu**, bukan atas netnya dan bukan
+per intent. Kalau totalnya di bawah lantai, `submitSolution` revert dengan
+`BaselineBelowVenue(sellToken, buyToken, claimed, floor)`.
+
+**Jangan mengisi `baselineQuotes` dengan kuotasi per intent lalu berharap lolos.**
+Kuotasi pool cekung terhadap ukuran, jadi jumlah kuotasi per intent selalu **lebih
+besar** daripada kuotasi atas totalnya. Arah itu aman dan memang lolos. Yang gagal
+adalah kebalikannya, yaitu mengisi baseline dari harga rata rata atau dari TWAP,
+karena keduanya bisa jatuh di bawah kuotasi nyata pada ukuran itu.
+
+Selisih antara keduanya terukur dan kecil. Nol bps pada bentuk batch yang nyata,
+paling besar tiga bps di cap peluncuran. Tabel penuhnya di `parameter.md` §4C.
+
+⚠️ Ini juga menjawab kekhawatiran yang sudah ditulis §7.4 di atas, bahwa solver bisa
+mendapat baseline lebih menguntungkan dengan memecah kuotasi. Sekarang memecah tidak
+menolong, karena yang dibandingkan adalah totalnya terhadap kuotasi atas total.
+
+### 9.4 Kalau adapter tidak bisa menjawab
+
+Solver harus menyiapkan jalur ini, bukan menganggapnya kasus langka. Kalau lantai
+tidak bisa dihitung untuk satu arah saja, `Settlement` memaksa `savings` jadi **nol**
+untuk seluruh batch. Batch tetap selesai, pengguna tetap menerima penuh, dan solver
+tidak boleh menahan apa pun. `claimedSavings` karena itu harus nol juga, atau
+`submitSolution` revert dengan `SavingsMismatch`.
+
+Penyebab yang mungkin, semuanya dari daftar §5 di atas. Pool belum terdaftar di
+adapter, kuotasi melewati `MAX_TICK_CROSSINGS`, fee dinamis, atau
+`baselineAdapter` belum diset governance.
+
+### 9.5 Cara membuktikan kalkulatormu cocok
+
+Jangan bandingkan dengan dokumen ini. Bandingkan dengan rantai.
+
+```bash
+cd contracts
+forge test --match-path "test/fork/BaselineVectorsFork.t.sol" -vv
+```
+
+Test itu membaca state mentah tiap pool allowlist di head, mencetaknya, lalu
+mencetak pasangan `amountIn` dan `amountOut` dari adapter yang sesungguhnya. Jalankan
+implementasimu atas state mentah yang sama dan bandingkan keluarannya. **Target nol
+selisih, bukan mendekati.**
+
+Blok tidak bisa dipatok, karena endpoint yang tembus dari Indonesia bukan archive
+node dan jendelanya sekitar dua puluh sampai empat puluh ribu blok. Jadi jalankan
+keduanya berdekatan, atau ambil state mentahnya sekali lalu pakai angka yang sama di
+kedua sisi.
+
+---
+
 ## 8. Yang sengaja di luar scope v1.0
 
 | | Alasan |

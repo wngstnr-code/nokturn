@@ -28,7 +28,7 @@ menghasilkan tiga definisi `Intent` yang berbeda dan hari ke-7 dihabiskan untuk 
 | 1 | `struct Intent` + `INTENT_TYPEHASH` + domain separator EIP-712 | Wangsit | ketiganya |
 | 2 | Seluruh event & error kustom (`interfaces.md` §3–4) | Wangsit | Dharu (indexer), Nabil (layar) |
 | 3 | Skema REST/WS coordinator → frontend | Dharu | Nabil |
-| 4 | Rumus baseline `quoteFromState` (`desain-baseline.md`) | Wangsit | Dharu (solver pakai rumus yang **sama persis**) |
+| 4 | Rumus baseline `quoteFromState` (`desain-baseline.md`) | Wangsit | Dharu (solver pakai rumus yang **sama persis**) · **diserahkan 20 September 2026**, lihat `desain-baseline.md` §9 |
 | 5 | Alamat & konstanta (`parameter.md` §10.1) | digenerate | ketiganya |
 | 6 | Nomor blok fork yang di-pin | Dharu | ketiganya |
 
@@ -73,7 +73,7 @@ mendarat lebih awal**. Keputusannya dari benchmark, bukan dari sisa waktu
 **Yang Wangsit hutang ke orang lain, dan kapan:**
 - Hari 1: ABI + tipe (ke keduanya)
 - Hari 7: `SessionManager` ter-deploy di fork (ke Nabil, untuk layar sesi)
-- Hari 9: `quoteFromState` final (ke Dharu, untuk uji differential baseline)
+- Hari 9: `quoteFromState` final (ke Dharu, untuk uji differential baseline) · **selesai 20 September 2026.** Spesifikasi terbangun di `desain-baseline.md` §9, vektor uji lewat `test/fork/BaselineVectorsFork.t.sol`. Termasuk kewajiban baru lantai baseline `parameter.md` §4C
 
 ---
 
