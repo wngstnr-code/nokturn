@@ -14,6 +14,7 @@ import {ISignatureTransfer} from "./interfaces/IPermit2.sol";
 import {ISolverRegistry} from "./interfaces/ISolverRegistry.sol";
 import {IUiMultiplier} from "./interfaces/IUiMultiplier.sol";
 import {CivilDate} from "./libraries/CivilDate.sol";
+import {ClearingMath} from "./libraries/ClearingMath.sol";
 import {IntentLib} from "./libraries/IntentLib.sol";
 import {Permit2Witness} from "./libraries/Permit2Witness.sol";
 import {Execution, Intent, IntentFlags, IntentKind, Session, SessionMask} from "./types/Types.sol";
@@ -977,11 +978,11 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     }
 
     function _quoteOf(uint256 tokenAmount, uint256 price) internal pure returns (uint256) {
-        return (tokenAmount * price) / WAD;
+        return ClearingMath.quoteOf(tokenAmount, price);
     }
 
     function _tokenOf(uint256 quoteAmount, uint256 price) internal pure returns (uint256) {
-        return (quoteAmount * WAD) / price;
+        return ClearingMath.tokenOf(quoteAmount, price);
     }
 
     /// @dev Both bonds are already held here, and the cross they were posted

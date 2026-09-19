@@ -190,7 +190,7 @@ contract ClearingVerifier is IClearingVerifier {
         int256[] calldata venueDeltas
     ) internal pure {
         for (uint16 t = 0; t < pulled.length; ++t) {
-            int256 balance = int256(pulled[t]) + venueDeltas[t] - int256(delivered[t]);
+            int256 balance = ClearingMath.conserved(pulled[t], venueDeltas[t], delivered[t]);
             if (balance < 0) revert ValueNotConserved(t, balance);
         }
     }
