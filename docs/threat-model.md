@@ -53,6 +53,30 @@ Polanya: **penghentian darurat harus cepat, tapi harus tidak berdaya.** Guardian
 yang dikompromikan hanya bisa mengganggu, tidak bisa mencuri. Owner yang
 dikompromikan memberi 48 jam untuk terdeteksi dan direspons.
 
+#### Terpasang 19 September 2026, dan tiga hal yang mempersempitnya
+
+Sampai hari itu bagian ini menggambarkan sesuatu yang belum ada di kode. `Guarded`
+sekarang diwarisi `Settlement` dan `AuctionHouse`, dan spesifikasinya ada di
+`parameter.md` §8 dengan permukaannya di `interfaces.md` §1.1.
+
+Tiga hal membatasinya, dan ketiganya di kode bukan di kebijakan.
+
+**Tidak ada unpause.** Pause membawa tenggat enam jam dan lepas sendiri. Guardian
+tidak bisa mencabutnya, dan tidak ada orang lain yang perlu. Baris lama di
+`parameter.md` yang meminta owner meng-unpause setelah enam jam tidak pernah bisa
+dieksekusi, karena owner-nya timelock 48 jam.
+
+**Alamatnya parameter, bukan immutable.** Guardian boleh pause lagi begitu yang
+lama lepas, jadi kunci yang bocor bisa menahan protokol terus-menerus. Plafonnya
+**48 jam**, yaitu waktu timelock merotasi alamatnya.
+
+**Pause tidak pernah menyentuh jalur keluar.** `refundEscrow` baru menjawab setelah
+lelangnya terminal, jadi pause yang memblokir `abortAuction` akan menjebak escrow.
+Kunci yang bisa menjebak dana sama buruknya dengan kunci yang bisa memindahkannya,
+dan lebih licin karena tidak terbaca seperti pencurian. Daftar lengkapnya di
+`parameter.md` §8.2, dan `test/Guardian.t.sol` menelusuri tiap jalur keluar dalam
+keadaan pause.
+
 ---
 
 ## 3. Katalog serangan
@@ -296,13 +320,84 @@ membuatmu terlihat sebaliknya.
 
 ### 6.3 Runbook
 
-Ditulis **sebelum** mainnet, bukan saat insiden terjadi:
+Ditulis 19 September 2026, sebelum mainnet dan bukan saat insiden terjadi. Kelima
+poin di bawah dulu berupa daftar hal yang harus ditulis. Sekarang isinya.
 
-1. Siapa yang memegang kunci guardian dan bagaimana menghubunginya — 24/7
-2. Kriteria pause yang eksplisit, supaya keputusannya tidak diperdebatkan saat panik
-3. Template komunikasi: pengguna, konsumen print, mitra integrasi
-4. Prosedur pemulihan dan syarat unpause
-5. Kewajiban post-mortem publik
+#### 1. Kunci guardian
+
+Satu keystore `cast wallet`, dipegang pemilik proyek, dengan alamatnya tercatat di
+`deployments/<chain id>.json` dan di `.env` sebagai `NOKTURN_GUARDIAN`. Ia tidak
+memegang dana, jadi kehilangan kunci ini bukan kehilangan aset, melainkan kehilangan
+kemampuan menghentikan.
+
+Kalau kunci hilang atau bocor, jalurnya sama, yaitu proposal timelock `setGuardian`
+ke alamat baru. Butuh 48 jam, dan selama itu protokol tetap berjalan normal kalau
+kuncinya hilang, atau tertahan berulang kalau kuncinya bocor.
+
+Kontak 24 jam bukan janji yang bisa dibuat satu orang. Selama buildathon, ruang
+lingkupnya dibatasi ke settlement uji dengan dana sendiri (risiko sisa nomor 10),
+jadi tidak ada pihak ketiga yang bergantung pada waktu respons. **Sebelum menerima
+intent dari orang lain, ini harus jadi rotasi berisi lebih dari satu orang.** Jangan
+biarkan baris ini tetap berbunyi "satu orang" di hari pertama ada pengguna nyata.
+
+#### 2. Kriteria pause
+
+Diturunkan dari §6.1, dan sengaja pendek supaya tidak ada yang diperdebatkan saat
+panik. **Pause kalau salah satu terjadi.**
+
+- Invarian mana pun menyimpang, sekali pun
+- Saldo kontrak menyimpang dari yang diharapkan, sekali pun
+- Insiden P0 menurut §6.2, yaitu dana berisiko
+
+**Jangan pause untuk sisanya.** Harga kliring di tepi collar, selisih oracle, solver
+yang gagal `finalize`, dan volume lelang di bawah minimum semuanya punya respons
+sendiri yang lebih tepat, dan pause justru menghalanginya. Ketidaksepakatan oracle
+ditangani `PROTECTIVE` per token, bukan penghentian protokol.
+
+Ragu antara pause dan tidak, **pause**. Ongkosnya enam jam dan ia lepas sendiri.
+
+#### 3. Template komunikasi
+
+Tiga penerima, tiga isi berbeda.
+
+**Pengguna.** Apa yang berhenti, apa yang tidak, dan kapan ia lepas. Sebut bahwa
+escrow dan refund tetap jalan selama pause, karena itu pertanyaan pertama yang akan
+muncul dan jawabannya menenangkan.
+
+**Konsumen print.** Print penutupan mana yang terpengaruh, dan apakah ia tetap sah.
+Ini yang paling mendesak, karena protokol lain bisa memakai print kita sebagai harga
+dan mereka butuh tahu sebelum ronde likuidasi berikutnya (§4).
+
+**Mitra integrasi.** Alamat kontrak yang tersentuh, blok kejadiannya, dan apakah ABI
+atau parameternya berubah.
+
+Ketiganya terbit di kanal publik yang sama dengan post-mortem, dan yang pertama
+dalam satu jam untuk P0.
+
+#### 4. Prosedur pemulihan
+
+**Tidak ada syarat unpause, karena tidak ada unpause.** Poin ini dulu meminta
+syaratnya, dan itu sudah tidak berlaku sejak `parameter.md` §8.1.
+
+Yang ada adalah enam jam untuk menjawab satu pertanyaan, yaitu apakah penyebabnya
+sudah hilang. Kalau belum, guardian pause lagi. Itu keputusan yang diulang tiap enam
+jam, bukan sekali di awal.
+
+Perbaikan yang butuh perubahan parameter atau allowlist masuk lewat timelock dan
+memakan 48 jam, jadi ia akan melewati beberapa siklus pause. Itu memang bentuknya.
+Yang tidak bisa diperbaiki sama sekali adalah logika settlement, karena kontraknya
+immutable. Kalau bug ada di sana, jalurnya bukan pemulihan melainkan menghentikan
+protokol sampai lepas, mengumumkan, dan deploy yang baru.
+
+#### 5. Post-mortem publik
+
+Wajib untuk P0 dan P1, dalam tujuh hari. Memuat lini masa, penyebab, apa yang
+terdeteksi otomatis dan apa yang tidak, dan apa yang berubah agar tidak terulang.
+
+Terbit apa adanya termasuk kalau penyebabnya kesalahan kami sendiri.
+`pertanyaan-terbuka.md` sudah memuat klaim yang gugur dan metodologi yang salah dua
+kali, dan itu aset paling kuat repo ini. Post-mortem yang menyembunyikan penyebab
+membuang aset itu.
 
 ---
 

@@ -394,8 +394,8 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 - [x] Kalender diuji habis 2020–2035 · `CivilDate.t.sol` menelusuri 5.844 hari kalender yang ter-commit, dua arah
 - [x] Coverage ≥ 95% pada kontrak inti · gerbang `build-test` di CI, run 35410613213
 - [x] Slither & Aderyn bersih · gerbang `static-analysis` di CI, run 35418852026
-- [ ] Threat model selesai, risiko sisa terdokumentasi
-- [ ] Monitoring jalan, runbook tertulis, kunci guardian teruji
+- [x] Threat model selesai, risiko sisa terdokumentasi · sepuluh risiko sisa terbuka di §5, runbook §6.3 terisi 19 September 2026. Risiko 10 sengaja tidak dimitigasi, dibatasi ruang lingkupnya
+- [ ] Monitoring jalan, runbook tertulis, kunci guardian teruji · runbook tertulis dan kunci guardian teruji lewat 16 test plus 5 bukti simbolis. Monitoring belum berjalan
 - [ ] Exposure cap diset ke nilai peluncuran
 - [ ] Semua P0 di `pertanyaan-terbuka.md` terjawab
 - [ ] **Audit provenansi data §11 lulus — nol temuan mock di permukaan produk**
