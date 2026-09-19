@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {SessionManager} from "../../src/SessionManager.sol";
 import {Session} from "../../src/types/Types.sol";
-import {CalendarFixture} from "../fixtures/CalendarFixture.sol";
+import {CalendarFixture} from "../../script/Calendar.sol";
 import {SessionHandler} from "./SessionHandler.sol";
 
 /// @notice Invariant I12 from rencana-uji.md section 1. sessionAt is a pure read

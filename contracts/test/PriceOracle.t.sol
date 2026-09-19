@@ -6,7 +6,7 @@ import {PriceOracle} from "../src/PriceOracle.sol";
 import {SessionManager} from "../src/SessionManager.sol";
 import {ISessionManager} from "../src/interfaces/ISessionManager.sol";
 import {Session} from "../src/types/Types.sol";
-import {CalendarFixture} from "./fixtures/CalendarFixture.sol";
+import {CalendarFixture} from "../script/Calendar.sol";
 import {MockAdapter} from "./mocks/MockAdapter.sol";
 import {MockAggregator} from "./mocks/MockAggregator.sol";
 

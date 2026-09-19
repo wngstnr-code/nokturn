@@ -10,7 +10,7 @@ import {IPriceOracle} from "../../src/interfaces/IPriceOracle.sol";
 import {ISessionManager} from "../../src/interfaces/ISessionManager.sol";
 import {ISignatureTransfer} from "../../src/interfaces/IPermit2.sol";
 import {ISolverRegistry} from "../../src/interfaces/ISolverRegistry.sol";
-import {CalendarFixture} from "../fixtures/CalendarFixture.sol";
+import {CalendarFixture} from "../../script/Calendar.sol";
 import {MockAggregator} from "../mocks/MockAggregator.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {MockPermit2} from "../mocks/MockPermit2.sol";

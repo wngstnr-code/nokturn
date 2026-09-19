@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Script} from "forge-std/Script.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 import {console2} from "forge-std/console2.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
@@ -119,7 +120,9 @@ contract Deploy is Script {
             adapter: address(adapter)
         });
 
-        _write(d);
+        // Under test the chain is in memory, so a record written there would look
+        // like a deploy that happened and did not.
+        if (vm.isContext(VmSafe.ForgeContext.ScriptGroup)) _write(d);
         return d;
     }
 

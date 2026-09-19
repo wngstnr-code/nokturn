@@ -15,6 +15,7 @@ import {UniswapV3Adapter} from "../src/adapters/UniswapV3Adapter.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {Addresses} from "../script/Addresses.sol";
 import {Deploy} from "../script/Deploy.s.sol";
+import {Lock} from "../script/Lock.s.sol";
 
 /// @notice The deploy script, run in memory. A deploy script that is only ever
 /// exercised against a live chain is a script whose first real test costs gas and
@@ -27,6 +28,11 @@ contract DeployTest is Test {
     address internal executor = address(0xE8EC);
 
     function setUp() public {
+        // Foundry starts the clock at one, and a timelock scheduling at a delay of
+        // zero would store exactly that, which is the sentinel it uses for done.
+        // A real chain never has that problem, so the test moves to a real second.
+        vm.warp(1_773_235_800);
+
         // AuctionHouse asks the quote token for its decimals in its constructor,
         // which is the one thing here that needs USDG to exist. Six decimals is
         // the real answer, and the immutable in the mock bakes it into the code
@@ -36,8 +42,17 @@ contract DeployTest is Test {
 
         script = new Deploy();
         vm.setEnv("NOKTURN_TREASURY", vm.toString(treasury));
-        vm.setEnv("NOKTURN_TIMELOCK_PROPOSERS", vm.toString(proposer));
-        vm.setEnv("NOKTURN_TIMELOCK_EXECUTORS", vm.toString(executor));
+        // The distinct pair is what the role assertions are about. The broadcast
+        // sender joins both lists because the scripts sign with it under test, and
+        // a real deploy lists its operator the same way.
+        vm.setEnv(
+            "NOKTURN_TIMELOCK_PROPOSERS",
+            string.concat(vm.toString(proposer), ",", vm.toString(DEFAULT_SENDER))
+        );
+        vm.setEnv(
+            "NOKTURN_TIMELOCK_EXECUTORS",
+            string.concat(vm.toString(executor), ",", vm.toString(DEFAULT_SENDER))
+        );
     }
 
     function test_everyContractPointsAtTheOneBeforeIt() public {
@@ -94,5 +109,36 @@ contract DeployTest is Test {
         Deploy.Deployment memory d = script.run();
         assertEq(AgentMandate(d.mandates).settlement(), d.settlement, "settlement");
         assertEq(AgentMandate(d.mandates).auctionHouse(), d.auctionHouse, "auction house");
+    }
+
+    /// The transaction the whole deploy is arranged around. After it nothing
+    /// changes without two days of notice, including the delay itself.
+    function test_lockingClosesTheWindowAndCannotBeRunTwice() public {
+        Deploy.Deployment memory d = script.run();
+        Lock lock = new Lock();
+
+        lock.runWith(d.timelock);
+        assertEq(TimelockController(payable(d.timelock)).getMinDelay(), 48 hours, "closed");
+
+        vm.expectRevert("delay is already at or above the requirement");
+        lock.runWith(d.timelock);
+    }
+
+    /// And once closed, an allowlist change waits. This is the property rule 6
+    /// asks for, stated against the contract rather than against the script.
+    function test_afterLockingAChangeCannotBeExecutedImmediately() public {
+        Deploy.Deployment memory d = script.run();
+        new Lock().runWith(d.timelock);
+
+        TimelockController timelock = TimelockController(payable(d.timelock));
+        bytes memory payload = abi.encodeWithSignature("setTokenAllowed(address,bool)", address(0xBEEF), true);
+
+        vm.startPrank(proposer);
+        timelock.schedule(d.settlement, 0, payload, bytes32(0), bytes32(0), 48 hours);
+        vm.stopPrank();
+
+        vm.prank(executor);
+        vm.expectRevert();
+        timelock.execute(d.settlement, 0, payload, bytes32(0), bytes32(0));
     }
 }

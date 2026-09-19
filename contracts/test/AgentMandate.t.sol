@@ -15,7 +15,7 @@ import {ISignatureTransfer} from "../src/interfaces/IPermit2.sol";
 import {IntentLib} from "../src/libraries/IntentLib.sol";
 import {Permit2Witness} from "../src/libraries/Permit2Witness.sol";
 import {Intent, IntentFlags, IntentKind, Mandate, SessionMask} from "../src/types/Types.sol";
-import {CalendarFixture} from "./fixtures/CalendarFixture.sol";
+import {CalendarFixture} from "../script/Calendar.sol";
 import {MockAggregator} from "./mocks/MockAggregator.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockPermit2} from "./mocks/MockPermit2.sol";
