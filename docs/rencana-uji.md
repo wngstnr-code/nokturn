@@ -189,6 +189,50 @@ tentang serangan nyata.
 | A14 | Warp waktu tepat ke batas sesi | Guard band aktif; parameter konservatif dipakai |
 | A15 | Intent agent melanggar mandat | Revert `MandateRuleBroken` di `AgentMandate.authorize`, dan Permit2 menolak penarikannya. `MandateViolated` dihapus, lihat `parameter.md` §5B |
 
+### 7.1 Peta ke nama test
+
+Ditulis 19 September 2026. Setiap baris di atas sekarang punya test bernama, supaya
+tabel dan suite bisa dibaca bersisian tanpa menebak. Empat belas dari lima belas
+sudah hijau.
+
+| # | Test | File |
+|---|---|---|
+| A1 | `test_A1_solverClaimingSavingsItDidNotProduce` | `test/Adversarial.t.sol` |
+| A2 | `test_A2_winnerNeverFinalizes` | `test/Adversarial.t.sol` |
+| A3 | `test_A3_maliciousAdapterAttemptsReentrancy` | `test/Adversarial.t.sol` |
+| A4 | `test_A4_oracleManipulatedForOneBlock` | `test/Adversarial.t.sol` |
+| A5 | `test_A5_bothOraclesStaleDuringOpen` | `test/Adversarial.t.sol` |
+| A6 | `test_A6_phantomAuctionIntentShiftsTheIndicativeThenLeaves`, `test_A6_cancellingBeforeFreezeLeavesNothingBehind` | `test/Adversarial.t.sol` |
+| A7 | `test_A7_challengerNamesAWorsePrice` | `test/Adversarial.t.sol` |
+| A8 | `test_A8_uiMultiplierMovesBetweenSubmitAndFinalize` | `test/Adversarial.t.sol` |
+| A9 | `test_A9_feeOnTransferTokenAboveTheBandCannotClear`, `test_A9_feeOnTransferTokenWithinTheBandKeepsAccountingHonest` | `test/Adversarial.t.sol` |
+| A10 | `test_A10_stockTokenTransferRevertsDuringFinalize` | `test/Adversarial.t.sol` |
+| A11 | belum ada subjek, lihat catatan di bawah | tidak ada |
+| A12 | `test_A12_exposureCapExceeded` | `test/Adversarial.t.sol` |
+| A13 | `test_A13_everySolverCollusesOnAWorthlessSolution` | `test/Adversarial.t.sol` |
+| A14 | `test_A14_batchLandsExactlyOnASessionBoundary` | `test/Adversarial.t.sol` |
+| A15 | `test_A15_agentIntentBreachingTheMandate` | `test/AgentMandate.t.sol` |
+
+**A11 belum punya subjek.** Tidak ada `pause` dan tidak ada guardian di `src/`, jadi
+baris itu bukan test yang belum ditulis melainkan test yang belum punya sesuatu untuk
+diuji. Aturan 5 dan 6 di `CLAUDE.md` melarang kunci yang bisa memindahkan dana dan
+melarang proxy, tapi keduanya tidak melarang kunci yang hanya bisa menghentikan batch
+baru. Keputusan apakah guardian semacam itu ada, dan apa persisnya kekuasaannya, milik
+pemilik proyek. Selama belum diputuskan, A11 dibiarkan terbuka dan tidak dicentang.
+
+**Dua temuan dari menulis test ini.**
+
+Pertama, `SolverRegistry.reportInvalidSurplus` tidak pernah dipanggil dari mana pun.
+`Settlement.submitSolution` menolak klaim palsu dengan revert, dan transaksi yang
+revert tidak bisa menyita bond. Harapan "bond disita" di baris A1 karena itu tidak
+tercapai onchain, dan fungsinya jadi kode mati di kontrak yang immutable. Yang benar
+terjadi adalah solusinya ditolak dan tidak pernah jadi pemenang.
+
+Kedua, token fee-on-transfer tidak bisa kliring sama sekali kalau feenya di atas tiga
+basis poin, karena pita harga seragam di `ClearingVerifier` selebar itu. Di bawahnya
+ia kliring normal dan akuntansi fee tetap benar, karena fee dibaca dari selisih saldo
+kontrak sendiri, bukan dari angka yang ditulis solver. Keduanya diuji.
+
 ---
 
 ## 8. Pengujian habis pada kalender
@@ -267,7 +311,7 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 - [ ] Semua properti Halmos terbukti
 - [x] Skor mutasi ≥ 90% pada kontrak inti · 100% atas 156 mutan yang dihitung di `Settlement` dan `SessionManager`, 19 September 2026. Seluruh kontrak lain juga sudah diukur dan berada di 100%
 - [ ] Semua fork test lulus terhadap mainnet nyata
-- [ ] 15 skenario adversarial lulus
+- [ ] 15 skenario adversarial lulus · 14 hijau, lihat §7.1. A11 menunggu keputusan apakah guardian ada
 - [x] Kalender diuji habis 2020–2035 · `CivilDate.t.sol` menelusuri 5.844 hari kalender yang ter-commit, dua arah
 - [x] Coverage ≥ 95% pada kontrak inti · gerbang `build-test` di CI, run 35410613213
 - [x] Slither & Aderyn bersih · gerbang `static-analysis` di CI, run 35418852026
