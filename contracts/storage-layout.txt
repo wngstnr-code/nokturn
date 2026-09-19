@@ -123,15 +123,17 @@
 |---------------------+------------------------------------------------+------+--------+-------+-------------------------------|
 | adapterAllowed      | mapping(address => bool)                       | 5    | 0      | 32    | src/Settlement.sol:Settlement |
 |---------------------+------------------------------------------------+------+--------+-------+-------------------------------|
-| capPerBatchUsd      | uint256                                        | 6    | 0      | 32    | src/Settlement.sol:Settlement |
+| baselineAdapter     | address                                        | 6    | 0      | 20    | src/Settlement.sol:Settlement |
 |---------------------+------------------------------------------------+------+--------+-------+-------------------------------|
-| capPerTokenDailyUsd | uint256                                        | 7    | 0      | 32    | src/Settlement.sol:Settlement |
+| capPerBatchUsd      | uint256                                        | 7    | 0      | 32    | src/Settlement.sol:Settlement |
 |---------------------+------------------------------------------------+------+--------+-------+-------------------------------|
-| capGlobalDailyUsd   | uint256                                        | 8    | 0      | 32    | src/Settlement.sol:Settlement |
+| capPerTokenDailyUsd | uint256                                        | 8    | 0      | 32    | src/Settlement.sol:Settlement |
 |---------------------+------------------------------------------------+------+--------+-------+-------------------------------|
-| today               | struct Settlement.Day                          | 9    | 0      | 64    | src/Settlement.sol:Settlement |
+| capGlobalDailyUsd   | uint256                                        | 9    | 0      | 32    | src/Settlement.sol:Settlement |
 |---------------------+------------------------------------------------+------+--------+-------+-------------------------------|
-| perTokenOnDay       | mapping(uint32 => mapping(address => uint256)) | 11   | 0      | 32    | src/Settlement.sol:Settlement |
+| today               | struct Settlement.Day                          | 10   | 0      | 64    | src/Settlement.sol:Settlement |
+|---------------------+------------------------------------------------+------+--------+-------+-------------------------------|
+| perTokenOnDay       | mapping(uint32 => mapping(address => uint256)) | 12   | 0      | 32    | src/Settlement.sol:Settlement |
 ╰---------------------+------------------------------------------------+------+--------+-------+-------------------------------╯
 
 === SolverRegistry (src/SolverRegistry.sol)
