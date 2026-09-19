@@ -309,6 +309,16 @@ membuatmu terlihat sebaliknya.
 | Volume lelang di bawah minimum | Tiap kejadian | Tandai print `insufficient` |
 | Saldo kontrak menyimpang dari yang diharapkan | Sekali pun | **Pause** |
 
+Terpasang 20 September 2026. Keenam sinyal di atas sekarang punya kode dan tempat,
+yaitu `M1` sampai `M7` di `parameter.md` §8.3. Lima yang bisa dijawab dari state chain
+ada di `contracts/script/MonitorChecks.sol`, dan dua yang butuh riwayat ada di
+`contracts/tools/monitor.py`.
+
+Pembagiannya bukan kerapian. Ketiga pemeriksaan yang memanggil pause, yaitu `M1`,
+`M2`, dan `M3`, semuanya fungsi murni dari state saat ini, jadi jalur pause tidak
+bergantung pada jurnal lokal, indexer, maupun archive node. Yang butuh menghitung
+kejadian sepanjang waktu tidak pernah memanggil pause.
+
 ### 6.2 Klasifikasi insiden
 
 | Tingkat | Isi | Respons |

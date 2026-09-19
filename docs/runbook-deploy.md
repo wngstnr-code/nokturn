@@ -113,6 +113,31 @@ trailer metadata. Verifier yang mengompilasi ulang menghasilkan byte yang sama,
 dan itu kecocokan yang penting, tapi tidak ada hash metadata untuk dibandingkan.
 Sourcify mencatatnya sebagai `match`, bukan `exact_match`.
 
+## Langkah lima, menyalakan pemantau
+
+Dijalankan setelah kontraknya berdiri, dan boleh dijalankan terhadap testnet kapan
+saja untuk melihat bentuk keluarannya.
+
+```bash
+cd contracts
+python3 tools/monitor.py --chain-id 46630 --rpc "$NOKTURN_RPC_TESTNET" --once
+```
+
+Tanpa argumen tambahan ia hanya membaca dan melapor, dan **tidak butuh kunci sama
+sekali**. Tiap putaran berakhir dengan satu baris verdict, yaitu `ok`, `alert`, atau
+`pause`. Putaran yang mati sebelum sampai kesimpulan tidak menghasilkan baris itu,
+dan ketiadaannya dibaca sebagai kegagalan, bukan sebagai aman.
+
+Untuk menjalankannya terus menerus, buang `--once`. Untuk mengizinkannya memanggil
+`pause()` sendiri, tambahkan `--broadcast --account <nama keystore>`. Itu berarti
+kunci guardian dalam keadaan siap pakai, dan konsekuensinya ada di `parameter.md`
+§8.3.
+
+Satu hal yang akan terlihat aneh di testnet dan memang benar. Keempat token akan
+melaporkan `M4`, karena chain 46630 tidak punya feed Chainlink sama sekali, jadi
+oracle tidak bisa memberi harga kedua untuk dibandingkan. Di mainnet baris itu
+tidak seharusnya muncul.
+
 ## Yang sengaja belum dikerjakan script ini
 
 **Closing print feed per token.** Satu kontrak per token, dipasang saat token itu
@@ -148,5 +173,5 @@ testnet sekarang ikut dicegat DNS ISP Indonesia, lihat `parameter.md` §10.6.
 ## Gerbang sebelum mainnet
 
 `rencana-uji.md` §10 adalah daftarnya, dan deploy mainnet hanya jalan kalau semuanya
-hijau. Per hari ini sembilan dari empat belas tercentang. Testnet 46630 tidak menunggu
+hijau. Per hari ini sepuluh dari empat belas tercentang. Testnet 46630 tidak menunggu
 itu, karena ia gladi resik dan tokennya token uji. Sebut begitu apa adanya.

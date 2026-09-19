@@ -405,7 +405,7 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 - [x] Coverage ≥ 95% pada kontrak inti · gerbang `build-test` di CI, run 35410613213
 - [x] Slither & Aderyn bersih · gerbang `static-analysis` di CI, run 35418852026
 - [x] Threat model selesai, risiko sisa terdokumentasi · sepuluh risiko sisa terbuka di §5, runbook §6.3 terisi 19 September 2026. Risiko 10 sengaja tidak dimitigasi, dibatasi ruang lingkupnya
-- [ ] Monitoring jalan, runbook tertulis, kunci guardian teruji · runbook tertulis dan kunci guardian teruji lewat 16 test plus 5 bukti simbolis. Monitoring belum berjalan
+- [x] Monitoring jalan, runbook tertulis, kunci guardian teruji · runbook tertulis dan kunci guardian teruji lewat 16 test plus 5 bukti simbolis. Pemantau terpasang 20 September 2026, enam sinyal `threat-model.md` §6.1 terpetakan ke `M1` sampai `M7`, delapan test di `Monitor.t.sol`, dijalankan lawan testnet 46630 yang sungguhan
 - [ ] Exposure cap diset ke nilai peluncuran
 - [x] Semua P0 di `pertanyaan-terbuka.md` terjawab · P0-3 ditutup 19 September 2026 lewat P6-1, keluarga feed `RH` dengan ambang p99 per feed
 - [ ] **Audit provenansi data §11 lulus — nol temuan mock di permukaan produk**

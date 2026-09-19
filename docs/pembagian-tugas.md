@@ -31,6 +31,7 @@ menghasilkan tiga definisi `Intent` yang berbeda dan hari ke-7 dihabiskan untuk 
 | 4 | Rumus baseline `quoteFromState` (`desain-baseline.md`) | Wangsit | Dharu (solver pakai rumus yang **sama persis**) · **diserahkan 20 September 2026**, lihat `desain-baseline.md` §9 |
 | 5 | Alamat & konstanta (`parameter.md` §10.1) | digenerate | ketiganya |
 | 6 | Nomor blok fork yang di-pin | Dharu | ketiganya |
+| 7 | Pemantau operasional dan jalur pause | Wangsit | **bukan pekerjaan indexer** · terpasang 20 September 2026 di `contracts/script/Monitor.s.sol` dan `contracts/tools/monitor.py` |
 
 **Paket bersama**, satu-satunya tempat ketiganya bertemu.
 
