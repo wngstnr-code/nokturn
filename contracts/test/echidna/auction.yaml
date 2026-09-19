@@ -1,0 +1,32 @@
+# The auction phases only mean anything in order, and the clock is what carries
+# them. Echidna has no warp, so the campaign has to drift into an auction session
+# on its own, and the two sessions are half an hour each once a trading day.
+testMode: assertion
+
+# The two numbers here are a measured trade off rather than a guess. The freeze
+# window is half an hour wide and everything downstream of it is gated on landing
+# inside it, so the step has to be small. The first auction session is eleven
+# hours ahead of where echidna starts its clock, so the sequence has to be long.
+# At six hundred seconds a step the campaign reached auction sessions and opened
+# auctions, but never once froze one, because a thirty minute window holds about
+# three steps and only a tenth of them are the freeze call.
+#
+# Measured again on 18 September 2026 with probes on each stage of the close
+# auction chain. Booking, freezing, crossing and executing a close auction were
+# all reached. Publishing a print was not, and the reason is the clock rather
+# than the book. The first AUCTION_CLOSE window sits about seventy thousand
+# seconds past where echidna starts, which at this step is most of a thousand
+# call sequence, so the sequence ran out before the freeze, cross and execute
+# behind it. The length is what changed.
+seqLen: 2500
+maxTimeDelay: 150
+maxBlockDelay: 50
+
+testLimit: 100000
+# Shrinking a thousand call sequence is what this costs. Two thousand attempts
+# over a sequence that long took longer than the search that found it.
+shrinkLimit: 200
+
+corpusDir: echidna-corpus-auction
+coverage: true
+seed: 5197047

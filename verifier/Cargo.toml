@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = ["core", "differential"]
+exclude = ["stylus"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "BUSL-1.1"
+
+[workspace.dependencies]
+alloy-primitives = { version = "1.7", default-features = false }

@@ -104,8 +104,14 @@ contract PriceOracle is IPriceOracle {
         // Staleness is a comparison against wall clock on purpose. The Orbit
         // sequencer sets block.timestamp, and the guard band in SessionManager is
         // what absorbs that drift at session edges.
+        //
+        // A round stamped ahead of the block is not stale, it is early, and the
+        // sequencer drift that makes it possible is the same drift the guard band
+        // exists for. Subtracting it the other way round would panic and take every
+        // batch on the token down with it, so the age floors at zero instead.
         // forge-lint: disable-next-line(block-timestamp)
-        healthy = block.timestamp - updatedAt <= limit;
+        uint256 age = block.timestamp > updatedAt ? block.timestamp - updatedAt : 0;
+        healthy = age <= limit;
         return (feedPrice, updatedAt, healthy);
     }
 

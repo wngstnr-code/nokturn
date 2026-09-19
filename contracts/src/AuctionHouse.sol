@@ -449,7 +449,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
             // The bond has to stay seized, so this path returns rather than
             // reverting. A challenge that costs nothing when it is wrong is a
             // challenge that gets sent at every cross.
-            _payBond(a.solver);
+            _seizeBond(a.solver);
             return;
         }
 
@@ -984,11 +984,22 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
         return (quoteAmount * WAD) / price;
     }
 
-    /// @dev Both bonds are already held here. The winner takes its own back plus
-    /// half of what the loser posted, and the other half goes to the protocol.
+    /// @dev Both bonds are already held here, and the cross they were posted
+    /// against is being rolled back, so both leave. The winner takes its own back
+    /// plus half of what the loser posted, and the other half goes to the protocol.
     function _payBond(address winner) internal {
         uint256 reward = (bond * CHALLENGE_REWARD_BPS) / BPS;
         quote.safeTransfer(winner, bond + reward);
+        quote.safeTransfer(treasury, bond - reward);
+    }
+
+    /// @dev Only the loser's bond is split here. The solver keeps holding the cross
+    /// and its own bond stays where it is, because executeCross and abortAuction are
+    /// what hand that one back. Returning it here as well would pay it twice, and
+    /// the second payment would come out of the escrow.
+    function _seizeBond(address winner) internal {
+        uint256 reward = (bond * CHALLENGE_REWARD_BPS) / BPS;
+        quote.safeTransfer(winner, reward);
         quote.safeTransfer(treasury, bond - reward);
     }
 

@@ -1196,6 +1196,43 @@ Kita tidak punya yang kedua, dan mengklaimnya akan runtuh saat ditanya juri.
 
 ---
 
+## 13. Ukuran kampanye invariant
+
+Ditulis 17 September 2026, saat empat kampanye invariant yang menutup I1 sampai
+I14 pertama kali bisa dijalankan.
+
+`foundry.toml` sudah memuat sebuah profil `deep` sejak hari pertama, dengan
+`runs = 20000` dan `depth = 256`. Angka itu ditulis sebelum ada satu pun handler,
+dan setelah diukur ternyata tidak pernah bisa selesai. Satu suite saja butuh
+5,12 juta panggilan, dan suite lelang menempuh 117 panggilan per detik, jadi
+sekitar dua belas jam untuk satu suite di laptop dan lebih lama lagi di runner
+GitHub yang batasnya enam jam per job.
+
+| Profil | runs | depth | Panggilan per suite | Kapan |
+|---|---|---|---|---|
+| `default` | 128 | 64 | 8.192 | Di laptop, sebelum push |
+| `ci` | 512 | 128 | 65.536 | Tiap pull request |
+| `deep` | **2000** | **256** | **512.000** | Tiap malam, satu runner per suite |
+
+Empat suite berjalan paralel di CI, satu runner masing-masing, sehingga totalnya
+2,05 juta panggilan per malam dan jam dindingnya ditentukan oleh suite yang
+paling lambat.
+
+**Kenapa depth yang dipertahankan, bukan runs.** Depth adalah panjang rantai aksi
+dalam satu run, dan bug yang tersisa di protokol ini berbentuk urutan, bukan satu
+nilai yang salah. Bond yang dibayar dua kali baru muncul setelah submit cross,
+lalu tantangan yang gagal, lalu abort, tiga aksi berurutan pada lelang yang sama.
+Menaikkan runs menambah titik awal baru, menaikkan depth menambah kedalaman
+rantai yang bisa ditempuh dari tiap titik awal. Yang kedua yang menemukan bug itu.
+
+**Ukuran terpakai.** Suite lelang adalah yang menentukan, karena satu aksinya
+menjalankan lelang utuh. Lima commitment dengan tanda tangan ECDSA sungguhan,
+freeze dengan lima tarikan Permit2, pencarian harga indikatif yang kuadratik
+terhadap panjang buku, cross, dan eksekusi. Tiga suite lain praktis gratis di
+sampingnya, 109 detik dari 111 detik pada pengukuran 50 kali 256.
+
+---
+
 ## Aturan perubahan
 
 1. Ubah **di sini dulu**, baru di kode

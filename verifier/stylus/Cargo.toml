@@ -1,0 +1,30 @@
+# Its own workspace on purpose. The release profile here is a wasm size budget,
+# and a profile on a workspace member is ignored.
+[workspace]
+
+[package]
+name = "clearing-verifier-stylus"
+version = "0.1.0"
+edition = "2021"
+license = "BUSL-1.1"
+description = "The Stylus entry point over the clearing core, kept thin on purpose"
+
+[dependencies]
+clearing-core = { path = "../core", default-features = false }
+stylus-sdk = "0.10"
+
+[features]
+default = ["mini-alloc"]
+export-abi = ["stylus-sdk/export-abi"]
+mini-alloc = ["stylus-sdk/mini-alloc"]
+contract-client-gen = []
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[profile.release]
+codegen-units = 1
+panic = "abort"
+opt-level = "z"
+strip = true
+lto = true

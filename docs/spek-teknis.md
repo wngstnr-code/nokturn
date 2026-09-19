@@ -307,6 +307,13 @@ sering intent saling bertemu.
 > menentukan titik impas sesungguhnya. Dan uji apakah `blockCacheSize` = 32 memberi
 > keringanan nyata — gas minimum teramati (23.587) di bawah cold init, yang
 > mengisyaratkan cache LRU per-blok bekerja. Detail: `pertanyaan-terbuka.md` P1-3.
+>
+> **Diukur ulang 18 September 2026.** Program Stylus di chain ini naik dari tiga ke
+> sepuluh, dari enam deployer, tapi pemakaiannya tidak ikut naik. Tidak ada satu pun
+> yang pernah dipanggil oleh lebih dari satu dompet, empat tidak pernah dipanggil
+> sama sekali, dan yang tersibuk berhenti 2 Agustus 2026. `ArbWasmCache` tetap nol
+> panggilan, jadi denda init berlaku penuh. Rencana di atas tidak berubah, tapi
+> prior untuk mendeploy Stylus di v1.0 turun. Lihat `pertanyaan-terbuka.md` RONDE 7.
 
 ---
 

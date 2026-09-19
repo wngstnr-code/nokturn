@@ -230,6 +230,11 @@ jadi kemungkinan besar jauh lebih ramping dari 17 halaman — **perkiraan wajar
 **126 pemanggil berbeda**, median gas per panggilan **229.045**. Jadi init ≈ **21%**
 dari panggilan median. Signifikan, tapi **jauh dari prohibitif**.
 
+> **Koreksi 18 September 2026.** Kalimat "trafik nyata" dan "126 pemanggil berbeda"
+> di atas menyesatkan dan tidak boleh dikutip lagi. Angka itu menghitung pemanggil
+> di level trace, yaitu kontrak. Pengirim transaksinya **satu EOA**, dan program itu
+> berhenti dipanggil 2 Agustus 2026. Rinciannya di RONDE 7.
+
 ⚠️ **Nuansa yang mengubah gambaran:** gas minimum yang teramati pada program itu
 **23.587** — di bawah cold init 49.203. Penjelasan paling mungkin: **`blockCacheSize`
 = 32 memberi cache LRU per blok**, sehingga panggilan berulang di blok yang sama
@@ -955,6 +960,73 @@ bursa. **Ini memperumit P0-3 dan desain ROO** — token tanpa bursa induk tidak 
 | Pool GME-USDG V3 | `0xE9713F453ADB9245B19559790C96F470A18F2FDF` |
 | Uniswap V4 PoolManager | `0x8366A39CC670B4001A1121B8F6A443A643E40951` |
 | Permit2 | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
+
+---
+
+## RONDE 7. Adopsi Stylus, diukur ulang 18 September 2026
+
+Pengukuran 1 Agustus menemukan tiga program Stylus di chain 4663. Angka itu sudah
+usang. Diukur ulang lewat jalur yang sama, yaitu trace ke precompile `ArbWasm`
+`0x...0071` dengan selector `activateProgram(address)` = `0x58c780c2`.
+
+### Deploy tumbuh, pemakaian tidak
+
+| | 1 Agustus 2026 | 18 September 2026 |
+|---|---|---|
+| Program pernah diaktifkan | 3 | **10** |
+| Deployer berbeda | 1 | **6** |
+| Gas aktivasi | 7,7-8,2 juta | **3,0-3,9 juta** |
+| Total panggilan ke seluruh program Stylus | ~4.100 | **6.254** |
+| Program dengan lebih dari satu pengirim tx | belum diukur | **nol** |
+| Program tanpa panggilan sama sekali | belum diukur | **4 dari 10** |
+
+Tujuh program baru lahir di September dari lima deployer yang sebelumnya tidak
+pernah terlihat, dan program-programnya jauh lebih ramping. Gas aktivasi turun
+separuh lebih. Itu pertumbuhan eksperimen yang nyata, jangan dibingkai sebagai
+kategori sepi.
+
+Yang tidak tumbuh adalah pemakaiannya. Dari 6.254 panggilan, **6.235 milik satu
+program yang berhenti dipanggil 2 Agustus 2026**. Sisanya tersebar di lima program
+dengan satu sampai sebelas panggilan, dan empat program tidak pernah dipanggil
+sama sekali. Tidak ada satu pun program Stylus di chain ini yang pernah dipanggil
+oleh lebih dari satu dompet.
+
+### Koreksi angka yang menyesatkan
+
+Catatan 1 Agustus menulis program teraktif punya "126 pemanggil berbeda". Angka itu
+menghitung pemanggil di level trace, yaitu kontrak, dan per hari ini jadi 152.
+**Pengirim transaksinya satu EOA.** Satu dompet menjalankan 1.500 transaksi lewat
+152 kontrak perantara, yang merupakan harness uji dan bukan trafik pengguna.
+
+Pelajarannya sejalan dengan dua kasus sebelumnya di dokumen ini, tapi bentuknya
+berbeda. Dua kasus itu soal data yang tidak muncul di satu view. Yang ini soal
+angka yang benar secara teknis namun terbaca sebagai hal lain, dan yang menentukan
+adalah unit mana yang sedang dihitung.
+
+### Cache manager masih tidak ada
+
+Precompile `ArbWasmCache` `0x...0072` menerima nol panggilan sepanjang 2026. Denda
+init 7,8 kali yang tercatat di P1-3 berlaku tanpa perubahan.
+
+### Apa artinya untuk keputusan
+
+**Tidak mengubah rencana menulis verifier Rust.** Gerbang differential
+`rencana-uji.md` §3 adalah gerbang v1.0 dan butuh implementasi kedua apa pun
+keputusan Stylus-nya.
+
+**Mengubah prior untuk deploy-nya.** `pitch.md` sudah menaruh port Stylus di v1.1
+bersyarat benchmark, dan data ini memperkuat posisi itu. Sepuluh program, nol yang
+pernah punya lebih dari satu pengguna, yang tersibuk sudah diam enam minggu, dan
+tetap tanpa cache manager.
+
+**Satu hal yang harus disebut di roadmap dan belum.** Verifier tersimpan
+`immutable` di `Settlement.sol` dan tidak punya setter, jadi port Stylus di v1.1
+berarti Settlement baru. Itu bukan perubahan allowlist lewat time-lock seperti
+adapter V4 di baris yang sama.
+
+Kueri Dune 18 September 2026, masih sementara dan belum dipermanenkan: `8768270`
+(aktivasi) · `8768280` (pemakaian per program) · `8768291` (pemanggil program
+teraktif) · `8768299` (cache).
 
 ---
 

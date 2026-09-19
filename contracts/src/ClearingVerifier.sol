@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {IClearingVerifier} from "./interfaces/IClearingVerifier.sol";
+import {ClearingMath} from "./libraries/ClearingMath.sol";
 
 /// @title Solidity clearing verifier
 /// @notice Checks validity, never optimality. Optimality comes from competition,
@@ -107,8 +108,7 @@ contract ClearingVerifier is IClearingVerifier {
                 revert PartialFillNotAllowed(e.intentIndex);
             }
 
-            // b * S >= B * s, the limit as a cross multiplication.
-            if (e.executedBuy * i.sellAmount < i.minBuyAmount * e.executedSell) {
+            if (!ClearingMath.limitRespected(e.executedBuy, i.sellAmount, i.minBuyAmount, e.executedSell)) {
                 revert LimitViolated(e.intentIndex);
             }
 
@@ -166,8 +166,9 @@ contract ClearingVerifier is IClearingVerifier {
     ) internal pure {
         uint256 valueIn = e.executedSell * sellPrice;
         uint256 valueOut = e.executedBuy * buyPrice;
-        if (valueOut > valueIn) revert NonUniformPrice(e.intentIndex);
-        if ((valueIn - valueOut) * BPS > valueIn * maxFeeBps) revert NonUniformPrice(e.intentIndex);
+        if (!ClearingMath.feeWithinBand(valueIn, valueOut, maxFeeBps)) {
+            revert NonUniformPrice(e.intentIndex);
+        }
     }
 
     function _checkBand(uint256[] calldata prices, uint256[] calldata oraclePrices, uint16 maxDeviationBps)
@@ -177,11 +178,8 @@ contract ClearingVerifier is IClearingVerifier {
         // Token index fits uint16 because the packed intent addresses it with two
         // bytes, so a longer token array could not be referenced at all.
         for (uint16 t = 0; t < prices.length; ++t) {
-            uint256 ref = oraclePrices[t];
-            uint256 p = prices[t];
-            uint256 diff = p > ref ? p - ref : ref - p;
-            if (diff * BPS > ref * maxDeviationBps) {
-                revert PriceOutsideBand(t, p, ref, maxDeviationBps);
+            if (!ClearingMath.withinBand(prices[t], oraclePrices[t], maxDeviationBps)) {
+                revert PriceOutsideBand(t, prices[t], oraclePrices[t], maxDeviationBps);
             }
         }
     }

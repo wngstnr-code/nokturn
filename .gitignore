@@ -45,3 +45,16 @@ infra/.anvil-state*
 
 # OS
 .DS_Store
+
+# Python bytecode from tools/
+__pycache__/
+*.pyc
+
+# echidna writes its corpus and its coverage next to the project, and crytic
+# leaves an export directory behind. None of it is a source artifact.
+contracts/echidna-corpus*/
+contracts/crytic-export/
+
+verifier/target/
+verifier/stylus/target/
+verifier/report.txt

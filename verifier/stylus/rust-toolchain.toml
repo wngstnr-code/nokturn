@@ -1,0 +1,5 @@
+# Pinned rather than a channel, because cargo stylus verify replays this exact
+# toolchain and a generic channel would make the deployed bytes unreproducible.
+[toolchain]
+channel = "1.96.0"
+targets = ["wasm32-unknown-unknown"]

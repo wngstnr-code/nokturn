@@ -312,6 +312,45 @@ contract ClearingVerifierTest is Test {
         assertEq(crossOk, ratioOk);
     }
 
+    /// A trader whose limit is exactly the price is in, not out. Both sides of the
+    /// book take the equality, which is what makes the crossing price the one that
+    /// clears the most volume rather than the one just past it.
+    function test_aLimitExactlyAtThePriceIsInsideTheBook() public view {
+        bytes memory intents =
+            bytes.concat(packIntent(0, 1, 0, 200e18, 1e18), packIntent(1, 0, 0, 1e18, 200e18));
+
+        (uint256 demand, uint256 supply, uint256 executable) = verifier.evaluateVolume(intents, 200e18);
+        assertEq(demand, 1e18, "the buyer at exactly 200 accepts 200");
+        assertEq(supply, 1e18, "the seller at exactly 200 accepts 200");
+        assertEq(executable, 1e18);
+
+        // One unit either way and each of them steps out, one at a time.
+        (demand, supply,) = verifier.evaluateVolume(intents, 200e18 + 1);
+        assertEq(demand, 0, "the buyer will not pay one unit more");
+        assertEq(supply, 1e18, "the seller still sells");
+
+        (demand, supply,) = verifier.evaluateVolume(intents, 200e18 - 1);
+        assertEq(demand, 1e18, "the buyer still buys");
+        assertEq(supply, 0, "the seller will not take one unit less");
+    }
+
+    /// A token index equal to the length of the token array is one past the end.
+    /// The packed intent addresses tokens with two bytes, so a solver can name an
+    /// index that has no token behind it, and reading it would take whatever
+    /// followed the array in memory as a price.
+    function test_aTokenIndexOnePastTheEndIsRefused() public {
+        bytes memory executions = packExecution(0, 1e18, 1e18);
+        uint256[] memory baselines = one(0);
+
+        bytes memory sellPastEnd = packIntent(2, 1, 0, 1e18, 1e18);
+        vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.TokenIndexOutOfRange.selector, uint16(2)));
+        verifier.verify(sellPastEnd, executions, tokens(), prices(), noDeltas(), prices(), baselines, 30, 3);
+
+        bytes memory buyPastEnd = packIntent(0, 2, 0, 1e18, 1e18);
+        vm.expectRevert(abi.encodeWithSelector(ClearingVerifier.TokenIndexOutOfRange.selector, uint16(2)));
+        verifier.verify(buyPastEnd, executions, tokens(), prices(), noDeltas(), prices(), baselines, 30, 3);
+    }
+
     function _ratioAtLeast(uint256 b, uint256 s, uint256 B, uint256 S) private pure returns (bool) {
         // b/s >= B/S restated without losing precision, which is the point.
         return b * S >= B * s;

@@ -4,10 +4,16 @@ on:
   push:
     branches: [main]
   schedule:
+    # Nightly for the long invariant walk and the proofs, Sunday morning for
+    # mutation testing. They are separate entries because the jobs below select
+    # on which one fired, and a weekly job on a nightly cron would run seven
+    # times for every result anyone reads.
     - cron: "0 3 * * *"
+    - cron: "0 5 * * 0"
   pull_request:
     paths:
       - "contracts/**"
+      - "verifier/**"
       - "packages/shared/**"
       - ".github/workflows/contracts.yml"
 
@@ -109,11 +115,67 @@ jobs:
           print("zero high severity findings")
           PY
 
+  invariant-deep:
+    # Nightly, per rencana-uji.md section 9. Every pull request already runs these
+    # same campaigns at 512 runs by 128 depth through the ci profile. This is the
+    # long walk at 2000 by 256, which is where a sequence that needs twenty actions
+    # in the right order finally shows up. parameter.md section 13 has the
+    # measurement behind the two numbers.
+    #
+    # One runner per suite, because the auction suite runs a whole auction per
+    # action and takes 109 of every 111 seconds on its own. Sharing a runner with
+    # it would mean the other three wait for nothing.
+    if: github.event.schedule == '0 3 * * *'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [SettlementInvariants, AuctionInvariants, MandateInvariants, SessionInvariants]
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: ${{ matrix.suite }}, the long run
+        run: FOUNDRY_PROFILE=deep forge test --match-contract "${{ matrix.suite }}" -vv
+
+  halmos:
+    # Nightly, per rencana-uji.md section 9. What forge runs as bounded fuzz over
+    # these same functions, halmos runs symbolically, so a pass here is a proof
+    # over the whole stated range rather than over 512 draws from it.
+    if: github.event.schedule == '0 3 * * *'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: install halmos
+        # Pinned for the same reason the toolchain is. A solver that changes
+        # version changes which proofs close inside the timeout, and a gate that
+        # goes red on somebody else's release is a gate people learn to ignore.
+        run: pip install halmos==0.3.3
+      - name: every clearing property is proved, not sampled
+        run: ./tools/halmos.sh
+
   fork:
     # Nightly, per rencana-uji.md section 9. The zero difference test is what makes
     # the savings number mean anything, so a failure here is a release blocker even
     # though it does not gate a pull request.
-    if: github.event_name == 'schedule'
+    if: github.event.schedule == '0 3 * * *'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -137,3 +199,125 @@ jobs:
         run: |
           forge coverage --ir-minimum --report summary --no-match-coverage "(test|script)" | tee coverage.txt
           ./tools/coverage-gate.sh coverage.txt
+
+  mutation:
+    # Weekly, per rencana-uji.md section 9. Coverage says the tests executed a
+    # line. This says they would have noticed if the line had been wrong, which
+    # is the only one of the two that is worth putting in a pitch.
+    #
+    # Settlement and SessionManager are the two the document names as core and
+    # holds to 90 percent. Both sit at 100 over their scoring mutants today, so
+    # the threshold is headroom rather than a target, and a survivor that turns
+    # up here is either a missing test or an entry in tools/mutants-explained.txt
+    # with a written reason.
+    if: github.event.schedule == '0 5 * * 0'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: mutation score on the core contracts
+        run: python3 tools/mutate.py src/Settlement.sol src/SessionManager.sol --threshold 90
+
+  echidna:
+    # Nightly, per rencana-uji.md section 9. Foundry drives these same invariants
+    # on every pull request. This is the second engine on them, and it is a
+    # different engine rather than a second opinion. It builds its values from a
+    # dictionary mined out of the source, mutates whole call sequences rather than
+    # single arguments, and shrinks differently.
+    if: github.event.schedule == '0 3 * * *'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install crytic-compile
+        # Echidna reads the project through crytic-compile, which shells out to
+        # forge. Pinned for the same reason the toolchain is.
+        run: pip install crytic-compile==0.3.7 slither-analyzer==0.11.4
+      - name: install echidna
+        # The release binary rather than a container, because the job already has
+        # a pinned foundry on the runner and a container would carry its own.
+        run: |
+          curl -sL -o echidna.tar.gz \
+            https://github.com/crytic/echidna/releases/download/v2.3.3/echidna-2.3.3-x86_64-linux.tar.gz
+          tar -xzf echidna.tar.gz
+          sudo mv echidna /usr/local/bin/echidna
+          echidna --version
+      - name: every invariant on the second engine
+        run: ./tools/echidna.sh --format text
+
+  differential:
+    # Nightly, per rencana-uji.md section 9. Two implementations in two languages
+    # with two arithmetic models, handed the same input, have to agree on the
+    # answer and on the revert. The Solidity side runs inside revm rather than over
+    # RPC, because a million inputs is out of reach of a node.
+    if: github.event.schedule == '0 3 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: build the artifact the harness compares against
+        run: forge build
+        working-directory: contracts
+      - name: one million inputs, zero differences
+        # The seed is the day, so a failure names a run that can be repeated and
+        # consecutive nights do not walk the same ground.
+        run: |
+          seed=$(date -u +%Y%m%d)
+          cargo run --release -q -p differential -- 1000000 "$seed" | tee report.txt
+          grep -q "zero differences" report.txt
+        working-directory: verifier
+      - name: keep the report, because section 3 asks for it in the repo
+        uses: actions/upload-artifact@v4
+        with:
+          name: differential-report
+          path: verifier/report.txt
+
+  stylus-abi:
+    # Every pull request. The Stylus program is a v1.1 candidate and is not
+    # deployed, but the whole point of the differential is that both sides answer
+    # the same question, and they stop doing that the moment one of them takes
+    # uint8[] where the other takes bytes. That difference reads the same in a diff
+    # and is a different function onchain.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: install cargo stylus
+        run: cargo install cargo-stylus --locked --version 0.10.9
+      - run: forge build
+        working-directory: contracts
+      - name: the two programs expose the same functions, by selector
+        run: ./tools/abi-match.sh
+        working-directory: verifier
+      - name: the rust core agrees with the solidity on a short run
+        run: cargo run --release -q -p differential -- 20000 1
+        working-directory: verifier

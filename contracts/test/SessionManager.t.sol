@@ -214,4 +214,89 @@ contract SessionManagerTest is Test {
         vm.expectRevert(abi.encodeWithSelector(SessionManager.BoundariesNotAscending.selector, 1));
         manager.setDstBoundaries(b);
     }
+
+    /// Two boundaries at the same second are not ascending either. A table that
+    /// allowed them would put two offset changes on one instant, and the parity
+    /// search that decides the offset would answer differently depending on which
+    /// one it landed on.
+    function test_twoDstBoundariesOnTheSameSecondAreRefused() public {
+        uint64[] memory b = new uint64[](2);
+        b[0] = 100;
+        b[1] = 100;
+        vm.prank(governor);
+        vm.expectRevert(abi.encodeWithSelector(SessionManager.BoundariesNotAscending.selector, 1));
+        manager.setDstBoundaries(b);
+    }
+
+    /// The early close window is open at one end and closed at the other. A close
+    /// exactly at the opening bell leaves no session to trade in, and one exactly
+    /// at the regular close is not an early close at all but is still a legal entry.
+    function test_theEarlyCloseWindowIsExactAtBothEnds() public {
+        uint32[] memory dates = new uint32[](1);
+        uint8[] memory kinds = new uint8[](1);
+        uint32[] memory closes = new uint32[](1);
+        dates[0] = 20_260_311;
+        kinds[0] = 2;
+
+        closes[0] = OPEN_START;
+        vm.prank(governor);
+        vm.expectRevert(abi.encodeWithSelector(SessionManager.CloseTimeOutOfRange.selector, OPEN_START));
+        manager.setCalendarEntries(dates, kinds, closes);
+
+        closes[0] = OPEN_START + 1;
+        vm.prank(governor);
+        manager.setCalendarEntries(dates, kinds, closes);
+
+        closes[0] = REGULAR_CLOSE;
+        vm.prank(governor);
+        manager.setCalendarEntries(dates, kinds, closes);
+
+        closes[0] = REGULAR_CLOSE + 1;
+        vm.prank(governor);
+        vm.expectRevert(
+            abi.encodeWithSelector(SessionManager.CloseTimeOutOfRange.selector, REGULAR_CLOSE + 1)
+        );
+        manager.setCalendarEntries(dates, kinds, closes);
+    }
+
+    /// The table covers its first second and stops one short of its last. The lower
+    /// edge is inclusive because the first boundary is itself a shift into EDT, and
+    /// the upper one is exclusive because past it the offset is a guess.
+    function test_theTableCoversItsFirstSecondAndNotItsLast() public view {
+        uint64 first = manager.dstBoundaries(0);
+        uint64 last = manager.coveredUntil();
+
+        assertTrue(manager.sessionAt(first - 1) == Session.PROTECTIVE, "one second early is a guess");
+        assertTrue(manager.sessionAt(first) != Session.PROTECTIVE, "the first second is covered");
+        assertTrue(manager.sessionAt(last - 1) != Session.PROTECTIVE, "one second short is covered");
+        assertTrue(manager.sessionAt(last) == Session.PROTECTIVE, "the last boundary is not covered");
+    }
+
+    /// Past the end of the table nextTransition has no boundary left to hand back,
+    /// and it says zero rather than the intraday mark it would otherwise compute.
+    /// A caller reading that mark would schedule a batch on a guessed offset.
+    function test_pastTheTableThereIsNoNextBoundaryAtAll() public view {
+        uint64 last = manager.coveredUntil();
+        assertEq(manager.nextTransition(last + 1 days), 0, "a boundary past the table");
+        assertEq(manager.nextTransition(last), 0, "a boundary at the edge of the table");
+    }
+
+    /// Sunday 8 March 2026, the spring shift. The DST boundary at 02:00 lands
+    /// before the first intraday mark of that Sunday, so the walk has to step onto
+    /// it rather than past it. Stepping past would leave the rest of the weekend
+    /// measured on the winter offset, and Monday would then open an hour late.
+    function test_theWalkStepsOntoTheDstBoundaryRatherThanPastIt() public view {
+        uint64 springForward = 1_772_953_200;
+        uint64 sundayEarly = springForward - 3600;
+
+        uint64 next = manager.nextTransition(sundayEarly);
+        assertEq(uint8(manager.sessionAt(next)), uint8(Session.CLOSED_OVERNIGHT), "monday overnight");
+        // Midnight in New York on Monday 9 March, which is 04:00 UTC on the summer
+        // offset. On the winter offset the same instant reads 05:00 UTC, so an hour
+        // of Monday would still be counted as the weekend.
+        assertEq(next, 1_773_028_800, "the walk kept the winter offset across the shift");
+    }
+
+    uint32 constant OPEN_START = 34_200;
+    uint32 constant REGULAR_CLOSE = 57_600;
 }
