@@ -465,7 +465,7 @@ Diukur 2 Agustus 2026 langsung dari RPC mainnet:
 | ClearingVerifier versi Solidity (~20KB) | 5.000.000 | $0,19 |
 | UniswapV3Adapter + library (~15KB) | 4.000.000 | $0,15 |
 | Aktivasi Stylus 1 program *(terukur 7,7–8,2jt)* | 8.200.000 | $0,31 |
-| Konfigurasi awal: allowlist 4 token + parameter | 800.000 | $0,03 |
+| Konfigurasi awal: allowlist 5 token + parameter | 800.000 | $0,03 |
 | **TOTAL** | **30.000.000** | **$1,12** |
 
 Bahkan kalau estimasi ukuran kode meleset **empat kali lipat**, biayanya $3,74. Satu

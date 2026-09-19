@@ -394,10 +394,11 @@ Allowlist v1.0 = **1,43%** dari volume DEX chain. **804 EOA** pegang > $1k. Cuma
 
 | Fase | Kapan | Yang dikirim | Bagaimana Anda bisa memeriksanya |
 |---|---|---|---|
-| **v1.0 — Buildathon** | Okt 2026 | Settlement batch sadar sesi · baseline diterbitkan onchain · lelang buka/tutup · adapter Uniswap V3 · allowlist 4 token (NVDA, AAPL, TSLA, GOOGL) | Kontrak terverifikasi di Blockscout; tiap batch punya event berisi baseline |
+| **v1.0 — Buildathon** | Okt 2026 | Settlement batch sadar sesi · baseline diterbitkan onchain · lelang buka/tutup · adapter Uniswap V3 · allowlist 5 token (NVDA, AAPL, TSLA, GOOGL, GME) | Kontrak terverifikasi di Blockscout; tiap batch punya event berisi baseline |
 | **Audit & mainnet** | Nov–Des 2026 | Audit keamanan eksternal · deploy mainnet dengan allowlist minimal · operasi tiap malam | Laporan audit publik; alamat kontrak; batch bisa ditelusuri |
 | **Bukti, bukan janji** | Des 2026 – Jan 2027 | **Laporan mingguan: price improvement vs baseline, rasio netting, batch berhasil dan gagal** | Diterbitkan terbuka, termasuk minggu yang jelek |
-| **v1.1** | Q1 2027 | Adapter Uniswap V4 lewat allowlist time-lock (bukan deploy ulang) · ring trade multi-aset · port Stylus bila benchmark mendukung | Perubahan allowlist punya time-lock 48 jam yang bisa diawasi |
+| **v1.1** | Q1 2027 | Adapter Uniswap V4 lewat allowlist time-lock, tanpa deploy ulang · ring trade multi-aset | Perubahan allowlist punya time-lock 48 jam yang bisa diawasi |
+| **Port Stylus** | Q1 2027, bila benchmark mendukung | `ClearingVerifier` versi Rust. **Menuntut Settlement baru, bukan proposal time-lock** | Alamat kontrak baru, diumumkan sebagai migrasi dan bukan sebagai pembaruan |
 | **Perluasan** | Setelah price improvement konsisten 2 minggu | Allowlist keluar dari ekuitas — mesin yang sama melayani sisa volume chain | Satu transaksi time-lock, bukan protokol baru |
 
 ### Empat kalimat yang membuat roadmap ini berbeda
@@ -416,6 +417,29 @@ Sertakan keempatnya. Ini yang membedakan roadmap jujur dari roadmap generik:
    parameter, lewat time-lock 48 jam. Roadmap ini **tidak bisa** dijalankan dengan
    diam-diam mengubah aturan main di belakang pengguna.
 
+> ### ⚠️ Dua baris roadmap di atas datang lewat jalur yang berbeda, jangan disamakan
+>
+> Ini kalimat yang paling gampang salah diucapkan, dan juri yang membaca kontraknya
+> akan menangkapnya.
+>
+> **Adapter V4 datang lewat time-lock.** `adapterAllowed` adalah mapping yang
+> dikuasai timelock, jadi menambah venue adalah satu proposal 48 jam dan kontraknya
+> tidak berubah sama sekali.
+>
+> **Port Stylus tidak bisa.** `verifier` adalah `immutable` di `Settlement`, jadi
+> menukarnya berarti **Settlement baru di alamat baru**. Tidak ada proposal timelock
+> yang bisa melakukannya, dan itu memang disengaja. Verifier adalah yang memutuskan
+> sebuah solusi sah, dan kunci yang bisa menukarnya adalah kunci yang bisa mengubah
+> arti seluruh protokol dalam satu transaksi.
+>
+> Rumusan yang benar kalau ditanya: *"Venue baru masuk lewat time-lock. Mengganti
+> verifier tidak bisa, karena ia immutable, jadi port Stylus adalah migrasi ke kontrak
+> baru yang kami umumkan sebagai migrasi."*
+>
+> **Haram:** menyebut port Stylus sebagai "upgrade", "pembaruan", atau apa pun yang
+> menyiratkan alamat yang sama. Itu klaim yang dipatahkan dengan satu pembacaan
+> `Settlement.sol` baris 72.
+
 ### Yang HARAM masuk roadmap submission
 
 | Jangan tulis | Kenapa |
@@ -425,10 +449,11 @@ Sertakan keempatnya. Ini yang membedakan roadmap jujur dari roadmap generik:
 | "Multi-chain" / "cross-chain" di v1.x | Belum ada di scope mana pun. Menambahnya terdengar seperti roadmap tempelan |
 | Tanggal yang lebih presisi dari yang bisa dipenuhi | Audit eksternal punya waktu tunggu yang tidak kita kendalikan. Pakai bulan, jangan tanggal |
 | Fitur yang belum diputuskan (mis. port Stylus tanpa "bila benchmark mendukung") | Kondisikan, jangan janjikan |
+| Port Stylus disebut sebagai upgrade atau pembaruan | `verifier` immutable, jadi ia Settlement baru di alamat baru. Lihat kotak di atas |
 
 ### Kalau hanya ada ruang untuk tiga baris
 
-> **Okt 2026** — v1.0: settlement batch sadar sesi dengan baseline diterbitkan onchain, empat token ekuitas, adapter Uniswap V3.
+> **Okt 2026** — v1.0: settlement batch sadar sesi dengan baseline diterbitkan onchain, lima token ekuitas, adapter Uniswap V3.
 > **Nov–Des 2026** — audit eksternal, mainnet, lalu laporan mingguan price improvement yang bisa diverifikasi siapa pun.
 > **Q1 2027** — v1.1 (adapter V4 lewat time-lock) dan perluasan allowlist setelah eksekusi ekuitasnya terbukti konsisten.
 

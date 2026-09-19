@@ -105,11 +105,17 @@ audit selesai  →  deploy allowlist minimal  →  operasi tiap malam
                                             →  ukur  →  terbitkan mingguan
 ```
 
-**Allowlist peluncuran tetap empat token:** NVDA (jangkar), AAPL, TSLA, GOOGL —
-dipilih dari volume DAN kualitas feed DAN likuiditas akhir pekan. GME dan SPY
-ditunda (feed terlalu jarang), SPCX dikecualikan permanen (tidak punya feed).
+**Allowlist peluncuran lima token:** NVDA (jangkar), AAPL, TSLA, GOOGL, GME —
+dipilih dari enam syarat yang ditulis lengkap di `parameter.md` §7.4. SPY ditunda
+karena feednya harian bukan intraday, SPCX dikecualikan permanen karena tidak punya
+feed sama sekali, META masuk v1.1 karena arusnya ada di Uniswap V4.
 Keputusan ini lahir dari verifikasi, bukan preferensi — jangan dilonggarkan demi
 angka volume yang lebih ramai saat peluncuran.
+
+> 🔴 **Dikoreksi 20 September 2026.** Baris ini sebelumnya menulis empat token dan
+> menyebut GME ditunda karena feed. Angka yang menundanya tidak tereproduksi, dan
+> GME masuk allowlist 20 September. GOOGL diperiksa ulang lawan keenam syarat di hari
+> yang sama dan dipertahankan. Lihat P6-2 di `pertanyaan-terbuka.md`.
 
 **Cara membaca hasilnya:** pakai kurva netting sebagai **diagnostik**, bukan pameran
 (`distribusi.md` §7.1). Pada pangsa 10%, netting yang diharapkan 21,0%. Kalau nyata
@@ -129,7 +135,7 @@ Isi v1.1 sudah ditetapkan, bukan dikarang sekarang:
 |---|---|
 | **Adapter Uniswap V4** | Masuk lewat **allowlist time-lock**, bukan deploy ulang. Menunggu perilaku hook fee dinamis `0x800000` dipahami |
 | **Ring trade multi-aset** | Di luar scope v1.0 sejak awal |
-| **Port Stylus** | Kalau benchmark Fase 1 mendukung |
+| **Port Stylus** | Kalau benchmark Fase 1 mendukung. **Menuntut Settlement baru**, karena `verifier` immutable dan tidak ada jalur time-lock yang bisa menukarnya. Bedanya dengan baris adapter di atas harus disebut tiap kali keduanya disebut bersama |
 | **Perluasan allowlist** | Lihat di bawah — ini keputusan strategis, bukan teknis |
 
 ### 6.1 Keputusan strategis terbesar: kapan keluar dari ekuitas

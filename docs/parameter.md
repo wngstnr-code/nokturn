@@ -570,7 +570,7 @@ Ditulis 17 September 2026, saat `AgentMandate.sol` dibuat.
 
 | Konstanta | Nilai | Alasan |
 |---|---|---|
-| `MANDATE_MAX_TOKENS` | **8** | Batas panjang `allowedTokens`. Validasi menyapu array ini di tiap otorisasi, jadi panjangnya harus terbatas supaya biayanya bisa dihitung. Allowlist v1.0 sendiri cuma empat token |
+| `MANDATE_MAX_TOKENS` | **8** | Batas panjang `allowedTokens`. Validasi menyapu array ini di tiap otorisasi, jadi panjangnya harus terbatas supaya biayanya bisa dihitung. Allowlist v1.0 sendiri lima token |
 | `MANDATE_MAX_DURATION` | **90 hari** | Jarak terjauh `expiry` boleh berada dari saat mandat dibuat. Mandat yang tidak pernah kedaluwarsa adalah approval tak terbatas dengan nama lain |
 | `MANDATE_DAY` | **hari kalender New York** | Batas reset `maxNotionalPerDay`. Bukan tengah malam UTC, karena tengah malam UTC jatuh di tengah sesi `POST_MARKET` dan akan memberi agent dua anggaran harian dalam satu malam Amerika |
 
@@ -1428,7 +1428,7 @@ justru terjadi di SPY dan SPCX yang ada di luar allowlist.
 Artinya netting v1.0 praktis bertumpu pada satu token. Ini bukan alasan menambah
 token — GME dan SPY diblokir feed, SPCX tidak punya feed sama sekali — tapi **harus
 dinyatakan apa adanya**, dan berarti kegagalan feed NVDA berdampak jauh lebih besar
-daripada yang disiratkan daftar empat token. Lihat `distribusi.md` §4.
+daripada yang disiratkan daftar allowlist. Lihat `distribusi.md` §4.
 
 **Feed Chainlink** (`DualAggregator 1.0.0`, 8 desimal):
 
