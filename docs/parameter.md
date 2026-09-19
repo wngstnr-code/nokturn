@@ -755,6 +755,40 @@ feed benar-benar diam dari Jumat sore sampai Senin.
 
 ### 7.4 Allowlist peluncuran — DIKOREKSI
 
+> ### Syarat masuk allowlist, dinyatakan lengkap 20 September 2026
+>
+> Sebelumnya dokumen ini menyebut tiga syarat. Pemeriksaan GME dan META pada
+> 20 September menunjukkan ada dua lagi yang selama ini dipakai tanpa pernah
+> ditulis, dan yang kelima hampir meloloskan token yang seharusnya gugur. Kelimanya
+> harus lolos. Satu gagal berarti token itu tidak masuk, seberapa pun bagus sisanya.
+>
+> | # | Syarat | Diukur dengan | Ambang |
+> |---|---|---|---|
+> | 1 | **Gerbang Stock Token** | `StockTokenGate`, slot beacon dan `uiMultiplier()` | Mutlak, ditegakkan kode |
+> | 2 | **Volume** | Dune, 30 hari, hanya token asli | Cukup tebal untuk memberi lawan arah per batch |
+> | 3 | **Kualitas feed** | p99 jeda `AnswerUpdated` sesi `OPEN`, seluruh riwayat feed | Setara token allowlist terburuk yang sudah diterima |
+> | 4 | **Likuiditas akhir pekan** | Jumlah trade dan jeda antar-trade Sabtu Minggu | Hidup, karena 74% arus ada di luar jam bursa |
+> | 5 | **Kedalaman pool** | `PoolDepthFork`, dampak harga bps di sepuluh kali cap | Menjawab di sepuluh kali cap, paling banyak empat penyeberangan di cap |
+> | 6 | **Venue dominan bisa dikuotasi** | Volume per venue dari `dex.trades` | Mayoritas arus ada di venue yang adapter v1.0 bisa baca |
+>
+> **Syarat keenam yang baru ditulis, dan kenapa ia mahal kalau terlewat.** META
+> lolos syarat dua sampai lima dengan nyaman. Feednya ketiga terbaik, nettingnya
+> kedua terbaik, volumenya di atas TSLA. Tapi 95% arusnya ada di Uniswap V4 yang
+> tidak bisa dikuotasi adapter v1.0, dan pool V3 yang tersisa harganya 109 bps dari
+> feednya sendiri. Memasukkannya berarti menerbitkan harga pembanding dari pool yang
+> memegang seperdua puluh arus token itu. Klaim price improvement terhadap baseline
+> seperti itu tidak akan bertahan diperiksa, dan itu persis kelas klaim yang sudah
+> digugurkan audit 11 Agustus 2026.
+>
+> **Syarat satu berbeda jenis dari lima lainnya.** Ia ditegakkan mesin, tidak bisa
+> dinegosiasikan, dan `Bootstrap` menolak membangun batch kalau ada token yang
+> gagal. Syarat dua sampai enam adalah penilaian manusia di atas pengukuran, dan
+> jejaknya wajib ada di dokumen ini sebelum tokennya masuk kode.
+>
+> **Prosedurnya.** Ukur keenamnya, tulis hasilnya di sini, baru ubah
+> `script/Addresses.sol` dalam PR yang sama. Setelah mainnet berdiri, penambahan
+> berjalan lewat proposal timelock 48 jam, bukan deploy ulang.
+
 Rekomendasi sebelumnya (NVDA, TSLA, **META**, **MSFT**) dibuat dari kualitas feed
 saja. Setelah volume per-token diukur, **META dan MSFT terlalu tipis**.
 
