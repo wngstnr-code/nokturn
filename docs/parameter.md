@@ -1561,48 +1561,73 @@ jalan 24 jam dan VPN ada. Jam hanyalah proxy lemah untuk zona waktu.
 
 ---
 
-### 10.6 Alamat gladi resik testnet 46630, dipasang 19 September 2026
+### 10.6 Alamat gladi resik testnet 46630, dipasang ulang 20 September 2026
 
 Chain 46630 tidak punya USDG kanonik, tidak punya Stock Token, dan tidak punya pool
-Uniswap V3. Sudah diverifikasi di `pertanyaan-terbuka.md` P2-6 dan diukur ulang hari
-ini dengan membaca ukuran kode di alamat mainnet masing-masing, ketiganya nol.
-Permit2 satu-satunya yang benar-benar ada, di alamat kanonik yang sama, 18.307
-karakter bytecode.
+Uniswap V3. Sudah diverifikasi di `pertanyaan-terbuka.md` P2-6 dan diukur ulang dengan
+membaca ukuran kode di alamat mainnet masing-masing, ketiganya nol. Permit2
+satu-satunya yang benar-benar ada, di alamat kanonik yang sama, 18.307 karakter
+bytecode.
 
 Supaya `Deploy`, `Bootstrap`, dan `Lock` bisa dilatih ujung ke ujung di rantai
 publik, umpannya dipasang lebih dulu lewat `script/testnet/DeployTestnetFixtures.s.sol`.
 Alamatnya dicatat di sini dulu, baru jadi konstanta di `script/Addresses.sol`, sama
 seperti setiap alamat yang tidak dimiliki protokol ini.
 
+**Angkatan pertama 19 September 2026 sudah tidak dipakai.** GME masuk allowlist pada
+20 September, jadi seluruh set dipasang ulang menjadi lima, bukan ditambah satu.
+Alasannya bukan kerapian. Token kuota dan keempat token lama tidak punya alasan untuk
+dipertahankan, dan satu set yang lahir dalam satu transaksi berurutan lebih gampang
+dipercaya daripada campuran dua angkatan yang harus dijelaskan.
+
 | Peran | Simbol | Alamat |
 |---|---|---|
-| Token kuota, 6 desimal | `tQUOTE` | `0xDC2b135b0406B07B46876653825D7933B5A44B7A` |
-| Stand in stock token | `tNVDA` | `0x4696687FDf6f2DDB8007E869c5c04505aa33663a` |
-| Stand in stock token | `tAAPL` | `0xf34c7a37Fd014DE45B6a4C9828b23Dfcf5565aAB` |
-| Stand in stock token | `tTSLA` | `0x3D434cECeFC14CCc470eC7dA8bF2C063b6F561F0` |
-| Stand in stock token | `tGOOGL` | `0x2974FA37d2f7Da3EaeC2AFedaa08E5DB4E7c8552` |
-| Pool `tNVDA` | | `0x6cB0599875d2335b613a0d3e2A96403a56488EFF` |
-| Pool `tAAPL` | | `0xD7f33F30B91D109527C89b6B124194da8fd13F7F` |
-| Pool `tTSLA` | | `0x32194297aFf703c9305e7E1f04051daFAb707aB9` |
-| Pool `tGOOGL` | | `0xE287eE9a0AEf2F6B88fcF9232cE2dFFccA2e6b2a` |
+| Token kuota, 6 desimal | `tQUOTE` | `0x4559EF47891FD74571c76852De21E0966409Edce` |
+| Stand in stock token | `tNVDA` | `0x43945b9Cd5E5ea57470961D28476aB9749fD6835` |
+| Stand in stock token | `tAAPL` | `0xc471d303fb69F8D710c31Bd3667145646f3d093D` |
+| Stand in stock token | `tTSLA` | `0x67157B1ee27c3Bd5f2Cf76f0847A8df98D2FC246` |
+| Stand in stock token | `tGOOGL` | `0x357F431e365f1A6c65304A4aC7002345D8B60481` |
+| Stand in stock token | `tGME` | `0xb3953D77e5dDb251B3F9C9C38a49B4cB28cbe92d` |
+| Pool `tNVDA` | | `0x1B72BEddb369A5A2F69c66F262aBF49D048fa093` |
+| Pool `tAAPL` | | `0x6c28c436BB2743482Bfd59E8d5A1aC95c41d6e79` |
+| Pool `tTSLA` | | `0xEd7Bbc056fb1bE91f692dbDb289BEbA1e83dB2DC` |
+| Pool `tGOOGL` | | `0x2Cd4A3d3d3dF3Cdc72655Fd6E28Ab0B3395FE2d1` |
+| Pool `tGME` | | `0x0C36D92bd5Ac4564C1010937B191dE21B7c2C302` |
 
-Multiplier-nya meniru drift mainnet yang diukur 16 September, yaitu `tNVDA` 1,0032e18,
-`tAAPL` 1,0011e18, `tGOOGL` 1,0007e18, dan `tTSLA` tepat 1e18. Gerbang yang cuma
-pernah melihat satu nilai bukan gerbang yang terlatih.
+Seluruhnya dibaca ulang dari chain setelah deploy, bukan disalin dari keluaran script.
+Token kuota 6 desimal, kelima stock token 18 desimal, kelima pool `fee` 3000.
 
-Harga pool-nya angka bulat sembarang, 200, 230, 420, dan 250, dan tick-nya adalah
-logaritma rasio harga mentah dengan stock token sebagai `token0`. Pasangan `tAAPL`
-kebetulan terurut sebaliknya, jadi tick-nya positif sementara tiga lainnya negatif.
-Tidak ada pasar di 46630 yang memberi harga, jadi angka ini dipilih supaya terbaca,
-bukan supaya jadi kuotasi siapa pun.
+Multiplier-nya meniru mainnet, yaitu `tNVDA` 1,0032e18, `tAAPL` 1,0011e18,
+`tGOOGL` 1,0007e18, lalu `tTSLA` dan `tGME` tepat 1e18. Gerbang yang cuma pernah
+melihat satu nilai bukan gerbang yang terlatih, dan dua yang tepat 1e18 ada karena
+kedua token itu memang belum bergeser di mainnet.
+
+Harga pool-nya angka bulat sembarang, 200, 230, 420, 250, dan 25, dan tick-nya adalah
+logaritma rasio harga mentah dengan stock token sebagai `token0`. Tidak ada pasar di
+46630 yang memberi harga, jadi angka ini dipilih supaya terbaca, bukan supaya jadi
+kuotasi siapa pun. Angka 25 untuk `tGME` kebetulan dekat dengan pool GME mainnet yang
+duduk di tick `-245.446`.
+
+| Pool | Tick terbaca | `token0` |
+|---|---|---|
+| `tNVDA` | `-223.338` | stock |
+| `tAAPL` | `+221.941` | kuota |
+| `tTSLA` | `+215.918` | kuota |
+| `tGOOGL` | `-221.107` | stock |
+| `tGME` | `+244.134` | kuota |
+
+Tiga dari lima terurut terbalik di angkatan ini, jadi tick-nya positif karena harganya
+jadi resiprokal. Di angkatan pertama cuma `tAAPL` yang begitu. Urutannya ditentukan
+alamat yang keluar dari deploy dan bukan sesuatu yang dipilih, jadi jangan pakai tanda
+tick sebagai penanda token apa pun.
 
 **Apa yang gladi resik ini buktikan, dan apa yang tidak.** Di 46630, `StockTokenGate`
 memeriksa nilai yang kontrak umpan itu tulis sendiri untuk diperiksa. Lolosnya
 membuktikan bentuk batch bootstrap benar dan **tidak membuktikan apa pun tentang
 gerbangnya**. Yang membuktikan gerbang adalah `test/fork/Bootstrap.fork.t.sol`
-terhadap empat token mainnet sungguhan. Hal yang sama berlaku untuk adapter. Pool
-uji menjawab pembacaan state dengan likuiditas rata dan `swap` yang selalu revert,
-jadi ia melatih `setPool` dan tidak melatih kuotasi terhadap likuiditas nyata.
+terhadap token mainnet sungguhan. Hal yang sama berlaku untuk adapter. Pool uji
+menjawab pembacaan state dengan likuiditas rata dan `swap` yang selalu revert, jadi ia
+melatih `setPool` dan tidak melatih kuotasi terhadap likuiditas nyata.
 
 Alamat di atas tidak pernah terbaca di mainnet. `Addresses` memilih berdasarkan
 `block.chainid`, dan 4663 tidak punya cabang ke sini.

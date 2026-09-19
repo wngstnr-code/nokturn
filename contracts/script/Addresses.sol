@@ -39,6 +39,9 @@ library Addresses {
     /// script/testnet/DeployTestnetFixtures.s.sol before the deploy runs. They are
     /// constants here for the same reason the mainnet ones are, which is that an
     /// address read from a dotenv file differs between three laptops.
+    ///
+    /// Replaced wholesale on 20 September 2026 when GME joined the allowlist. The
+    /// first batch of four is dead and none of its addresses appear here.
     /// The Chainlink proxies, parameter.md section 7.1. Proxies rather than the
     /// aggregators behind them, so an aggregator swap does not cut the consumer off.
     /// Verified against the chain on 19 September 2026, all four eight decimals and
@@ -72,17 +75,19 @@ library Addresses {
     /// parameter.md section 7.1.
     uint32 internal constant TWAP_WINDOW = 1800;
 
-    address internal constant TESTNET_QUOTE = 0xDC2b135b0406B07B46876653825D7933B5A44B7A;
+    address internal constant TESTNET_QUOTE = 0x4559EF47891FD74571c76852De21E0966409Edce;
 
-    address internal constant TESTNET_NVDA = 0x4696687FDf6f2DDB8007E869c5c04505aa33663a;
-    address internal constant TESTNET_AAPL = 0xf34c7a37Fd014DE45B6a4C9828b23Dfcf5565aAB;
-    address internal constant TESTNET_TSLA = 0x3D434cECeFC14CCc470eC7dA8bF2C063b6F561F0;
-    address internal constant TESTNET_GOOGL = 0x2974FA37d2f7Da3EaeC2AFedaa08E5DB4E7c8552;
+    address internal constant TESTNET_NVDA = 0x43945b9Cd5E5ea57470961D28476aB9749fD6835;
+    address internal constant TESTNET_AAPL = 0xc471d303fb69F8D710c31Bd3667145646f3d093D;
+    address internal constant TESTNET_TSLA = 0x67157B1ee27c3Bd5f2Cf76f0847A8df98D2FC246;
+    address internal constant TESTNET_GOOGL = 0x357F431e365f1A6c65304A4aC7002345D8B60481;
+    address internal constant TESTNET_GME = 0xb3953D77e5dDb251B3F9C9C38a49B4cB28cbe92d;
 
-    address internal constant TESTNET_POOL_NVDA = 0x6cB0599875d2335b613a0d3e2A96403a56488EFF;
-    address internal constant TESTNET_POOL_AAPL = 0xD7f33F30B91D109527C89b6B124194da8fd13F7F;
-    address internal constant TESTNET_POOL_TSLA = 0x32194297aFf703c9305e7E1f04051daFAb707aB9;
-    address internal constant TESTNET_POOL_GOOGL = 0xE287eE9a0AEf2F6B88fcF9232cE2dFFccA2e6b2a;
+    address internal constant TESTNET_POOL_NVDA = 0x1B72BEddb369A5A2F69c66F262aBF49D048fa093;
+    address internal constant TESTNET_POOL_AAPL = 0x6c28c436BB2743482Bfd59E8d5A1aC95c41d6e79;
+    address internal constant TESTNET_POOL_TSLA = 0xEd7Bbc056fb1bE91f692dbDb289BEbA1e83dB2DC;
+    address internal constant TESTNET_POOL_GOOGL = 0x2Cd4A3d3d3dF3Cdc72655Fd6E28Ab0B3395FE2d1;
+    address internal constant TESTNET_POOL_GME = 0x0C36D92bd5Ac4564C1010937B191dE21B7c2C302;
 
     /// @dev The quote side of every pair. Reading chain id rather than taking a
     /// parameter, because a deploy that can be pointed at the wrong quote token by
@@ -91,17 +96,14 @@ library Addresses {
         return block.chainid == TESTNET ? TESTNET_QUOTE : USDG;
     }
 
-    /// @dev The rehearsal chain carries four rather than five. GME joined the
-    /// allowlist on 20 September 2026 and 46630 has no fixture for it yet, so the
-    /// two lists are deliberately different lengths rather than quietly padded.
-    /// The next rehearsal closes that, see docs/runbook-deploy.md.
     function allowlist() internal view returns (address[] memory tokens) {
         if (block.chainid == TESTNET) {
-            tokens = new address[](4);
+            tokens = new address[](5);
             tokens[0] = TESTNET_NVDA;
             tokens[1] = TESTNET_AAPL;
             tokens[2] = TESTNET_TSLA;
             tokens[3] = TESTNET_GOOGL;
+            tokens[4] = TESTNET_GME;
             return tokens;
         }
         tokens = new address[](5);
@@ -145,11 +147,12 @@ library Addresses {
 
     function pools() internal view returns (address[] memory addrs) {
         if (block.chainid == TESTNET) {
-            addrs = new address[](4);
+            addrs = new address[](5);
             addrs[0] = TESTNET_POOL_NVDA;
             addrs[1] = TESTNET_POOL_AAPL;
             addrs[2] = TESTNET_POOL_TSLA;
             addrs[3] = TESTNET_POOL_GOOGL;
+            addrs[4] = TESTNET_POOL_GME;
             return addrs;
         }
         addrs = new address[](5);
