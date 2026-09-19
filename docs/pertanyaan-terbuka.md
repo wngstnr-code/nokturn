@@ -668,6 +668,40 @@ kontrol itulah yang menggugurkannya. Uji batasnya, jangan cuma titik tengahnya.
 > hidup, hanya saja sekarang resolve ke `block.gmedia.id` (`103.217.209.188`),
 > bukan lagi `internetpositif.id`. Gejalanya tetap menyesatkan.
 
+### Pelajaran metodologi ketujuh, 19 September 2026. Fork test enam minggu basi
+
+Ditemukan saat mengkalibrasi `MAX_TICK_CROSSINGS`. Dua fork test adapter merah, dan
+dugaan pertama adalah drift likuiditas pool. Salah.
+
+**Di chain Arbitrum, `block.number` mengembalikan nomor blok chain induk, bukan
+chain ini.** Terukur hari itu, `block.number` menjawab **26.011.883** sementara
+`eth_blockNumber` dan `ArbSys.arbBlockNumber()` sama-sama menjawab **67.121.275**.
+Keduanya benar untuk penomoran masing-masing.
+
+`ForkFixture.selectMainnet()` membaca yang pertama lalu menyuapkannya ke `rollFork`
+yang menerima yang kedua. Hasilnya fork mendarat di blok 25.668.122, yang bertanggal
+**2 Agustus 2026**. Tiga kali dijalankan, tiga kali blok yang sama, jadi ia stabil
+dan karena itu tidak pernah terlihat mencurigakan.
+
+Konsekuensinya, **setiap fork test di repo ini berjalan atas state 2 Agustus selama
+enam minggu**, dan jaraknya melebar tiap hari karena kedua penomoran bergerak dengan
+laju berbeda. Klaim "nol selisih terhadap mainnet nyata" selama periode itu berarti
+nol selisih terhadap fork 2 Agustus.
+
+Perbaikannya satu baris, yaitu mundur dari `ArbSys.arbBlockNumber()` bukan dari
+`block.number`. Setelah itu `rollFork` mendarat tepat 300 blok ke belakang dengan
+timestamp tepat 30 detik lebih awal, persis seperti yang dirancang, dan **kedelapan
+belas fork test hijau termasuk dua yang merah**.
+
+**Bentuk kesalahannya baru.** Enam pelajaran sebelumnya semuanya tentang satu
+pengamatan positif yang dibaca sebagai sifat umum. Yang ini kebalikannya, yaitu dua
+angka yang sama-sama benar dan sama-sama masuk akal, dipakai bergantian karena
+namanya mirip. Yang menangkapnya bukan kecurigaan, melainkan memaksa diri
+memverifikasi ke rantai apa yang sudah terbaca di fork. Angka yang cocok dengan
+harapan tetap harus dicek terhadap sumber kedua.
+
+---
+
 Untuk Foundry: pakai `https://robinhood.drpc.org` yang terbukti bekerja di atas.
 VPN, DNS-over-HTTPS di level sistem, atau endpoint provider berbayar tetap jadi
 cadangan kalau endpoint itu jatuh.

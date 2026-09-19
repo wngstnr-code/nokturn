@@ -389,7 +389,7 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 - [x] Differential ≥ 1 juta input, nol perbedaan · laporan `verifier/reports/differential-2026-09-18.md`
 - [ ] Semua properti Halmos terbukti · 4 dari 7 penuh, 3 sebagian. Lihat §4.1
 - [x] Skor mutasi ≥ 90% pada kontrak inti · 100% atas 156 mutan yang dihitung di `Settlement` dan `SessionManager`, 19 September 2026. Seluruh kontrak lain juga sudah diukur dan berada di 100%
-- [ ] Semua fork test lulus terhadap mainnet nyata
+- [x] Semua fork test lulus terhadap mainnet nyata · 18 hijau, 19 September 2026. Sebelum hari itu fork-nya membaca state 2 Agustus, lihat `pertanyaan-terbuka.md` pelajaran ketujuh
 - [x] 15 skenario adversarial lulus · lima belas hijau, peta ke nama test di §7.1
 - [x] Kalender diuji habis 2020–2035 · `CivilDate.t.sol` menelusuri 5.844 hari kalender yang ter-commit, dua arah
 - [x] Coverage ≥ 95% pada kontrak inti · gerbang `build-test` di CI, run 35410613213

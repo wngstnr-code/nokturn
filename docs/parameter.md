@@ -355,29 +355,46 @@ layak dikerjakan.
 | `MAX_TICK_CROSSINGS` | **32** | ✅ **Dikonfirmasi dari pengukuran 16 September 2026**, bukan lagi tebakan. Lihat tabel di bawah |
 | `MAX_LOOP_STEPS` | **128** | Termasuk langkah batas-kata bitmap yang **bukan** penyeberangan likuiditas |
 
-**Penyeberangan tick terukur**, pool NVDA-USDG fee 500 di mainnet, lewat
-`quoteWithStats` pada fork:
+**Penyeberangan tick terukur, keempat pool allowlist**, 19 September 2026, lewat
+`quoteWithStats` pada fork mainnet. Diukur ulang karena pengukuran sebelumnya hanya
+satu pool, dan karena fork-nya ternyata membaca state 2 Agustus. Lihat catatan di
+bawah.
 
-| Ukuran trade | Penyeberangan | Langkah loop |
-|---|---|---|
-| 1.000 USDG | **0** | 1 |
-| **5.000 USDG** (= `CAP_PER_BATCH`) | **0** | 1 |
-| 10.000 USDG | 0 | 1 |
-| 50.000 USDG | 1 | 2 |
-| 250.000 USDG | 3 | 4 |
-| 1.000.000 USDG | **16** | 17 |
+| USDG masuk | NVDA | AAPL | TSLA | GOOGL |
+|---|---|---|---|---|
+| 5.000 (= `CAP_PER_BATCH`) | **0** | **0** | **0** | **0** |
+| 10.000 | 0 | 0 | 1 | 0 |
+| 25.000 | 0 | 1 | 1 | 0 |
+| 50.000 | 0 | 4 | 2 | 1 |
+| 250.000 | 1 | ditolak | 12 | 15 |
+| 1.000.000 | 13 | ditolak | ditolak | ditolak |
+| **Ukuran terbesar yang bisa dikuotasi** | **$1,81jt** | **$214rb** | **$304rb** | **$358rb** |
 
-Dua hal yang sekarang berdiri di atas data.
+Likuiditas dalam rentang saat diukur, NVDA `2,77e19` · AAPL `1,68e18` ·
+TSLA `6,95e17` · GOOGL `5,24e18`. Fee 500 untuk NVDA, AAPL, dan GOOGL, 3000 untuk
+TSLA.
 
-1. **Pada cap peluncuran, penyeberangan nol.** `desain-baseline.md` §6 menyebut ini
-   asumsi yang harus diverifikasi dan bukan diandalkan. Sudah diverifikasi.
-2. **32 memberi margin dua kali lipat terhadap trade 1 juta USD**, yaitu 200 kali
-   `CAP_PER_BATCH`. Bahkan di plafon governance `CAP_PER_BATCH` $500.000,
-   penyeberangan terukur masih di sekitar 5.
+Keempatnya berhenti tepat di 32 penyeberangan, bukan karena kehabisan likuiditas.
+Artinya `MAX_TICK_CROSSINGS` memang yang mengikat di ukuran itu, dan angkanya bisa
+dibaca sebagai kapasitas.
 
-⚠️ Angka ini dari satu pool pada satu blok. Pool dengan `tickSpacing` lebih rapat
-atau likuiditas lebih tipis akan menyeberang lebih sering, jadi ukur ulang sebelum
-menambah pool baru ke allowlist adapter.
+Tiga hal yang sekarang berdiri di atas data.
+
+1. **Pada cap peluncuran, penyeberangan nol di keempat pool.** `desain-baseline.md`
+   §6 menyebut ini asumsi yang harus diverifikasi dan bukan diandalkan. Sudah
+   diverifikasi, dan sekarang untuk semua pool bukan cuma jangkarnya.
+2. **32 tetap benar dan tidak diubah.** Margin terhadap cap peluncuran adalah 43 kali
+   pada pool tertipis, yaitu AAPL di $214rb lawan $5rb.
+3. 🔴 **Di plafon governance `CAP_PER_BATCH` $500.000, AAPL tidak bisa dikuotasi
+   sama sekali.** Klaim lama "penyeberangan masih di sekitar 5 di plafon" salah dan
+   jangan dipakai lagi. Menaikkan cap ke plafon berarti menerima bahwa satu token
+   allowlist jatuh ke pass-through, atau menaikkan `MAX_TICK_CROSSINGS` lebih dulu,
+   dan yang kedua menaikkan gas verifikasi terburuk.
+
+⚠️ Angka ini pasar hidup, bukan konstanta. `test/fork/PoolDepthFork.t.sol` mengukur
+ulang tiap malam, menegaskan cap peluncuran menyentuh paling banyak empat tick dan
+setiap pool masih menjawab di sepuluh kali cap, lalu mencetak tabel ini apa adanya.
+Ukur lagi sebelum menambah pool baru ke allowlist adapter.
 
 > **Arah pembulatan `baselineReceived`: KE ATAS.** Ini pengecualian sadar terhadap
 > §9 ("kuantitas diterima pengguna dibulatkan ke bawah") — baseline bukan jumlah
