@@ -21,9 +21,14 @@
 # unproved and unnoticed.
 #
 # --solver-timeout-assertion 300000 is what the limit monotonicity proof needs.
-# It is a product of two unknown 128 bit values and z3 takes about 170 seconds on
-# it. At the default of one second it reports a timeout, which reads like a
-# counterexample and is not one.
+# It is a product of two unknown 128 bit values and the solver takes about 170
+# seconds on it. At the default of one second it reports a timeout, which reads like
+# a counterexample and is not one.
+#
+# --solver yices is stated rather than left to the default, which is yices today and
+# is not promised to stay that way. It was measured against z3, bitwuzla and cvc5 on
+# 20 September 2026 and all four stop in the same place, so this is about the run
+# being reproducible rather than about yices being faster. rencana-uji.md 4.1.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -36,6 +41,7 @@ for contract in ClearingMathProofs AuctionMathProofs SessionProofs GuardianProof
     --contract "$contract" \
     --function testFuzz \
     --loop 8 \
+    --solver yices \
     --solver-timeout-assertion 300000 \
     "$@"
 done
