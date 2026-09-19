@@ -51,6 +51,11 @@ fail_on_revert = false
 # doubles the size of out/. tools/halmos.sh selects this profile.
 [profile.halmos]
 ast = true
+# Foundry rewrites `new Contract()` in a test into the deployCode cheat code so it
+# can relink without recompiling. Halmos does not implement that cheat code, so a
+# setUp that deploys anything fails before the first path. Turning the rewrite off
+# costs a slower build and is what lets a proof reach a contract at all.
+dynamic_test_linking = false
 
 [profile.ci.fuzz]
 runs = 4096
