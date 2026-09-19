@@ -125,8 +125,9 @@ Dijalankan dengan halmos 0.3.3 dan z3, lewat `contracts/tools/halmos.sh`. Tiga f
 **Aturan penamaan.** Fungsi berawalan `testFuzz_` dijalankan simbolis oleh gerbang
 dan merupakan bukti atas seluruh rentang yang dinyatakan. Fungsi berawalan
 `testBound_` hanya dijalankan forge sebagai fuzz berbatas dan **bukan bukti**.
-Pemisahan ini ada supaya tidak ada properti yang terbaca seperti terbukti padahal
-tidak.
+Fungsi `test_` tanpa argumen menelusuri domain tertutup secara tuntas, yang untuk
+domain kecil sama lengkapnya dengan solver. Pemisahan ini ada supaya tidak ada
+properti yang terbaca seperti terbukti padahal tidak.
 
 | Baris §4 | Status |
 |---|---|
@@ -135,7 +136,7 @@ tidak.
 | Batas fee | Terbukti, uint128 penuh |
 | Pembulatan pro rata | **Sebagian.** Distributivitas terbukti di uint128. Lema pembulatan terbukti di uint64 saja |
 | Konservasi nilai | **Sebagian.** Tanda dan luapan terbukti di uint128. Bentuk gabungannya fuzz |
-| `sessionAt()` | **Sebagian.** Enam properti hilir terbukti. Tabelnya tuntas lewat `CivilDate.t.sol`, bukan simbolis |
+| `sessionAt()` | **Sebagian.** Tiga properti parameter tuntas lewat enumerasi, tiga properti tanggal terbukti simbolis. Tabelnya tuntas lewat `CivilDate.t.sol` |
 | Kekuasaan guardian | **Belum punya subjek.** Tidak ada guardian di `src/`, sama seperti A11 di §7.1 |
 
 **Kenapa pembulatan pro rata berhenti di uint64.** Pembagian 256 bit adalah tembok
@@ -152,17 +153,25 @@ propertinya.
 
 **Kenapa `sessionAt` tidak dibuktikan utuh.** Ia membaca dua tabel storage, batas DST
 dan kalender. Menjalankannya simbolis berarti membuktikan pernyataan tentang kalender
-sembarang, bukan tentang kalender kita. Yang dibuktikan sebagai gantinya adalah semua
-yang ada di hilir jawabannya, yaitu setiap sesi punya band dan tahu apakah ia menjalankan
-batch, tidak ada band yang lebih lebar dari collar lelang, `PROTECTIVE` adalah band
-tersempit sekaligus batch terlambat, dan setiap indeks hari menghasilkan bulan, tanggal,
-serta tahun yang benar-benar ada. Tabelnya sendiri ditelusuri tuntas 5.844 hari dua arah
-oleh `CivilDate.t.sol`.
+sembarang, bukan tentang kalender kita. Yang diperiksa sebagai gantinya adalah semua
+yang ada di hilir jawabannya, dan itu terbagi dua menurut ukuran domainnya.
 
-Ketiga bukti bentuk tanggal itu dipecah satu properti per fungsi. Digabung jadi satu
-query mereka tertutup di 388 detik pada satu run dan timeout di 447 detik pada run
-berikutnya, di mesin yang sama. Dipecah, yang terberat 77 detik. Gerbang yang berkedip
-adalah gerbang yang orang belajar abaikan.
+Tiga properti parameter **dienumerasi tuntas** atas kesembilan sesi, yaitu setiap sesi
+punya band dan tahu apakah ia menjalankan batch, tidak ada band yang lebih lebar dari
+collar lelang, dan `PROTECTIVE` adalah band tersempit sekaligus batch terlambat. Untuk
+domain sembilan nilai, menelusuri semuanya sama lengkapnya dengan solver dan jauh lebih
+murah. Ia juga melepaskan gas terukur dari undian fuzz, karena `maxDeviationBps` adalah
+rantai perbandingan dan sesi yang difuzz mendarat di anak tangga berbeda tiap run. Itu
+yang menggeser satu angka 177 gas antara laptop dan CI sebelum ditulis begini.
+
+Tiga properti bentuk tanggal **dibuktikan simbolis** atas seluruh domain uint32 yang
+dipakai, yaitu setiap indeks hari menghasilkan bulan, tanggal, dan tahun yang
+benar-benar ada. Ketiganya dipecah satu properti per fungsi. Digabung jadi satu query
+mereka tertutup di 388 detik pada satu run dan timeout di 447 detik pada run berikutnya,
+di mesin yang sama. Dipecah, yang terberat 77 detik. Gerbang yang berkedip adalah
+gerbang yang orang belajar abaikan.
+
+Tabelnya sendiri ditelusuri tuntas 5.844 hari dua arah oleh `CivilDate.t.sol`.
 
 **Dua catatan operasional.** Profil `halmos` mematikan `dynamic_test_linking`, karena
 foundry menulis ulang `new Contract()` di dalam test jadi cheatcode `deployCode` yang
