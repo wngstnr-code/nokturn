@@ -176,7 +176,64 @@ tidak seharusnya muncul.
 **Closing print feed per token.** Satu kontrak per token, dipasang saat token itu
 benar-benar butuh permukaan Chainlink. Bukan bagian dari deploy inti.
 
-## Gladi resik testnet 46630, 19 September 2026
+## Gladi resik testnet 46630, diulang 20 September 2026
+
+Diulang karena kontrak angkatan 19 September tidak lagi mencerminkan kode. Guardian,
+lantai baseline, dan token kelima semuanya lahir setelahnya. Umpannya ikut diganti
+seluruhnya, jadi ini gladi resik dari nol, bukan tambalan.
+
+| Langkah | Gas | Biaya | Perkiraan script |
+|---|---|---|---|
+| Umpan testnet, 11 kontrak | 6.364.366 | 0,0000636 ETH | 8.475.212 |
+| `Deploy`, 9 kontrak | 20.917.620 | 0,0002092 ETH | 27.795.867 |
+| `Bootstrap`, 21 panggilan dalam satu batch | 4.233.030 | 0,0000423 ETH | 6.040.033 |
+| `Lock` | 137.408 | 0,0000014 ETH | 174.836 |
+
+Total **0,0003165 ETH** pada gas 0,01 gwei. Pemakaian nyata konsisten di sekitar
+**75% dari perkiraan** di keempat langkah, jadi perkiraan script boleh dipakai sebagai
+batas atas dan tidak boleh dipakai sebagai anggaran.
+
+**Batch bootstrap 21 panggilan, bukan 18.** Bentuknya enam panggilan tetap ditambah
+tiga per token, jadi empat token memberi 18 dan lima token memberi 21. Angka 18 yang
+sempat dipakai sebagai titik periksa adalah angka sebelum GME masuk, dan itu menghentikan
+gladi resik sekali tanpa ada yang rusak. Kalau menambah token lagi, hitung ulang dengan
+rumusnya, jangan ingat angkanya.
+
+Yang dibuktikan dengan membaca rantai, bukan membaca log.
+
+Timelock jadi governor di keenam kontrak yang punya. `AgentMandate` tidak punya
+`governor()` sama sekali, jadi pembacaannya revert dan itu bukan wiring yang kurang.
+
+Kalender tertutup sampai 4 November 2035 dengan 103 entri sampai 2028. Natal 2026
+terbaca `HOLIDAY` dan Sabtu 14 Maret 2026 terbaca `CLOSED_WEEKEND`, sama seperti
+angkatan sebelumnya.
+
+Kelima token lolos `StockTokenGate` dan masuk ketiga tempat sekaligus, yaitu allowlist
+Settlement, allowlist lelang, dan pool di adapter. `tGME` termasuk, jadi allowlist
+gladi resik akhirnya sama panjang dengan mainnet.
+
+`baselineAdapter` terisi dan bukan alamat nol. Ini yang paling gampang luput, karena
+adapter yang kosong membuat tiap batch jadi pass through yang aman tapi tidak
+mengumpulkan apa apa, dan tidak ada yang revert.
+
+Setelah `Lock`, `minDelay` 172.800 detik dan `Bootstrap` menolak jalan lagi dengan
+`bootstrap window already closed`.
+
+Sourcify mencatat kesembilannya `match`, dikonfirmasi lewat API per alamat dan bukan
+lewat keluaran script.
+
+Pemantau dijalankan terhadap deployment ini dan melaporkan lima token, naik dari empat.
+`M1` sampai `M3`, yaitu ketiga sinyal yang memanggil pause, bersih semua. `M4` menyala
+di kelima token karena 46630 tidak punya feed Chainlink, dan itu jawaban yang benar.
+
+Tiga hal yang perlu diketahui sebelum mengulang ini. Prompt password keystore butuh TTY
+sungguhan, jadi `--broadcast` dijalankan dari Terminal biasa. Domain testnet ikut
+dicegat DNS ISP Indonesia, lihat `parameter.md` §10.6. Dan endpoint ini sempat menjawab
+`eth_getCode` kosong untuk dua kontrak yang sebenarnya sudah mendarat, jadi kalau sebuah
+alamat terbaca kosong tepat setelah deploy, baca ulang sebelum menyimpulkan apa pun.
+
+## Gladi resik testnet 46630, 19 September 2026, digantikan
+
 
 Dijalankan penuh. Keempat langkah lolos dan kesembilan kontrak terverifikasi.
 
