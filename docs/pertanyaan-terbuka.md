@@ -1308,6 +1308,60 @@ memakai cakupan yang lebih sempit. Selisihnya besar dan **belum direkonsiliasi**
 jadi jangan dipakai sebagai klaim pertumbuhan. Yang sah dipakai dari pengukuran ini
 adalah pangsanya, karena pangsa dihitung di dalam satu pengukuran yang sama.
 
+### Netting per token, dan kenapa ia membalik dasar pemilihan allowlist
+
+Netting terjadi **di dalam satu token**. Pembeli NVDA tidak bisa dipertemukan dengan
+penjual GLD. Jadi yang membatasi bukan jumlah token di allowlist, melainkan berapa
+banyak pedagang berlawanan arah pada token yang sama di jendela batch yang sama.
+Angka itu belum pernah diukur per token. Kueri `8777088`, empat belas hari terakhir,
+batch 45 detik, seluruh arus.
+
+| Token | Pedagang per batch | Netting antar-counterparty | Volume 14 hari |
+|---|---|---|---|
+| **GME** | 11,2 | **48,9%** | $102,2jt |
+| **META** | 11,9 | **45,4%** | $116,8jt |
+| AMC | 6,4 | 43,4% | $124,2jt |
+| **AAPL** | 10,5 | 40,2% | $127,0jt |
+| SPY | 26,0 | 37,9% | $510,2jt |
+| SPCX | 23,3 | 37,7% | $434,5jt |
+| **NVDA** | 38,1 | 34,0% | $635,1jt |
+| **GOOGL** | 16,6 | 30,3% | $255,2jt |
+| HIMS | 5,7 | 26,7% | $54,1jt |
+| MSTR | 5,5 | 26,0% | $63,2jt |
+| GLD | 8,2 | 25,9% | $153,6jt |
+| **TSLA** | 6,7 | **23,7%** | $75,3jt |
+
+Tebal adalah allowlist v1.0. Tertimbang volume, keempatnya menghasilkan **33,2%**.
+
+**Tiga hal yang dibalik tabel ini.**
+
+Pertama, **lebih banyak pedagang tidak berarti lebih banyak netting**. NVDA punya
+38,1 pedagang per batch dan hanya 34,0% netting, sementara GME punya 11,2 pedagang
+dan 48,9%. Yang menentukan keseimbangan arah, bukan keramaian. Arus NVDA searah.
+
+Kedua, **TSLA adalah penetting terburuk dari kedua belas token yang diukur**, sekaligus
+urutan dua belas menurut volume, likuiditas pool paling tipis, dan pemegang rekor
+drift akhir pekan 781 bps yang memaksa `WEEKEND_DRIFT_CAP_BPS` dinaikkan ke 1.500.
+
+Ketiga, **kedua alasan pengecualian yang tercatat di §7.4 berdiri di atas angka yang
+sudah tidak berlaku**. GME ditunda karena feed, dan feednya sekelas AAPL. META
+dicoret karena volume di bawah 500, dan volumenya sekarang $116,8jt dengan netting
+kedua terbaik dan cadence feed ketiga terbaik.
+
+⚠️ **Dua peringatan atas angka ini.**
+
+Pengukuran pertama memakai kolom `taker` dan **hasilnya harus dibuang**. Router
+agregator dominan `0x65050A9B…` muncul sebagai satu pedagang dengan 696.550 trade
+pada NVDA saja, sehingga arus banyak pengguna runtuh jadi satu alamat dan
+netting antar-counterparty tampak jauh lebih kecil. Kolom yang benar `tx_from`,
+karena untuk panggilan lewat router ia adalah penggunanya. Ini bentuk kesalahan yang
+sama dengan pelajaran kedelapan, yaitu angka yang stabil tapi mengukur benda lain.
+
+Tingkat absolutnya **tidak sebanding** dengan 50,05% di §1B. Yang itu diukur atas
+Agustus, sesi off-hours saja, dengan definisi pedagang yang mungkin berbeda. Yang
+sah dipakai dari tabel ini adalah **peringkat antar token**, karena seluruh barisnya
+diukur dengan satu metode yang sama.
+
 ---
 
 ## RONDE 5 — peta venue lengkap (10 September 2026)
