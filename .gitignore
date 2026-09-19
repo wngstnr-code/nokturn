@@ -58,3 +58,6 @@ contracts/crytic-export/
 verifier/target/
 verifier/stylus/target/
 verifier/report.txt
+
+# Deploy records are committed on purpose, so only the run logs are ignored.
+contracts/broadcast/
