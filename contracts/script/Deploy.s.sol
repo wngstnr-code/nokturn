@@ -38,6 +38,9 @@ import {Addresses} from "./Addresses.sol";
 /// sitting in a dotenv file.
 contract Deploy is Script {
     struct Deployment {
+        address treasury;
+        address[] proposers;
+        address[] executors;
         address timelock;
         address sessions;
         address verifier;
@@ -102,6 +105,9 @@ contract Deploy is Script {
         vm.stopBroadcast();
 
         d = Deployment({
+            treasury: treasury,
+            proposers: proposers,
+            executors: executors,
             timelock: governor,
             sessions: address(sessions),
             verifier: address(verifier),
@@ -121,6 +127,14 @@ contract Deploy is Script {
     /// testnet rehearsal wrote.
     function _write(Deployment memory d) internal {
         string memory key = "deployment";
+        // The constructor arguments go in beside the addresses, because a
+        // verification that has to guess them is a verification that fails on the
+        // one contract whose arguments were unusual.
+        vm.serializeAddress(key, "treasury", d.treasury);
+        vm.serializeAddress(key, "proposers", d.proposers);
+        vm.serializeAddress(key, "executors", d.executors);
+        vm.serializeAddress(key, "usdg", Addresses.USDG);
+        vm.serializeAddress(key, "permit2", Addresses.PERMIT2);
         vm.serializeAddress(key, "timelock", d.timelock);
         vm.serializeAddress(key, "sessions", d.sessions);
         vm.serializeAddress(key, "verifier", d.verifier);

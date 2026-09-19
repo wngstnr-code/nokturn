@@ -1,0 +1,5 @@
+# 31337 is the in memory chain the deploy test runs on, so its record is an
+# artifact of running the suite rather than something that exists anywhere.
+# Real deploys are committed, because the addresses are the record of what is on
+# chain and anybody checking our claims starts from them.
+31337.json
