@@ -117,6 +117,60 @@ Dua terakhir menurutku paling bernilai: membuktikan **guardian tidak bisa mencur
 dan **fee tidak bisa melampaui batas** adalah klaim yang bisa dinyatakan tanpa
 syarat ke juri.
 
+### 4.1 Status, diukur 19 September 2026
+
+Dijalankan dengan halmos 0.3.3 dan z3, lewat `contracts/tools/halmos.sh`. Tiga file,
+`ClearingMathProofs`, `AuctionMathProofs`, dan `SessionProofs`.
+
+**Aturan penamaan.** Fungsi berawalan `testFuzz_` dijalankan simbolis oleh gerbang
+dan merupakan bukti atas seluruh rentang yang dinyatakan. Fungsi berawalan
+`testBound_` hanya dijalankan forge sebagai fuzz berbatas dan **bukan bukti**.
+Pemisahan ini ada supaya tidak ada properti yang terbaca seperti terbukti padahal
+tidak.
+
+| Baris §4 | Status |
+|---|---|
+| Pemeriksaan limit | Terbukti, uint128 penuh |
+| Ekuivalensi perkalian silang | Terbukti, uint128 penuh |
+| Batas fee | Terbukti, uint128 penuh |
+| Pembulatan pro rata | **Sebagian.** Distributivitas terbukti di uint128. Lema pembulatan terbukti di uint64 saja |
+| Konservasi nilai | **Sebagian.** Tanda dan luapan terbukti di uint128. Bentuk gabungannya fuzz |
+| `sessionAt()` | **Sebagian.** Enam properti hilir terbukti. Tabelnya tuntas lewat `CivilDate.t.sol`, bukan simbolis |
+| Kekuasaan guardian | **Belum punya subjek.** Tidak ada guardian di `src/`, sama seperti A11 di §7.1 |
+
+**Kenapa pembulatan pro rata berhenti di uint64.** Pembagian 256 bit adalah tembok
+z3. Lema `floor(x/W) + floor(y/W) <= floor((x+y)/W)` tertutup dalam 2,2 detik di
+uint64, dan timeout lewat 120 detik di uint96 maupun uint128, tanpa counterexample
+di kedua kasus. Produk nyata protokol ini, yaitu jumlah di batas cap batch dikali
+harga stock token, ada di sekitar 2 pangkat 139,5. Jadi tidak ada lebar yang
+dijangkau solver yang mencakup rentang sebenarnya, dan menyatakan bukti uint64
+seolah mencakup uint128 adalah persis jenis klaim yang repo ini ada untuk hindari.
+
+Bentuk gabungannya tetap diuji forge sebagai fuzz di uint128 penuh, dan dipecah jadi
+dua lema yang masing-masing terbukti. Yang hilang adalah langkah komposisinya, bukan
+propertinya.
+
+**Kenapa `sessionAt` tidak dibuktikan utuh.** Ia membaca dua tabel storage, batas DST
+dan kalender. Menjalankannya simbolis berarti membuktikan pernyataan tentang kalender
+sembarang, bukan tentang kalender kita. Yang dibuktikan sebagai gantinya adalah semua
+yang ada di hilir jawabannya, yaitu setiap sesi punya band dan tahu apakah ia menjalankan
+batch, tidak ada band yang lebih lebar dari collar lelang, `PROTECTIVE` adalah band
+tersempit sekaligus batch terlambat, dan setiap indeks hari menghasilkan bulan, tanggal,
+serta tahun yang benar-benar ada. Tabelnya sendiri ditelusuri tuntas 5.844 hari dua arah
+oleh `CivilDate.t.sol`.
+
+Ketiga bukti bentuk tanggal itu dipecah satu properti per fungsi. Digabung jadi satu
+query mereka tertutup di 388 detik pada satu run dan timeout di 447 detik pada run
+berikutnya, di mesin yang sama. Dipecah, yang terberat 77 detik. Gerbang yang berkedip
+adalah gerbang yang orang belajar abaikan.
+
+**Dua catatan operasional.** Profil `halmos` mematikan `dynamic_test_linking`, karena
+foundry menulis ulang `new Contract()` di dalam test jadi cheatcode `deployCode` yang
+halmos tidak punya, sehingga `setUp` gagal sebelum jalur pertama. Dan `halmos.sh`
+memaksa build ulang, karena kedua profil menulis ke `out/` yang sama dan build tanpa
+AST membuat halmos melaporkan nol test ditemukan. CI selalu checkout bersih jadi tidak
+pernah terkena keduanya.
+
 ---
 
 ## 5. Mutation testing
@@ -308,7 +362,7 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 
 - [x] 14 invarian hijau di Foundry **dan** Echidna · lima target Echidna, nol falsifikasi, 19 September 2026
 - [x] Differential ≥ 1 juta input, nol perbedaan · laporan `verifier/reports/differential-2026-09-18.md`
-- [ ] Semua properti Halmos terbukti
+- [ ] Semua properti Halmos terbukti · 3 dari 7 penuh, 3 sebagian, 1 tanpa subjek. Lihat §4.1
 - [x] Skor mutasi ≥ 90% pada kontrak inti · 100% atas 156 mutan yang dihitung di `Settlement` dan `SessionManager`, 19 September 2026. Seluruh kontrak lain juga sudah diukur dan berada di 100%
 - [ ] Semua fork test lulus terhadap mainnet nyata
 - [ ] 15 skenario adversarial lulus · 14 hijau, lihat §7.1. A11 menunggu keputusan apakah guardian ada
