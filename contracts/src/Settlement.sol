@@ -151,6 +151,11 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
     function setBaselineAdapter(address adapter) external onlyGovernor {
         if (adapter != address(0)) {
             if (!adapterAllowed[adapter]) revert AdapterNotAllowed(adapter);
+            // The timelock is naming this adapter, and the adapter is not the
+            // timelock, so an adapter that reenters here lands on onlyGovernor and
+            // can only refuse its own appointment. Nothing has been written yet at
+            // this point either, so there is no half applied state to reenter into.
+            // aderyn-fp-next-line(reentrancy-state-change)
             if (!IVenueAdapter(adapter).isQuotable()) revert AdapterNotQuotable(adapter);
         }
         baselineAdapter = adapter;
