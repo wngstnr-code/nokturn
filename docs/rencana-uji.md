@@ -137,7 +137,7 @@ properti yang terbaca seperti terbukti padahal tidak.
 | Pembulatan pro rata | **Sebagian.** Distributivitas terbukti di uint128. Lema pembulatan terbukti di uint64 saja |
 | Konservasi nilai | **Sebagian.** Tanda dan luapan terbukti di uint128. Bentuk gabungannya fuzz |
 | `sessionAt()` | **Sebagian.** Tiga properti parameter tuntas lewat enumerasi, tiga properti tanggal terbukti simbolis. Tabelnya tuntas lewat `CivilDate.t.sol` |
-| Kekuasaan guardian | **Belum punya subjek.** Tidak ada guardian di `src/`, sama seperti A11 di §7.1 |
+| Kekuasaan guardian | **Terbukti, dua paruh.** Lima properti simbolis atas `Guarded`, plus gerbang sumber di CI |
 
 **Kenapa pembulatan pro rata berhenti di uint64.** Pembagian 256 bit adalah tembok
 z3. Lema `floor(x/W) + floor(y/W) <= floor((x+y)/W)` tertutup dalam 2,2 detik di
@@ -150,6 +150,18 @@ seolah mencakup uint128 adalah persis jenis klaim yang repo ini ada untuk hindar
 Bentuk gabungannya tetap diuji forge sebagai fuzz di uint128 penuh, dan dipecah jadi
 dua lema yang masing-masing terbukti. Yang hilang adalah langkah komposisinya, bukan
 propertinya.
+
+**Kenapa kekuasaan guardian bisa dibuktikan padahal pembulatan tidak.** Ia pernyataan
+tentang keterjangkauan, bukan tentang aritmetika 256 bit, jadi ia tidak menyentuh tembok
+yang menghentikan lema pembulatan. Lima properti tertutup simbolis, yaitu hanya guardian
+yang bisa memanggil `pause` atas pemanggil simbolis, tenggatnya selalu tepat enam jam ke
+depan pada titik waktu mana pun, ia selalu lepas, `pause` tidak pernah mengubah siapa
+guardian-nya, dan rotasi mencabut kekuasaan alamat lama di transaksi yang sama.
+
+Paruh keduanya tidak bisa dibuktikan solver. Bahwa `pause` **tetap** satu-satunya tempat
+guardian diperiksa adalah pernyataan tentang kode yang belum ditulis. `tools/guardian-gate.py`
+yang memegangnya, jalan di tiap push, dan sudah dibuktikan menangkap dengan merusaknya
+sengaja dua kali.
 
 **Kenapa `sessionAt` tidak dibuktikan utuh.** Ia membaca dua tabel storage, batas DST
 dan kalender. Menjalankannya simbolis berarti membuktikan pernyataan tentang kalender
@@ -270,18 +282,22 @@ sudah hijau.
 | A8 | `test_A8_uiMultiplierMovesBetweenSubmitAndFinalize` | `test/Adversarial.t.sol` |
 | A9 | `test_A9_feeOnTransferTokenAboveTheBandCannotClear`, `test_A9_feeOnTransferTokenWithinTheBandKeepsAccountingHonest` | `test/Adversarial.t.sol` |
 | A10 | `test_A10_stockTokenTransferRevertsDuringFinalize` | `test/Adversarial.t.sol` |
-| A11 | belum ada subjek, lihat catatan di bawah | tidak ada |
+| A11 | `test_A11_guardianPausesMidSolutionWindow` | `test/Adversarial.t.sol` |
 | A12 | `test_A12_exposureCapExceeded` | `test/Adversarial.t.sol` |
 | A13 | `test_A13_everySolverCollusesOnAWorthlessSolution` | `test/Adversarial.t.sol` |
 | A14 | `test_A14_batchLandsExactlyOnASessionBoundary` | `test/Adversarial.t.sol` |
 | A15 | `test_A15_agentIntentBreachingTheMandate` | `test/AgentMandate.t.sol` |
 
-**A11 belum punya subjek.** Tidak ada `pause` dan tidak ada guardian di `src/`, jadi
-baris itu bukan test yang belum ditulis melainkan test yang belum punya sesuatu untuk
-diuji. Aturan 5 dan 6 di `CLAUDE.md` melarang kunci yang bisa memindahkan dana dan
-melarang proxy, tapi keduanya tidak melarang kunci yang hanya bisa menghentikan batch
-baru. Keputusan apakah guardian semacam itu ada, dan apa persisnya kekuasaannya, milik
-pemilik proyek. Selama belum diputuskan, A11 dibiarkan terbuka dan tidak dicentang.
+**A11 sudah punya subjek, 19 September 2026.** Ternyata bukan keputusan yang menunggu.
+`parameter.md` §8 dan `threat-model.md` sudah menentukan guardian sejak awal, dan yang
+tidak memuatnya adalah `interfaces.md`, dokumen yang jadi sumber penulisan kontrak. Jadi
+pause lolos tanpa ada yang menolaknya. `Guarded` sekarang ada, `interfaces.md` §1.1
+memuatnya, dan `parameter.md` §8.1 memperbaiki satu kontradiksi yang membuat spesifikasi
+lama tidak bisa dieksekusi siapa pun.
+
+Sisi lelangnya, yaitu escrow yang sudah berada di dalam kontrak saat protokol berhenti,
+ada di `test/Guardian.t.sol`. Enam belas test di sana, dan separuhnya ada untuk
+membuktikan guardian **tidak** bisa melakukan sesuatu.
 
 **Dua temuan dari menulis test ini.**
 
@@ -371,10 +387,10 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 
 - [x] 14 invarian hijau di Foundry **dan** Echidna · lima target Echidna, nol falsifikasi, 19 September 2026
 - [x] Differential ≥ 1 juta input, nol perbedaan · laporan `verifier/reports/differential-2026-09-18.md`
-- [ ] Semua properti Halmos terbukti · 3 dari 7 penuh, 3 sebagian, 1 tanpa subjek. Lihat §4.1
+- [ ] Semua properti Halmos terbukti · 4 dari 7 penuh, 3 sebagian. Lihat §4.1
 - [x] Skor mutasi ≥ 90% pada kontrak inti · 100% atas 156 mutan yang dihitung di `Settlement` dan `SessionManager`, 19 September 2026. Seluruh kontrak lain juga sudah diukur dan berada di 100%
 - [ ] Semua fork test lulus terhadap mainnet nyata
-- [ ] 15 skenario adversarial lulus · 14 hijau, lihat §7.1. A11 menunggu keputusan apakah guardian ada
+- [x] 15 skenario adversarial lulus · lima belas hijau, peta ke nama test di §7.1
 - [x] Kalender diuji habis 2020–2035 · `CivilDate.t.sol` menelusuri 5.844 hari kalender yang ter-commit, dua arah
 - [x] Coverage ≥ 95% pada kontrak inti · gerbang `build-test` di CI, run 35410613213
 - [x] Slither & Aderyn bersih · gerbang `static-analysis` di CI, run 35418852026
