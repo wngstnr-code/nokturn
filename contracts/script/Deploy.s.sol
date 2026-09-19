@@ -71,7 +71,7 @@ contract Deploy is Script {
         SessionManager sessions = new SessionManager(governor);
         ClearingVerifier verifier = new ClearingVerifier();
         PriceOracle oracle = new PriceOracle(ISessionManager(address(sessions)), governor);
-        SolverRegistry solvers = new SolverRegistry(IERC20(Addresses.USDG), treasury, governor);
+        SolverRegistry solvers = new SolverRegistry(IERC20(Addresses.quote()), treasury, governor);
 
         Settlement settlement = new Settlement(
             ISessionManager(address(sessions)),
@@ -88,7 +88,7 @@ contract Deploy is Script {
             IPriceOracle(address(oracle)),
             ISolverRegistry(address(solvers)),
             ISignatureTransfer(Addresses.PERMIT2),
-            IERC20(Addresses.USDG),
+            IERC20(Addresses.quote()),
             treasury,
             governor
         );
@@ -136,7 +136,7 @@ contract Deploy is Script {
         vm.serializeAddress(key, "treasury", d.treasury);
         vm.serializeAddress(key, "proposers", d.proposers);
         vm.serializeAddress(key, "executors", d.executors);
-        vm.serializeAddress(key, "usdg", Addresses.USDG);
+        vm.serializeAddress(key, "usdg", Addresses.quote());
         vm.serializeAddress(key, "permit2", Addresses.PERMIT2);
         vm.serializeAddress(key, "timelock", d.timelock);
         vm.serializeAddress(key, "sessions", d.sessions);

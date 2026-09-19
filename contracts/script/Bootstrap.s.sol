@@ -122,7 +122,7 @@ contract Bootstrap is Script {
     function _allowlist(address settlement, address auctionHouse, address adapter) internal {
         // USDG is the quote side of every pair, so it is allowed in Settlement and
         // nowhere else. It is not an auction token and it has no pool of its own.
-        _push(settlement, abi.encodeCall(Settlement.setTokenAllowed, (Addresses.USDG, true)));
+        _push(settlement, abi.encodeCall(Settlement.setTokenAllowed, (Addresses.quote(), true)));
         _push(settlement, abi.encodeCall(Settlement.setAdapterAllowed, (adapter, true)));
 
         address[] memory tokens = Addresses.allowlist();
