@@ -40,6 +40,7 @@ import {Addresses} from "./Addresses.sol";
 contract Deploy is Script {
     struct Deployment {
         address treasury;
+        address guardian;
         address[] proposers;
         address[] executors;
         address timelock;
@@ -57,8 +58,10 @@ contract Deploy is Script {
         address treasury = vm.envAddress("NOKTURN_TREASURY");
         address[] memory proposers = vm.envAddress("NOKTURN_TIMELOCK_PROPOSERS", ",");
         address[] memory executors = vm.envAddress("NOKTURN_TIMELOCK_EXECUTORS", ",");
+        address guardian = vm.envAddress("NOKTURN_GUARDIAN");
         require(proposers.length > 0, "no timelock proposer");
         require(executors.length > 0, "no timelock executor");
+        require(guardian != address(0), "no guardian");
 
         vm.startBroadcast();
 
@@ -80,7 +83,8 @@ contract Deploy is Script {
             ISolverRegistry(address(solvers)),
             ISignatureTransfer(Addresses.PERMIT2),
             treasury,
-            governor
+            governor,
+            guardian
         );
 
         AuctionHouse auctionHouse = new AuctionHouse(
@@ -90,7 +94,8 @@ contract Deploy is Script {
             ISignatureTransfer(Addresses.PERMIT2),
             IERC20(Addresses.quote()),
             treasury,
-            governor
+            governor,
+            guardian
         );
 
         AgentMandate mandates = new AgentMandate(
@@ -107,6 +112,7 @@ contract Deploy is Script {
 
         d = Deployment({
             treasury: treasury,
+            guardian: guardian,
             proposers: proposers,
             executors: executors,
             timelock: governor,
@@ -134,6 +140,7 @@ contract Deploy is Script {
         // verification that has to guess them is a verification that fails on the
         // one contract whose arguments were unusual.
         vm.serializeAddress(key, "treasury", d.treasury);
+        vm.serializeAddress(key, "guardian", d.guardian);
         vm.serializeAddress(key, "proposers", d.proposers);
         vm.serializeAddress(key, "executors", d.executors);
         vm.serializeAddress(key, "usdg", Addresses.quote());

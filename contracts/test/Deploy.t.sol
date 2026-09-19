@@ -24,6 +24,7 @@ contract DeployTest is Test {
     Deploy internal script;
 
     address internal treasury = address(0x7EA);
+    address internal guardian = address(0x6A4D1A4);
     address internal proposer = address(0xB0A4D);
     address internal executor = address(0xE8EC);
 
@@ -42,6 +43,7 @@ contract DeployTest is Test {
 
         script = new Deploy();
         vm.setEnv("NOKTURN_TREASURY", vm.toString(treasury));
+        vm.setEnv("NOKTURN_GUARDIAN", vm.toString(guardian));
         // The distinct pair is what the role assertions are about. The broadcast
         // sender joins both lists because the scripts sign with it under test, and
         // a real deploy lists its operator the same way.
