@@ -999,6 +999,111 @@ yang harus dijaga secara eksplisit, bukan diserahkan pada kehati-hatian.
 `SolverRegistry` sengaja tidak punya guardian. Ia tidak menyelesaikan apa pun, dan
 `withdrawBond` adalah jalur keluar yang harus selalu hidup.
 
+### 8.3 Pemantauan — enam sinyal, dua di antaranya memanggil pause
+
+Ditambahkan 20 September 2026. `threat-model.md` §6.1 mendaftar enam sinyal dan
+§6.3 poin 2 menetapkan kriteria pause. Bagian ini menetapkan **nilai dan jalurnya**,
+supaya yang berjalan bisa dibandingkan dengan yang tertulis.
+
+Satu temuan yang membentuk seluruh rancangannya. **Kedua sinyal yang memanggil pause
+adalah fungsi murni dari state chain saat ini.** Keempat sinyal lain butuh riwayat,
+dan keempatnya tidak memanggil pause. Artinya jalur pause tidak butuh archive node,
+tidak butuh indexer, dan tidak butuh basis data lokal yang bisa melenceng dari chain.
+
+| Sinyal §6.1 | Kode | Sumber data | Aksi |
+|---|---|---|---|
+| Invarian menyimpang | `M1` `M2` | state | **pause** |
+| Saldo kontrak menyimpang | `M3` | state | **pause** |
+| Selisih dua oracle | `M4` | state | lapor, `PROTECTIVE` sudah otomatis onchain |
+| Volume lelang di bawah minimum | `M5` | state | lapor, print sudah ditandai onchain |
+| Harga kliring di tepi collar 3× | `M6` | riwayat event | lapor |
+| Solusi gagal `finalize` 2× sehari | `M7` | riwayat event | lapor |
+
+#### Yang memanggil pause
+
+| Kode | Pemeriksaan | Ambang |
+|---|---|---|
+| `M1` | `balanceOf(settlement)` untuk tiap token allowlist dan USDG | **nol**, sekali pun tidak |
+| `M2` | `balanceOf(timelock)` untuk tiap token allowlist dan USDG | **nol**, sekali pun tidak |
+| `M3` | `balanceOf(auctionHouse)` lawan escrow yang belum dibayarkan | saldo **>=** escrow |
+
+`M1` adalah invarian `theSettlementCoreNeverHoldsATokenBetweenCalls` yang dibaca dari
+chain sungguhan alih alih dari harness. Settlement menahan selisih biaya lalu
+membagikan seluruhnya di panggilan yang sama, jadi di antara transaksi ia memegang
+nol. Kebocoran, sisa pembulatan, dan saldo tersangkut ketiganya muncul di sini
+sebagai angka bukan nol.
+
+`M2` adalah `theGovernorNeverHoldsAToken`. Timelock mengatur allowlist dan parameter,
+dan tidak ada jalur yang memberinya token.
+
+`M3` adalah `theHouseAlwaysHoldsEveryEscrowItHasNotPaidOut`. Escrow ditarik saat
+freeze dan dilepas saat cross atau refund, jadi bukunya bisa ditelusuri dari state
+lewat `bookLength`, `bookAt`, dan `commitment`.
+
+| Konstanta | Nilai | Alasan |
+|---|---|---|
+| `MONITOR_AUCTION_LOOKBACK` | **64 lelang** | Lima token kali dua jenis kali dua hari adalah dua puluh. Enam puluh empat menutup tiga hari lebih dengan lega, dan membatasi jumlah pembacaan state per putaran |
+| `MONITOR_INTERVAL` | **60 detik** | Batch terpendek 45 detik. Interval yang lebih rapat tidak menambah apa pun karena satu batch tidak bisa menyelesaikan dua kali |
+| `MAX_LOG_SPAN` | **101 blok** | Batas endpoint, terukur 20 September 2026. Bukan pilihan kami |
+| `MAX_CATCHUP_BLOCKS` | **6.000 blok** | Sekitar sepuluh menit. Di atas itu mengejar ketinggalan berarti enam ratus panggilan, dan sinyal yang hidup lebih berharga daripada sinyal yang lengkap |
+
+#### Batas endpoint yang membentuk kedua sinyal riwayat
+
+Terukur 20 September 2026 di `robinhood.drpc.org`, mainnet dan testnet, dan hasilnya
+bukan yang tertulis di pesan errornya.
+
+Log **dilayani setidaknya 60 juta blok ke belakang**, jauh melampaui jendela state
+yang cuma 20 sampai 40 ribu blok. Jadi kalimat lama bahwa endpoint ini bukan archive
+node benar untuk state dan **tidak benar untuk log**.
+
+Tapi satu kueri tidak boleh melebihi **101 blok**, apa pun filternya dan seberapa pun
+sedikit yang cocok. Kueri 102 blok atas satu event langka yang tidak cocok dengan apa
+apa tetap ditolak. Endpoint menolaknya dengan pesan *ranges over 10000 blocks are not
+supported on free plan*, dan **angka sepuluh ribu itu bukan yang sedang ia ukur**.
+
+Konsekuensinya langsung. Satu hari log adalah 864.000 blok, yaitu **8.554 panggilan**,
+jadi mengisi mundur jendela sehari saat pemantau baru dinyalakan tidak masuk akal.
+Enam puluh detik chain adalah enam ratus blok, yaitu **enam panggilan**, dan itu
+masuk akal.
+
+Karena itu hitungan `M7` **mulai dari saat pemantau dinyalakan**, disimpan di
+jurnalnya sendiri dan dipangkas ke 24 jam berjalan. Hari pertama sebuah pemantau baru
+karena itu punya jendela yang belum penuh. Itu disebut di keluarannya, bukan
+disembunyikan, dan pemantau yang sempat mati melaporkan berapa blok yang tidak pernah
+ia baca.
+
+#### Kenapa `M1` sampai `M3` boleh memanggil pause tanpa manusia
+
+`threat-model.md` §6.1 sudah menulis "pause otomatis" untuk invarian yang menyimpang,
+dan §6.3 poin 2 menutupnya dengan kalimat ragu antara pause dan tidak, pause.
+
+Yang membuat itu aman di sini bukan keyakinan bahwa pemantaunya benar, melainkan
+bentuk `pause()` itu sendiri. Ia tidak bisa memindahkan satu token pun, ia tidak
+pernah menghalangi jalur keluar (§8.2), dan ia lepas sendiri setelah enam jam tanpa
+ada yang perlu mencabutnya. Pemantau yang keliru karena itu berbiaya enam jam
+penerimaan intent, bukan dana yang terjebak.
+
+Batasnya tetap ada dan disebut di sini, bukan disembunyikan. Pemantau yang memanggil
+`pause()` sendiri harus memegang kunci guardian dalam keadaan siap pakai, dan kunci
+panas adalah kunci yang bisa bocor. Yang membatasi kerusakannya adalah rotasi alamat
+guardian lewat timelock, **48 jam**, persis seperti tertulis di §8.1.
+
+Karena itu penyiarannya **tidak pernah jadi bawaan**. Menjalankan pemantau tanpa
+argumen hanya membaca dan melapor, dan tidak butuh kunci sama sekali. Penyiaran
+menuntut kunci disebut eksplisit saat dijalankan.
+
+#### Satu hal yang pemantau ini tidak bisa buktikan
+
+Daftar token yang dipantau datang dari konstanta, bukan dari chain, karena
+`tokenAllowed` adalah mapping dan mapping tidak bisa ditelusuri isinya. Pemantau
+memeriksa bahwa tiap token yang ia pantau memang ada di allowlist. Ia **tidak bisa**
+membuktikan tidak ada token allowlist yang luput dari pantauannya.
+
+Yang menutup celah itu bukan kode melainkan bentuk governance. Token hanya masuk
+allowlist lewat proposal timelock, dan proposal itu terbit 48 jam di muka. Kalau
+daftar di konstanta tidak ikut diperbarui di PR yang sama, itu kelalaian yang
+terlihat, bukan kegagalan yang sunyi.
+
 ---
 
 ## 9. Pembulatan & debu

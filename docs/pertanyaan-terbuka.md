@@ -1568,6 +1568,36 @@ menangkap kasus seperti META.
 Bentuknya sama dengan pelajaran kedelapan, yaitu angka yang stabil, bisa diulang,
 dan menjawab pertanyaan yang salah.
 
+### Pelajaran metodologi kesepuluh, 20 September 2026. Pesan error yang menyebut angka yang salah
+
+Pemantau butuh membaca log, jadi kedalaman log endpoint diukur dulu sebelum
+kodenya ditulis, sesuai aturan 7. Hasil pertama melegakan. Log dijawab **60 juta
+blok ke belakang**, padahal catatan 16 September menyebut endpoint ini menyimpan
+state cuma 20 sampai 40 ribu blok.
+
+Itu benar, dan koreksinya penting. Kalimat "bukan archive node" berlaku untuk
+**state**, tidak untuk **log**.
+
+Yang hampir menyesatkan datang sesudahnya. Kueri yang lebih lebar ditolak dengan
+pesan *ranges over 10000 blocks are not supported on free plan*. Angka sepuluh ribu
+itu spesifik, terdengar seperti dokumentasi, dan langsung dipakai sebagai konstanta.
+
+Lalu kueri **1.000 blok** ditolak dengan pesan yang sama persis. Begitu juga 200.
+Bisektnya berhenti di **101 blok** lolos, 102 ditolak. Ditegaskan dengan event
+langka yang tidak cocok dengan satu log pun, jadi ini bukan soal ukuran respons.
+
+**Batas sebenarnya 101 blok, dan pesan errornya menyebut angka yang 99 kali lipat.**
+
+Bentuknya baru. Sembilan pelajaran sebelumnya adalah kesalahan pengukuran kami
+sendiri, yaitu jendela yang terlalu pendek, view yang salah, metrik yang menjawab
+pertanyaan lain. Yang ini adalah **sumber eksternal yang menyatakan batasnya
+sendiri dengan salah**, dan satu satunya yang menangkapnya adalah tetap mengukur
+setelah dapat jawaban yang kedengaran resmi.
+
+Konsekuensinya nyata, bukan sekadar catatan. Sehari log adalah 8.554 panggilan
+alih alih 87, jadi rancangan mengisi mundur sehari saat pemantau dinyalakan gugur
+dan diganti jurnal berjalan. `parameter.md` §8.3.
+
 ---
 
 ## RONDE 5 — peta venue lengkap (10 September 2026)
