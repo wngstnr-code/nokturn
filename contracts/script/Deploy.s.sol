@@ -55,76 +55,68 @@ contract Deploy is Script {
     }
 
     function run() external returns (Deployment memory d) {
-        address treasury = vm.envAddress("NOKTURN_TREASURY");
-        address[] memory proposers = vm.envAddress("NOKTURN_TIMELOCK_PROPOSERS", ",");
-        address[] memory executors = vm.envAddress("NOKTURN_TIMELOCK_EXECUTORS", ",");
-        address guardian = vm.envAddress("NOKTURN_GUARDIAN");
-        require(proposers.length > 0, "no timelock proposer");
-        require(executors.length > 0, "no timelock executor");
-        require(guardian != address(0), "no guardian");
+        d.treasury = vm.envAddress("NOKTURN_TREASURY");
+        d.proposers = vm.envAddress("NOKTURN_TIMELOCK_PROPOSERS", ",");
+        d.executors = vm.envAddress("NOKTURN_TIMELOCK_EXECUTORS", ",");
+        d.guardian = vm.envAddress("NOKTURN_GUARDIAN");
+        require(d.proposers.length > 0, "no timelock proposer");
+        require(d.executors.length > 0, "no timelock executor");
+        require(d.guardian != address(0), "no guardian");
 
         vm.startBroadcast();
 
         // Admin is the zero address on purpose. The timelock administers itself,
         // so no account can grant itself a role afterwards and the delay can only
         // be changed by a proposal that goes through the delay in force.
-        TimelockController timelock = new TimelockController(0, proposers, executors, address(0));
-        address governor = address(timelock);
+        d.timelock = address(new TimelockController(0, d.proposers, d.executors, address(0)));
 
-        SessionManager sessions = new SessionManager(governor);
-        ClearingVerifier verifier = new ClearingVerifier();
-        PriceOracle oracle = new PriceOracle(ISessionManager(address(sessions)), governor);
-        SolverRegistry solvers = new SolverRegistry(IERC20(Addresses.quote()), treasury, governor);
+        // Written straight into the record rather than through locals. The coverage
+        // gate compiles with the optimizer off, and a dozen live addresses here is
+        // one past what fits the stack.
+        d.sessions = address(new SessionManager(d.timelock));
+        d.verifier = address(new ClearingVerifier());
+        d.oracle = address(new PriceOracle(ISessionManager(d.sessions), d.timelock));
+        d.solvers = address(new SolverRegistry(IERC20(Addresses.quote()), d.treasury, d.timelock));
 
-        Settlement settlement = new Settlement(
-            ISessionManager(address(sessions)),
-            IPriceOracle(address(oracle)),
-            IClearingVerifier(address(verifier)),
-            ISolverRegistry(address(solvers)),
-            ISignatureTransfer(Addresses.PERMIT2),
-            treasury,
-            governor,
-            guardian
+        d.settlement = address(
+            new Settlement(
+                ISessionManager(d.sessions),
+                IPriceOracle(d.oracle),
+                IClearingVerifier(d.verifier),
+                ISolverRegistry(d.solvers),
+                ISignatureTransfer(Addresses.PERMIT2),
+                d.treasury,
+                d.timelock,
+                d.guardian
+            )
         );
 
-        AuctionHouse auctionHouse = new AuctionHouse(
-            ISessionManager(address(sessions)),
-            IPriceOracle(address(oracle)),
-            ISolverRegistry(address(solvers)),
-            ISignatureTransfer(Addresses.PERMIT2),
-            IERC20(Addresses.quote()),
-            treasury,
-            governor,
-            guardian
+        d.auctionHouse = address(
+            new AuctionHouse(
+                ISessionManager(d.sessions),
+                IPriceOracle(d.oracle),
+                ISolverRegistry(d.solvers),
+                ISignatureTransfer(Addresses.PERMIT2),
+                IERC20(Addresses.quote()),
+                d.treasury,
+                d.timelock,
+                d.guardian
+            )
         );
 
-        AgentMandate mandates = new AgentMandate(
-            ISessionManager(address(sessions)),
-            IPriceOracle(address(oracle)),
-            ISignatureTransfer(Addresses.PERMIT2),
-            address(settlement),
-            address(auctionHouse)
+        d.mandates = address(
+            new AgentMandate(
+                ISessionManager(d.sessions),
+                IPriceOracle(d.oracle),
+                ISignatureTransfer(Addresses.PERMIT2),
+                d.settlement,
+                d.auctionHouse
+            )
         );
 
-        UniswapV3Adapter adapter = new UniswapV3Adapter(governor);
+        d.adapter = address(new UniswapV3Adapter(d.timelock));
 
         vm.stopBroadcast();
-
-        d = Deployment({
-            treasury: treasury,
-            guardian: guardian,
-            proposers: proposers,
-            executors: executors,
-            timelock: governor,
-            sessions: address(sessions),
-            verifier: address(verifier),
-            oracle: address(oracle),
-            solvers: address(solvers),
-            settlement: address(settlement),
-            auctionHouse: address(auctionHouse),
-            mandates: address(mandates),
-            adapter: address(adapter)
-        });
 
         // Under test the chain is in memory, so a record written there would look
         // like a deploy that happened and did not.
