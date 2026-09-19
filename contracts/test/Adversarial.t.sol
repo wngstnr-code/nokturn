@@ -22,6 +22,8 @@ import {ReentrantAdapter} from "./mocks/ReentrantAdapter.sol";
 /// against each other without guessing. The auction rows live in
 /// AdversarialAuctionTest and the mandate row lives in AgentMandate.t.sol.
 contract AdversarialSettlementTest is SettlementFixture {
+    address internal constant FEE_TOKEN_SELLER = address(0xC0FFEE);
+
     /// A1. The claim is checked against a recomputation before anything is stored,
     /// so an inflated number never becomes the best solution.
     function test_A1_solverClaimingSavingsItDidNotProduce() public {
@@ -154,8 +156,9 @@ contract AdversarialSettlementTest is SettlementFixture {
     /// clear at all, because the uniform price band is three basis points wide and
     /// the shortfall is a hundred. The batch reverts whole.
     function test_A9_feeOnTransferTokenAboveTheBandCannotClear() public {
-        (FeeOnTransferERC20 fot,) = _allowlistFeeToken(100);
-        Solution memory s = _feeTokenSolution(address(fot), 0.9998e18, 199_960_000, 0.9988e18, 199_760_000);
+        FeeOnTransferERC20 fot = _allowlistFeeToken(100);
+        Solution memory s =
+            _feeTokenSolution(address(fot), [uint256(0.9998e18), 199_960_000, 0.9988e18, 199_760_000]);
 
         vm.warp(BATCH_ID + 1);
         vm.prank(solver);
@@ -173,8 +176,9 @@ contract AdversarialSettlementTest is SettlementFixture {
     /// keeps is read from its own balance delta rather than from the amounts the
     /// solver wrote down. The token that shrinks in flight leaves no residue.
     function test_A9_feeOnTransferTokenWithinTheBandKeepsAccountingHonest() public {
-        (FeeOnTransferERC20 fot, address fotSeller) = _allowlistFeeToken(2);
-        Solution memory s = _feeTokenSolution(address(fot), 0.9998e18, 199_960_000, 0.9988e18, 199_760_000);
+        FeeOnTransferERC20 fot = _allowlistFeeToken(2);
+        Solution memory s =
+            _feeTokenSolution(address(fot), [uint256(0.9998e18), 199_960_000, 0.9988e18, 199_760_000]);
 
         vm.warp(BATCH_ID + 1);
         vm.prank(solver);
@@ -185,7 +189,7 @@ contract AdversarialSettlementTest is SettlementFixture {
 
         assertEq(fot.balanceOf(address(settlement)), 0, "no phantom balance is kept");
         assertEq(fot.balanceOf(treasury), 0, "and none is swept as a fee either");
-        assertEq(usdg.balanceOf(fotSeller), 199_960_000, "the seller was paid the quote side in full");
+        assertEq(usdg.balanceOf(FEE_TOKEN_SELLER), 199_960_000, "the seller was paid the quote side in full");
         // The forty thousand units withheld on the quote side split three to one.
         assertEq(usdg.balanceOf(solver), 30_000, "solver share");
         assertEq(usdg.balanceOf(treasury), 10_000, "protocol share");
@@ -197,10 +201,10 @@ contract AdversarialSettlementTest is SettlementFixture {
     /// whole rather than halfway.
     function test_A10_stockTokenTransferRevertsDuringFinalize() public {
         PausableERC20 stock = new PausableERC20("Nvidia", "RHNVDA", 18);
-        address holder = address(0xC0FFEE);
-        _allowlistToken(address(stock), holder, 10e18);
+        _allowlistToken(address(stock), FEE_TOKEN_SELLER, 10e18);
 
-        Solution memory s = _feeTokenSolution(address(stock), 1e18, 199_960_000, 0.999e18, 199_760_000);
+        Solution memory s =
+            _feeTokenSolution(address(stock), [uint256(1e18), 199_960_000, 0.999e18, 199_760_000]);
 
         vm.warp(BATCH_ID + 1);
         vm.prank(solver);
@@ -212,7 +216,7 @@ contract AdversarialSettlementTest is SettlementFixture {
         vm.expectRevert(PausableERC20.TransferPaused.selector);
         settlement.finalize(BATCH_ID, s);
 
-        assertEq(stock.balanceOf(holder), 10e18, "the seller keeps everything");
+        assertEq(stock.balanceOf(FEE_TOKEN_SELLER), 10e18, "the seller keeps everything");
         assertEq(usdg.balanceOf(alice), 1000e6, "the buyer keeps everything");
         assertEq(stock.balanceOf(address(settlement)), 0);
         assertEq(usdg.balanceOf(address(settlement)), 0);
@@ -308,13 +312,9 @@ contract AdversarialSettlementTest is SettlementFixture {
         s.solver = solver;
     }
 
-    function _allowlistFeeToken(uint16 feeBps)
-        internal
-        returns (FeeOnTransferERC20 token, address seller)
-    {
+    function _allowlistFeeToken(uint16 feeBps) internal returns (FeeOnTransferERC20 token) {
         token = new FeeOnTransferERC20("Nvidia", "RHNVDA", 18, feeBps);
-        seller = address(0xC0FFEE);
-        _allowlistToken(address(token), seller, 10e18);
+        _allowlistToken(address(token), FEE_TOKEN_SELLER, 10e18);
     }
 
     function _allowlistToken(address token, address holder, uint256 amount) internal {
@@ -338,19 +338,18 @@ contract AdversarialSettlementTest is SettlementFixture {
 
     /// Alice buys the base token with 200 USDG, the holder sells one unit of it.
     /// The executed amounts sit just inside the three basis point band so the
-    /// protocol withholds a real fee on the quote side.
-    function _feeTokenSolution(
-        address token,
-        uint256 aliceBuys,
-        uint256 sellerBuys,
-        uint256 aliceBaseline,
-        uint256 sellerBaseline
-    ) internal view returns (Solution memory s) {
-        address seller = address(0xC0FFEE);
+    /// protocol withholds a real fee on the quote side. The four amounts travel as
+    /// one array because the helper is compiled without the optimizer under the
+    /// coverage gate, and five separate locals do not fit the stack there.
+    function _feeTokenSolution(address token, uint256[4] memory amounts)
+        internal
+        view
+        returns (Solution memory s)
+    {
         s.batchId = BATCH_ID;
         s.intents = new Intent[](2);
-        s.intents[0] = _intent(alice, address(usdg), token, 200e6, aliceBuys, 1);
-        s.intents[1] = _intent(seller, token, address(usdg), 1e18, sellerBuys, 2);
+        s.intents[0] = _intent(alice, address(usdg), token, 200e6, amounts[0], 1);
+        s.intents[1] = _intent(FEE_TOKEN_SELLER, token, address(usdg), 1e18, amounts[1], 2);
 
         s.signatures = new bytes[](2);
         s.tokens = new address[](2);
@@ -361,18 +360,19 @@ contract AdversarialSettlementTest is SettlementFixture {
         s.prices[1] = 200e18;
 
         s.executions = new Execution[](2);
-        s.executions[0] = Execution({intentIndex: 0, executedSell: 200e6, executedBuy: aliceBuys});
-        s.executions[1] = Execution({intentIndex: 1, executedSell: 1e18, executedBuy: sellerBuys});
+        s.executions[0] = Execution({intentIndex: 0, executedSell: 200e6, executedBuy: amounts[0]});
+        s.executions[1] = Execution({intentIndex: 1, executedSell: 1e18, executedBuy: amounts[1]});
 
         s.venueCalls = new VenueCall[](0);
         s.baselineQuotes = new uint256[](2);
-        s.baselineQuotes[0] = aliceBaseline;
-        s.baselineQuotes[1] = sellerBaseline;
+        s.baselineQuotes[0] = amounts[2];
+        s.baselineQuotes[1] = amounts[3];
         s.solver = solver;
+        s.claimedSavings = _savingsOf(amounts);
+    }
 
-        uint256 savings = ((aliceBuys - aliceBaseline) * 200e18) / 1e18
-            + ((sellerBuys - sellerBaseline) * 1e30) / 1e18;
-        s.claimedSavings = savings;
+    function _savingsOf(uint256[4] memory amounts) internal pure returns (uint256) {
+        return ((amounts[0] - amounts[2]) * 200e18) / 1e18 + ((amounts[1] - amounts[3]) * 1e30) / 1e18;
     }
 }
 
@@ -392,9 +392,8 @@ contract AdversarialAuctionTest is AuctionFixture {
 
         _buyMoo(alice, 20_000e6, 1);
         _sellMoo(bob, 100e18, 2);
-        bytes32 phantom = _commit(
-            _intent(mallory, true, 80_000e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, 3)
-        );
+        bytes32 phantom =
+            _commit(_intent(mallory, true, 80_000e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, 3));
 
         uint64 id = house.auctionIdOf(address(nvda), DAY, kindOpen);
         house.openAuction(address(nvda), kindOpen);
@@ -432,9 +431,8 @@ contract AdversarialAuctionTest is AuctionFixture {
         _fund(mallory, MALLORY_KEY);
         _buyMoo(alice, 20_000e6, 1);
         _sellMoo(bob, 100e18, 2);
-        bytes32 phantom = _commit(
-            _intent(mallory, true, 80_000e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, 3)
-        );
+        bytes32 phantom =
+            _commit(_intent(mallory, true, 80_000e6, 0, IntentKind.MOO, 0, SessionMask.AUCTION_OPEN, 3));
 
         uint64 id = house.auctionIdOf(address(nvda), DAY, kindOpen);
         house.openAuction(address(nvda), kindOpen);
