@@ -77,6 +77,11 @@ jobs:
         # turns the optimizer off. Without a rebuild forge sees an up to date cache
         # and measures the unoptimized artifacts, which read about 2.5 times the
         # committed gas on the short revert paths.
+        #
+        # Adding or removing any test file moves a few of these numbers, including
+        # in suites the new file never touches, because foundry links the test
+        # contracts as a set. Regenerate the snapshot whenever the set changes, not
+        # only when the code under test does.
         run: FOUNDRY_PROFILE=default forge snapshot --check --force --no-match-path "test/fork/*"
       - name: the guardian has exactly one power
         # A solver proves what pause does today. This proves nobody added a second
