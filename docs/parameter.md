@@ -898,6 +898,52 @@ saja. Setelah volume per-token diukur, **META dan MSFT terlalu tipis**.
 > dan `uiMultiplier()` tepat 1e18. **Jangan tertukar dengan memecoin bersimbol GME**
 > `0xc2362aff…` yang slot beacon-nya kosong, lihat `CLAUDE.md` §5.
 
+> ### GOOGL diperiksa ulang 20 September 2026, dan dipertahankan
+>
+> P6-2 lahir dari angka yang menempatkan GOOGL sebagai feed terburuk di allowlist,
+> dan angka itu tidak tereproduksi. Karena incumbent tidak pantas dapat kelonggaran
+> yang tidak diberikan ke pendatang, GOOGL diukur ulang lawan **keenam** syarat, bukan
+> hanya yang dulu mempertanyakannya.
+>
+> | # | Syarat | GOOGL | Putusan |
+> |---|---|---|---|
+> | 1 | Gerbang Stock Token | Lolos beacon, `uiMultiplier()` bergeser dari 1e18 | Lolos |
+> | 2 | Volume | **$294,2jt / 30 hari, nomor dua dari lima** | Lolos dengan lega |
+> | 3 | Kualitas feed | p99 sesi `OPEN` 54.617 dtk, terburuk kedua setelah AAPL 63.260 | Lolos, sekelas incumbent |
+> | 4 | Likuiditas akhir pekan | 416.048 trade, **$80,8jt, nomor dua dari lima** | Lolos |
+> | 5 | Kedalaman pool | **7 bps di sepuluh kali cap**, 1 crossing di cap, bisa dikuotasi sampai $286.886 | Lolos, paling tebal dari yang terukur |
+> | 6 | Venue dominan | Uniswap V3 44,8%, plus 6,5% di venue yang byte-identik | Lolos, sekelas TSLA |
+>
+> **Syarat enam adalah satu satunya yang sempit, dan perbandingannya yang menentukan.**
+> GOOGL punya pangsa V3 terendah dari kelima token. Tapi TSLA ada di 46,2%, praktis
+> sama, dan TSLA incumbent yang tidak pernah dipertanyakan. Yang gugur karena venue
+> adalah META di **5,2%**, satu tingkat besaran di bawah. GOOGL tidak berada di kelas
+> itu.
+>
+> Dan pool V3 GOOGL bukan pool yang ditinggalkan arus. Ia memutar $131,9jt lewat
+> 701.560 trade dan harganya paling tebal dari semua yang diukur. Pola META, yaitu
+> pool tipis yang harganya 109 bps dari feednya sendiri, tidak ada di sini.
+>
+> | Token | Volume 30 hari | Uniswap V3 | Pangsa V3 | Uniswap V4 |
+> |---|---|---|---|---|
+> | NVDA | $1.247,1jt | $955,1jt | 76,6% | $195,3jt |
+> | **GOOGL** | **$294,2jt** | $131,9jt | **44,8%** | $140,1jt |
+> | GME | $241,4jt | $226,5jt | 93,8% | $7,2jt |
+> | AAPL | $224,9jt | $116,9jt | 52,0% | $52,6jt |
+> | TSLA | $118,6jt | $54,8jt | 46,2% | $46,4jt |
+>
+> ⚠️ **Pangsa V3 di tabel ini adalah batas atas, bukan angka presisi.** Lebih dari 80%
+> trade V4 tidak membawa `amount_usd`, jadi volume V4 understated dan pangsa V3 karena
+> itu overstated. Ini P5-2 yang masih terbuka. Kelima token terkena efek yang sama,
+> jadi **urutannya jauh lebih kokoh daripada levelnya**, dan yang dipakai memutuskan
+> di sini adalah urutannya.
+>
+> 🔴 **Satu angka lama di tabel di bawah salah besar.** Baris GOOGL menulis volumenya
+> "Sedang (11.613)". Itu hitungan trade dari cakupan lama yang jauh lebih sempit, dan
+> membacanya sebagai ukuran volume menempatkan GOOGL di urutan keempat padahal ia
+> **nomor dua**. Bentuknya sama dengan pelajaran metodologi kedelapan, yaitu angka yang
+> stabil dan mengukur benda lain. Kueri `8779088`.
+
 **Yang masih di luar, dan alasannya masing-masing berbeda.**
 
 **SPY** tetap ditunda, dan pengukuran ulang justru memperkuat penundaannya. Atas 88

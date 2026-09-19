@@ -1329,7 +1329,7 @@ mengulang angka lama tidak lebih berguna daripada feed yang diam.
 mengganti referensi harga melainkan menambah jangkar akhir pekan di samping TWAP.
 §7.3 tidak berubah sebelum itu terjadi.
 
-### P6-2 · Apakah allowlist v1.0 masih benar sekarang GOOGL terukur paling buruk?
+### ✅ P6-2 · TERJAWAB 20 September 2026 — GOOGL dipertahankan, allowlist lima token
 
 GOOGL masuk allowlist karena kualitas feed, sementara GME dan SPY ditunda persis
 karena alasan itu.
@@ -1381,6 +1381,39 @@ jalur angka yang dipakai untuk memutuskan.
 
 Menambah token ke allowlist adalah satu proposal timelock, bukan deploy ulang, jadi
 keputusan ini tidak harus selesai sebelum peluncuran.
+
+### Putusan, 20 September 2026
+
+**GOOGL dipertahankan.** Diukur ulang lawan keenam syarat `parameter.md` §7.4, bukan
+hanya yang dulu mempertanyakannya, karena incumbent tidak pantas dapat kelonggaran
+yang tidak diberikan ke pendatang. Keenamnya lolos.
+
+Dua angka baru membalik gambarannya sama sekali.
+
+**Volume GOOGL $294,2jt dalam 30 hari, nomor dua dari lima**, bukan nomor empat.
+Angka lama di §7.4 menulis "Sedang (11.613)", yang ternyata hitungan trade dari
+cakupan lama yang jauh lebih sempit. Membacanya sebagai ukuran volume menempatkan
+GOOGL jauh di bawah posisinya yang sebenarnya.
+
+**Kedalaman poolnya paling tebal dari semua yang diukur.** Tujuh bps dampak harga di
+sepuluh kali cap, satu crossing di cap, bisa dikuotasi sampai $286.886. Bandingkan
+GME yang baru diterima kemarin di 67 bps dan $71.376.
+
+Satu syarat yang sempit, dan perbandingannya yang menyelesaikan pertanyaan. Pangsa
+Uniswap V3 GOOGL 44,8%, terendah dari kelima token. Tapi TSLA ada di 46,2% dan tidak
+pernah dipertanyakan, sementara META yang gugur karena venue ada di 5,2%. GOOGL ada
+di kelas TSLA, bukan di kelas META. Kueri `8779088`.
+
+Feednya memang terburuk kedua, p99 54.617 detik lawan AAPL 63.260. Tapi AAPL ada di
+allowlist sejak awal, jadi ambang syarat tiga yaitu setara token allowlist terburuk
+yang sudah diterima justru menempatkan GOOGL di atas garis, bukan di bawahnya.
+
+**Allowlist v1.0 final, lima token, NVDA sebagai jangkar ditambah AAPL, TSLA, GOOGL,
+dan GME.** SPY dan SPCX tetap di luar karena feed. META masuk v1.1 bersama adapter V4.
+AMC dan GLD belum pernah diukur sama sekali, dan itu tetap benar untuk dikatakan.
+
+Menambah token adalah satu proposal timelock 48 jam, bukan deploy ulang, jadi daftar
+ini bisa tumbuh tanpa menyentuh kontraknya.
 
 **Kedalaman pool GME, terukur 19 September 2026.** Token aslinya
 `0x1b0E319c6A659F002271B69dB8A7df2F911c153E`, lolos gerbang beacon dan
