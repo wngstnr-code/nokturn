@@ -365,6 +365,38 @@ contract AgentMandateTest is Test {
         mandates.authorize(id, i, sig);
     }
 
+    /// A15. An agent intent over the mandate is refused at authorize, and because
+    /// the account only vouches for digests that were authorized, Permit2 refuses
+    /// to move the money afterwards. Two locks, and the second one does not depend
+    /// on the first being called at all. See rencana-uji.md A15.
+    function test_A15_agentIntentBreachingTheMandate() public {
+        bytes32 id = _create();
+        address account = mandates.accountOf(id);
+        Intent memory i = _intent(id, 2001e6, 1);
+        bytes memory sig = _sign(AGENT_KEY, i);
+
+        usdg.mint(account, 2001e6);
+        MandateAccount(account).approvePermit2(IERC20(address(usdg)));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(AgentMandate.MandateRuleBroken.selector, id, RULE_PER_BATCH_CAP)
+        );
+        mandates.authorize(id, i, sig);
+
+        assertEq(
+            MandateAccount(account).isValidSignature(_digest(i), ""),
+            bytes4(0xffffffff),
+            "the account vouches for nothing"
+        );
+        assertFalse(mandates.accountAuthorized(account, _digest(i)));
+
+        // MockPermit2 does not recover signatures, so the second lock is proved
+        // against the deployed Permit2 in
+        // fork/AgentMandatePermit2Fork.t.sol:test_anIntentTheMandateNeverBookedIsRefusedByPermit2.
+        assertEq(usdg.balanceOf(account), 2001e6, "the money never left");
+        assertEq(mandates.spentToday(id), 0, "and the budget was never touched");
+    }
+
     function test_theDailyBudgetAddsUpAcrossIntents() public {
         bytes32 id = _create();
         _authorize(id, _intent(id, 2000e6, 1));
