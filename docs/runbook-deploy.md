@@ -5,6 +5,16 @@ perintah yang sama, hanya endpoint dan chain id yang berbeda.
 
 ## Sebelum apa pun
 
+**Muat `.env` ke shell dulu.** Ia ada di root repo, bukan di `contracts/`, jadi forge
+tidak menemukannya sendiri saat dijalankan dari sana. Tanpa ini `--rpc-url
+$NOKTURN_RPC_TESTNET` berangkat kosong dan forge menolak dengan pesan tentang nilai
+yang kurang, bukan tentang env.
+
+```bash
+cd contracts
+set -a; . ../.env; set +a
+```
+
 Isi `.env` dari `.env.example`. Tiga nilai yang wajib ada.
 
 - `NOKTURN_TREASURY`, tujuan fee protokol, bond yang disita, dan debu cross.
@@ -32,6 +42,32 @@ forge script script/testnet/DeployTestnetFixtures.s.sol:DeployTestnetFixtures \
 ```
 
 Script ini menolak jalan di chain selain 46630.
+
+### Umpannya diganti seluruhnya, 20 September 2026
+
+GME masuk allowlist, jadi umpannya jadi lima. Seluruh set dipasang ulang, bukan
+ditambah satu, karena token kuota dan keempat token lama tidak punya alasan untuk
+dipertahankan dan satu set yang lahir bersama lebih gampang dipercaya daripada
+campuran dua angkatan.
+
+Dijalankan 20 September 2026. Sebelas kontrak, **6.364.366 gas, 0,00006364 ETH**.
+Perkiraan script 8.475.212, jadi pemakaian sebenarnya 75% dari perkiraan.
+Alamatnya di `parameter.md` §10.6 dan sudah jadi konstanta.
+
+Urutannya dua tahap, dan tahap pertama harus selesai sebelum tahap kedua ditulis.
+Tahap satu menjalankan perintah di atas, yang mencetak sebelas alamat dan menulis
+`deployments/46630-fixtures.json`. Tahap dua memindahkan kesebelas alamat itu ke
+`parameter.md` §10.6 lalu ke `script/Addresses.sol`, dan menaikkan cabang testnet
+`allowlist()` serta `pools()` dari empat ke lima.
+
+Alasan urutannya begitu, konstanta alamat nol yang menunggu diisi adalah jebakan yang
+lolos kompilasi. Selama tahap satu belum jalan, cabang testnet tetap empat dan tetap
+benar.
+
+Satu langkah verifikasi yang layak diulang tiap kali. Kesebelas alamat dibaca ulang
+dari chain, bukan disalin dari keluaran script, dan konstantanya dicocokkan kembali
+ke `deployments/46630-fixtures.json`. Menyalin sebelas alamat dengan tangan adalah
+persis bentuk kesalahan yang tidak akan revert di mana pun.
 
 ## Tiga langkah inti
 
@@ -84,13 +120,10 @@ dan itu satu-satunya bentuk yang tidak bisa dilewati §7.3.
 Script ini menolak jalan di chain selain 4663, karena 46630 tidak punya feed
 Chainlink sama sekali.
 
-⚠️ **Allowlist mainnet lima token, gladi resik 46630 masih empat.** GME masuk
-allowlist 20 September 2026 dan chain 46630 belum punya umpan untuknya. Kedua daftar
-sengaja dibiarkan berbeda panjang, bukan dipadankan diam-diam, supaya selisihnya
-terlihat. Gladi resik berikutnya menambahkan umpan GME lewat
-`DeployTestnetFixtures.s.sol` lalu mengisi konstanta `TESTNET_GME` dan
-`TESTNET_POOL_GME` di `script/Addresses.sol`. Sampai itu terjadi, gladi resik
-menguji bentuk batch yang sama dengan satu token lebih sedikit.
+Kedua allowlist sekarang sama panjang, lima token, sejak umpan `tGME` dipasang
+20 September 2026. Sebelum itu gladi resik menguji bentuk batch yang sama dengan satu
+token lebih sedikit, dan selisihnya sengaja dibiarkan terlihat alih alih dipadankan
+diam diam.
 
 ## Verifikasi
 
