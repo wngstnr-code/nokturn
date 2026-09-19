@@ -19,14 +19,19 @@ import {ClearingMath} from "../../src/libraries/ClearingMath.sol";
 ///
 /// Why the split. A testFuzz name is run symbolically by tools/halmos.sh and is a
 /// proof over the whole stated range. A testBound name is run by forge as a bounded
-/// fuzz test and is not. Every division here is by a 256 bit value, and z3 does not
-/// close those at the width the protocol works in. Measured on 19 September 2026
-/// with halmos 0.3.3, the floor lemma closes in 2.2 seconds over uint64 and times
-/// out past 120 seconds over uint96 and over uint128, with no counterexample in
-/// either case. An allowlist amount at the batch cap times a stock token price is
-/// about 2 to the 139, so no width the solver reaches covers the range this
-/// protocol runs in, and stating a proof over uint64 as if it covered uint128 would
-/// be the kind of claim this repo exists to avoid making.
+/// fuzz test and is not.
+///
+/// The line between them is one measured fact. The solver closes a division when the
+/// number being divided is under roughly 2 to the 65 and does not when it is over
+/// roughly 2 to the 73, and the wall is on that dividend rather than on the width of
+/// the inputs. Measured 20 September 2026 against four solvers, three shapes of the
+/// same statement and every width solidity offers. test/halmos/DivisionWall.t.sol
+/// holds the probes, rencana-uji.md section 4.1 holds the numbers.
+///
+/// An allowlist amount at the batch cap times a stock token price is about 2 to the
+/// 139, so nothing the solver reaches covers the range this protocol runs in, and
+/// stating a proof over a narrow width as if it covered the wide one would be the
+/// kind of claim this repo exists to avoid making.
 contract AuctionMathProofs is Test {
     uint256 internal constant WAD = 1e18;
 
@@ -50,8 +55,8 @@ contract AuctionMathProofs is Test {
     /// an executed volume up to e.length below the matchable number, so that
     /// tolerance is a consequence rather than a number somebody chose.
     ///
-    /// Stated over uint64 because that is where the solver closes. See the note on
-    /// this contract for what that does and does not cover.
+    /// Stated over uint64 because the sum is then at most 2 to the 65, which is the
+    /// side of the wall the solver closes on. See the note on this contract.
     function testFuzz_flooringASplitNeverGainsOnFlooringTheWhole(uint64 x, uint64 y) public pure {
         uint256 whole = (uint256(x) + y) / WAD;
         uint256 split = uint256(x) / WAD + uint256(y) / WAD;
@@ -85,9 +90,27 @@ contract AuctionMathProofs is Test {
         assertLt(ClearingMath.conserved(0, 0, delivered), 0, "a batch delivered out of an empty pool");
     }
 
-    /// The composed statement over quoteOf at the width the protocol runs in. It
-    /// follows from the two proofs above, and forge samples it here because the
-    /// solver times out on the combined form rather than refuting it.
+    /// The composed statement at the width whose dividend fits under the wall. The
+    /// product is formed before the division, so uint32 inputs already put a 2 to the
+    /// 64 number in front of it and uint64 inputs put 2 to the 129 there. That is why
+    /// this is narrower than the lemma above rather than the same width.
+    ///
+    /// Narrow, and not nothing. It is the only symbolic evidence that the two lemmas
+    /// compose in the direction claimed, which a fuzz sample cannot give.
+    function testFuzz_splittingAFillNeverAllocatesMoreThanTheWhole(uint32 a, uint32 b, uint32 price)
+        public
+        pure
+    {
+        uint256 whole = ClearingMath.quoteOf(uint256(a) + b, price);
+        uint256 split = ClearingMath.quoteOf(a, price) + ClearingMath.quoteOf(b, price);
+
+        assertLe(split, whole, "two fills took more than the book they came from");
+        assertLe(whole - split, 1, "the dust from two fills passed one unit");
+    }
+
+    /// The same statement over the width the protocol runs in. It follows from the
+    /// three proofs above, and forge samples it here because the solver times out on
+    /// the combined form at this width rather than refuting it.
     function testBound_splittingAFillNeverAllocatesMoreThanTheWhole(uint128 a, uint128 b, uint128 price)
         public
         pure
