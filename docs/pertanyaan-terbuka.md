@@ -1125,6 +1125,82 @@ Kueri Dune 18 September 2026, **permanen dan publik sejak 19 September 2026**:
 
 ---
 
+## RONDE 7 — baseline yang tidak pernah diperiksa kontrak (20 September 2026)
+
+### 🔴 P7-1 · Haruskah `Settlement` menghitung ulang baseline, bukan mempercayai solver?
+
+**Ditemukan saat menyiapkan serah terima `quoteFromState` ke Dharu**, yaitu ketika
+mencari tahu angka mana yang harus cocok persis antara kontrak dan kalkulator
+offchain. Jawabannya ternyata **tidak ada**, karena kontrak tidak pernah menghitung
+baseline sama sekali.
+
+`Solution.baselineQuotes` datang dari solver. `ClearingVerifier` hanya memeriksa satu
+arah, yaitu `executedBuy >= baselineQuotes[k]`. Baseline yang **dilebihkan** ditolak.
+Baseline yang **dikurangi** lolos tanpa perlawanan, dan dari situ `savings` dihitung.
+
+**Diukur, bukan diduga.** Dua solusi pada batch yang sama, eksekusi identik sampai
+wei, hanya baselinenya berbeda.
+
+| | Baseline jujur | Baseline dinolkan |
+|---|---|---|
+| `savings` terhitung | 0,04e18 | 399,88e18 |
+| Plafon fee | 0,032e18 | 0,12e18, yaitu 3 bps notional |
+| Fee yang ditahan | 0,12e18 | 0,12e18 |
+| Hasil `finalize` | **revert `FeeExceedsCap`** | **berhasil** |
+| Yang diterima pengguna | batch gagal | 0,9997e18 NVDA |
+| Yang diambil solver | tidak ada | 0,000225e18 NVDA plus 45.000 USDG |
+
+Bacaannya begini. Pada batch yang surplus sebenarnya kecil, solver jujur **tidak bisa
+menyelesaikan batch sama sekali** karena fee yang ia tahan melampaui plafon yang
+diturunkan dari surplus. Solver yang mengaku baselinenya nol menyelesaikannya dan
+mengambil penuh tiga basis poin. Selisihnya diambil dari pengguna, di dalam pita
+harga seragam yang memang mengizinkan tiga bps.
+
+**Tiga akibat, dan yang ketiga yang paling mahal.**
+
+1. **Lelang solver jadi kontes klaim, bukan kontes hasil.** `submitSolution` memilih
+   `savings` tertinggi. Solver yang mengarang selalu mengalahkan yang jujur.
+2. **Ambang pass-through bisa dilewati.** Batch yang seharusnya lewat tanpa fee
+   karena surplusnya di bawah satu bps bisa dibalik jadi batch berbayar.
+3. **Angka price improvement yang diterbitkan jadi tidak bisa dipercaya.** Itu angka
+   di pitch, di dashboard, dan yang jadi calon KPI tranche mainnet.
+
+**Batasnya juga harus disebut, supaya tidak dibesar-besarkan.** Fee tetap dibatasi
+tiga basis poin notional dan solver tidak bisa menciptakan token. Pada cap peluncuran
+$5.000 selisih maksimumnya sekitar $1,50 per batch. Pada plafon governance $500.000
+ia jadi $150 per batch.
+
+**Kenapa ini tidak bisa ditunda.** `Settlement` immutable dan tanpa proxy, aturan 6
+`CLAUDE.md`. Kalau diperbaiki, perbaikannya harus masuk sebelum deploy mainnet.
+Setelah itu satu-satunya jalan adalah `Settlement` baru.
+
+**Mitigasi yang dirancang ternyata kode mati.** `SolverRegistry.reportInvalidSurplus`
+ada dan menyita bond, tapi tidak dipanggil dari mana pun. Itu sudah tercatat di
+`rencana-uji.md` §7.1 sebagai temuan, dengan alasan bahwa klaim palsu ditolak lewat
+revert. **Alasan itu hanya benar untuk baseline yang dilebihkan.** Untuk yang
+dikurangi tidak ada revert, jadi tidak ada yang bisa disita, dan tidak ada yang
+menyadari.
+
+**Pilihan yang terbuka, belum diputuskan.**
+
+1. Kontrak menghitung ulang baseline lewat adapter dan memakai angkanya sendiri.
+   Paling kuat. Biayanya gas, dan baseline per intent bergantung ukuran sehingga satu
+   kuotasi per pasangan tidak cukup untuk mengisi `baselineBuy` per intent yang
+   dibawa `IntentSettled`. Lihat catatan di `types/Types.sol`.
+2. Kontrak memeriksa batas bawah saja, yaitu total baseline per pasangan tidak boleh
+   di bawah `quoteFromState` atas volume agregat pasangan itu. Beberapa panggilan
+   adapter per batch, bukan N. Menutup arah kebohongan yang berbahaya tanpa
+   menghitung per intent.
+3. Menghidupkan jalur tantangan, yaitu siapa pun boleh membuktikan baseline palsu
+   dalam jendela tertentu dan menyita bond. Butuh state tambahan dan jendela sengketa
+   di kontrak immutable.
+4. Menerima apa adanya dan mendokumentasikannya sebagai risiko sisa kesebelas.
+
+Belum ada yang dipilih. **Jangan tulis kode yang mengandaikan salah satunya**, aturan
+7 `CLAUDE.md`.
+
+---
+
 ## RONDE 6 — feed oracle, diukur ulang 16 September 2026
 
 ### ✅ P6-1 · TERJAWAB 19 September 2026 — keluarga `RH` saja, ambang dari p99
