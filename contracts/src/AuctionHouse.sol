@@ -7,6 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
+import {Guarded} from "./Guarded.sol";
 import {IAuctionHouse} from "./interfaces/IAuctionHouse.sol";
 import {IPriceOracle} from "./interfaces/IPriceOracle.sol";
 import {ISessionManager} from "./interfaces/ISessionManager.sol";
@@ -28,7 +29,7 @@ import {Execution, Intent, IntentFlags, IntentKind, Session, SessionMask} from "
 /// volume its own book says is matchable at that price. Whether a better price
 /// exists is settled by challenge instead, because searching every candidate price
 /// is quadratic in the length of the book and a solver can do that work offchain.
-contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
+contract AuctionHouse is IAuctionHouse, Guarded, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     enum Phase {
@@ -190,8 +191,9 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
         ISignatureTransfer permit2_,
         IERC20 quote_,
         address treasury_,
-        address governor_
-    ) {
+        address governor_,
+        address guardian_
+    ) Guarded(guardian_) {
         sessions = sessions_;
         oracle = oracle_;
         solvers = solvers_;
@@ -212,13 +214,19 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
         _;
     }
 
+    /// @notice The guardian is a parameter rather than an immutable, so a leaked
+    /// key stops mattering one rotation after it is noticed. parameter.md 8.1.
+    function setGuardian(address guardian_) external onlyGovernor {
+        _setGuardian(guardian_);
+    }
+
     function setAuctionTokenAllowed(address token, bool allowed) external onlyGovernor {
         auctionTokenAllowed[token] = allowed;
         emit AuctionTokenAllowlisted(token, allowed);
     }
 
     /// @inheritdoc IAuctionHouse
-    function commitAuctionIntent(Intent calldata i, bytes calldata sig) external nonReentrant {
+    function commitAuctionIntent(Intent calldata i, bytes calldata sig) external nonReentrant whenLive {
         bytes32 intentHash = IntentLib.hash(i);
         if (commitments[intentHash].owner != address(0)) revert AlreadyCommitted(intentHash);
         if (i.flags & IntentFlags.AUCTION == 0) revert NotAnAuctionIntent(intentHash);
@@ -285,7 +293,12 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     }
 
     /// @inheritdoc IAuctionHouse
-    function openAuction(address token, uint8 kind) external nonReentrant returns (uint64 auctionId) {
+    function openAuction(address token, uint8 kind)
+        external
+        nonReentrant
+        whenLive
+        returns (uint64 auctionId)
+    {
         // SessionManager is immutable and this reads it.
         // aderyn-fp-next-line(reentrancy-state-change)
         Session session = sessions.sessionAt(uint64(block.timestamp));
@@ -331,7 +344,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     /// @dev Pulls every escrow it can and drops the rest. An intent whose funds
     /// have moved since the commit is not a participant, and saying so out loud is
     /// what makes the frozen imbalance a number a liquidity provider can act on.
-    function freeze(uint64 auctionId) external nonReentrant {
+    function freeze(uint64 auctionId) external nonReentrant whenLive {
         Auction storage a = auctions[auctionId];
         if (a.phase != Phase.DISCLOSURE) revert WrongPhase(auctionId, uint8(a.phase));
         // forge-lint: disable-next-line(block-timestamp)
@@ -403,7 +416,11 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     }
 
     /// @inheritdoc IAuctionHouse
-    function submitCross(uint64 auctionId, uint256 price, Execution[] calldata e) external nonReentrant {
+    function submitCross(uint64 auctionId, uint256 price, Execution[] calldata e)
+        external
+        nonReentrant
+        whenLive
+    {
         Auction storage a = auctions[auctionId];
         if (a.phase != Phase.FROZEN) revert WrongPhase(auctionId, uint8(a.phase));
         // SolverRegistry is immutable and this reads it.
@@ -432,7 +449,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     /// @dev A challenge is never free on one side only. The solver posted the same
     /// bond when it submitted, so naming a better price costs what defending a bad
     /// one costs.
-    function challenge(uint64 auctionId, uint256 betterPrice) external nonReentrant {
+    function challenge(uint64 auctionId, uint256 betterPrice) external nonReentrant whenLive {
         Auction storage a = auctions[auctionId];
         if (a.phase != Phase.CROSSED) revert WrongPhase(auctionId, uint8(a.phase));
         uint64 closesAt = a.crossSubmittedAt + CHALLENGE_WINDOW;
@@ -461,7 +478,7 @@ contract AuctionHouse is IAuctionHouse, ReentrancyGuard {
     }
 
     /// @inheritdoc IAuctionHouse
-    function executeCross(uint64 auctionId) external nonReentrant {
+    function executeCross(uint64 auctionId) external nonReentrant whenLive {
         Auction storage a = auctions[auctionId];
         if (a.phase != Phase.CROSSED) revert WrongPhase(auctionId, uint8(a.phase));
         uint64 opensAt = a.crossSubmittedAt + CHALLENGE_WINDOW;

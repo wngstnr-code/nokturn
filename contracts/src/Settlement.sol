@@ -6,6 +6,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+import {Guarded} from "./Guarded.sol";
 import {IClearingVerifier} from "./interfaces/IClearingVerifier.sol";
 import {IPriceOracle} from "./interfaces/IPriceOracle.sol";
 import {ISessionManager} from "./interfaces/ISessionManager.sol";
@@ -30,7 +31,7 @@ import {Execution, Intent, Session, SessionMask, Solution, VenueCall} from "./ty
 /// scaled by 1e18. Not per whole token. USDG has six decimals and is the quote asset
 /// for nearly every pair, so a price per whole token cannot be multiplied by a raw
 /// amount and still mean dollars. See parameter.md section 4C.
-contract Settlement is ISettlement, ReentrancyGuard {
+contract Settlement is ISettlement, Guarded, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     struct Best {
@@ -112,8 +113,9 @@ contract Settlement is ISettlement, ReentrancyGuard {
         ISolverRegistry solvers_,
         ISignatureTransfer permit2_,
         address treasury_,
-        address governor_
-    ) {
+        address governor_,
+        address guardian_
+    ) Guarded(guardian_) {
         sessions = sessions_;
         oracle = oracle_;
         verifier = verifier_;
@@ -136,6 +138,12 @@ contract Settlement is ISettlement, ReentrancyGuard {
     function setAdapterAllowed(address adapter, bool allowed) external onlyGovernor {
         adapterAllowed[adapter] = allowed;
         emit AdapterAllowlisted(adapter, allowed);
+    }
+
+    /// @notice The guardian is a parameter rather than an immutable, so a leaked
+    /// key stops mattering one rotation after it is noticed. parameter.md 8.1.
+    function setGuardian(address guardian_) external onlyGovernor {
+        _setGuardian(guardian_);
     }
 
     function setExposureCaps(uint256 perBatch, uint256 perTokenDaily, uint256 globalDaily)
@@ -164,7 +172,7 @@ contract Settlement is ISettlement, ReentrancyGuard {
     }
 
     /// @inheritdoc ISettlement
-    function submitSolution(Solution calldata s) external {
+    function submitSolution(Solution calldata s) external whenLive {
         // SolverRegistry is immutable and this reads it.
         // aderyn-fp-next-line(reentrancy-state-change)
         if (!solvers.isActive(msg.sender)) revert SolverNotActive(msg.sender);
@@ -202,7 +210,7 @@ contract Settlement is ISettlement, ReentrancyGuard {
     }
 
     /// @inheritdoc ISettlement
-    function finalize(uint64 batchId, Solution calldata winning) external nonReentrant {
+    function finalize(uint64 batchId, Solution calldata winning) external nonReentrant whenLive {
         if (finalized[batchId]) revert AlreadyFinalized(batchId);
         (, uint64 collectEnd, uint64 solveEnd) = batchWindow(batchId);
         // forge-lint: disable-next-line(block-timestamp)
