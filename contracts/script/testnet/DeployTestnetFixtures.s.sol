@@ -28,6 +28,7 @@ contract DeployTestnetFixtures is Script {
     int24 internal constant TICK_AAPL = -221_941; // 230
     int24 internal constant TICK_TSLA = -215_918; // 420
     int24 internal constant TICK_GOOGL = -221_107; // 250
+    int24 internal constant TICK_GME = -244_134; // 25
 
     uint24 internal constant FEE = 3000;
     uint128 internal constant LIQUIDITY = 1e24;
@@ -39,18 +40,20 @@ contract DeployTestnetFixtures is Script {
 
         TestQuoteToken quote = new TestQuoteToken();
 
-        address[] memory tokens = new address[](4);
-        int24[] memory ticks = new int24[](4);
+        address[] memory tokens = new address[](5);
+        int24[] memory ticks = new int24[](5);
         tokens[0] = address(_stock("Nokturn Test NVDA", "tNVDA", 1.0032e18));
         tokens[1] = address(_stock("Nokturn Test AAPL", "tAAPL", 1.0011e18));
         tokens[2] = address(_stock("Nokturn Test TSLA", "tTSLA", 1e18));
         tokens[3] = address(_stock("Nokturn Test GOOGL", "tGOOGL", 1.0007e18));
+        tokens[4] = address(_stock("Nokturn Test GME", "tGME", 1e18));
         ticks[0] = TICK_NVDA;
         ticks[1] = TICK_AAPL;
         ticks[2] = TICK_TSLA;
         ticks[3] = TICK_GOOGL;
+        ticks[4] = TICK_GME;
 
-        address[] memory pools = new address[](4);
+        address[] memory pools = new address[](5);
         for (uint256 k = 0; k < tokens.length; ++k) {
             pools[k] = _pool(tokens[k], address(quote), ticks[k]);
         }
