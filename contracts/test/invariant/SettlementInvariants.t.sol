@@ -105,6 +105,13 @@ contract SettlementInvariants is Test {
         settlement.setTokenAllowed(address(usdg), true);
         settlement.setTokenAllowed(address(nvda), true);
         settlement.setAdapterAllowed(address(venue), true);
+        // A baseline adapter that quotes zero, so the floor never binds. The handler
+        // invents a fresh price on every action, so any fixed rate would refuse some
+        // honest solutions and the suite would be measuring the floor rather than
+        // conservation. The floor has its own tests in Settlement.t.sol.
+        MockSwapAdapter noFloor = new MockSwapAdapter();
+        settlement.setAdapterAllowed(address(noFloor), true);
+        settlement.setBaselineAdapter(address(noFloor));
         vm.stopPrank();
 
         vm.warp(DAY_OPEN + 600);

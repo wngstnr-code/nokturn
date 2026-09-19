@@ -551,8 +551,10 @@ contract SettlementEdgesTest is SettlementFixture {
     /// @dev Weekends and holidays freeze the feeds, so the oracle answers from the
     /// pool TWAP instead. The venue rates in the fixture are raw swap rates, and
     /// this is the same pair expressed the way a price feed expresses it.
+    /// Only the oracle side. Touching the quote rates here would move the venue
+    /// baseline as well, and these tests are about the cap, not about the venue.
     function _frozenSessionRates() internal {
-        adapter.setRate(address(usdg), address(nvda), 1e18);
-        adapter.setRate(address(nvda), address(usdg), 200e18);
+        adapter.setTwapRate(address(usdg), address(nvda), 1e18);
+        adapter.setTwapRate(address(nvda), address(usdg), 200e18);
     }
 }

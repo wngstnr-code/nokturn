@@ -263,6 +263,7 @@ tentang serangan nyata.
 | A13 | Semua solver berkolusi mengajukan solusi buruk | Pass-through aktif; fee nol |
 | A14 | Warp waktu tepat ke batas sesi | Guard band aktif; parameter konservatif dipakai |
 | A15 | Intent agent melanggar mandat | Revert `MandateRuleBroken` di `AgentMandate.authorize`, dan Permit2 menolak penarikannya. `MandateViolated` dihapus, lihat `parameter.md` §5B |
+| A16 | Solver mengecilkan baseline untuk menggelembungkan savings | Revert `BaselineBelowVenue`. Ditambahkan 20 September 2026 setelah P7-1, lihat `parameter.md` §4C |
 
 ### 7.1 Peta ke nama test
 
@@ -287,6 +288,7 @@ sudah hijau.
 | A13 | `test_A13_everySolverCollusesOnAWorthlessSolution` | `test/Adversarial.t.sol` |
 | A14 | `test_A14_batchLandsExactlyOnASessionBoundary` | `test/Adversarial.t.sol` |
 | A15 | `test_A15_agentIntentBreachingTheMandate` | `test/AgentMandate.t.sol` |
+| A16 | `test_A16_solverUnderstatesTheBaselineToInflateSavings` | `test/Adversarial.t.sol` |
 
 **A11 sudah punya subjek, 19 September 2026.** Ternyata bukan keputusan yang menunggu.
 `parameter.md` §8 dan `threat-model.md` sudah menentukan guardian sejak awal, dan yang
@@ -306,6 +308,14 @@ Pertama, `SolverRegistry.reportInvalidSurplus` tidak pernah dipanggil dari mana 
 revert tidak bisa menyita bond. Harapan "bond disita" di baris A1 karena itu tidak
 tercapai onchain, dan fungsinya jadi kode mati di kontrak yang immutable. Yang benar
 terjadi adalah solusinya ditolak dan tidak pernah jadi pemenang.
+
+⚠️ **Alasan di paragraf itu hanya separuh benar, dikoreksi 20 September 2026.** Ia
+berlaku untuk baseline yang **dilebihkan**, yang memang ditolak `WorseThanBaseline`.
+Untuk baseline yang **dikurangi** tidak ada revert sama sekali sampai hari ini, jadi
+bukan hanya bondnya tidak tersita, kebohongannya tidak terdeteksi. Lubangnya ditutup
+lantai agregat di `parameter.md` §4C dan diuji A16. `reportInvalidSurplus` tetap kode
+mati, tapi sekarang karena jalurnya memang tidak dibutuhkan, bukan karena ada yang
+terlewat.
 
 Kedua, token fee-on-transfer tidak bisa kliring sama sekali kalau feenya di atas tiga
 basis poin, karena pita harga seragam di `ClearingVerifier` selebar itu. Di bawahnya
@@ -390,7 +400,7 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 - [ ] Semua properti Halmos terbukti · 4 dari 7 penuh, 3 sebagian. Lihat §4.1
 - [x] Skor mutasi ≥ 90% pada kontrak inti · 100% atas 156 mutan yang dihitung di `Settlement` dan `SessionManager`, 19 September 2026. Seluruh kontrak lain juga sudah diukur dan berada di 100%
 - [x] Semua fork test lulus terhadap mainnet nyata · 18 hijau, 19 September 2026. Sebelum hari itu fork-nya membaca state 2 Agustus, lihat `pertanyaan-terbuka.md` pelajaran ketujuh
-- [x] 15 skenario adversarial lulus · lima belas hijau, peta ke nama test di §7.1
+- [x] 15 skenario adversarial lulus · enam belas hijau setelah A16 ditambahkan 20 September 2026, peta ke nama test di §7.1
 - [x] Kalender diuji habis 2020–2035 · `CivilDate.t.sol` menelusuri 5.844 hari kalender yang ter-commit, dua arah
 - [x] Coverage ≥ 95% pada kontrak inti · gerbang `build-test` di CI, run 35410613213
 - [x] Slither & Aderyn bersih · gerbang `static-analysis` di CI, run 35418852026

@@ -13,6 +13,11 @@ contract MockSwapAdapter is IVenueAdapter {
     mapping(address => mapping(address => uint256)) public rate; // tokenIn to tokenOut, 1e18
     bool public quotable = true;
 
+    /// The oracle reads a WAD price per smallest unit, the swap path reads raw
+    /// units. They are different functions of the same pool in reality, and holding
+    /// them in one mapping made a test that set one silently change the other.
+    mapping(address => mapping(address => uint256)) public twapRate;
+
     function setRate(address tokenIn, address tokenOut, uint256 rate_) external {
         rate[tokenIn][tokenOut] = rate_;
     }
@@ -40,8 +45,15 @@ contract MockSwapAdapter is IVenueAdapter {
         return (amountIn * rate[tokenIn][tokenOut]) / 1e18;
     }
 
+    /// The mid price, deliberately not the quote. An oracle comparison reads the
+    /// market's price, not the price after a fee.
     function twap(address tokenIn, address tokenOut, uint32) external view returns (uint256) {
-        return rate[tokenIn][tokenOut];
+        uint256 set = twapRate[tokenIn][tokenOut];
+        return set == 0 ? rate[tokenIn][tokenOut] : set;
+    }
+
+    function setTwapRate(address tokenIn, address tokenOut, uint256 rate_) external {
+        twapRate[tokenIn][tokenOut] = rate_;
     }
 
     function isQuotable() external view returns (bool) {

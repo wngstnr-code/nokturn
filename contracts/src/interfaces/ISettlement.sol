@@ -54,6 +54,10 @@ interface ISettlement {
     );
 
     event AdapterAllowlisted(address indexed adapter, bool allowed);
+
+    /// @notice The adapter the floor under baselineQuotes is read from, or zero
+    /// when there is none and every batch is therefore a pass through.
+    event BaselineAdapterSet(address indexed adapter);
     event TokenAllowlisted(address indexed token, bool allowed);
     event ExposureCapsUpdated(uint256 perBatch, uint256 perTokenDaily, uint256 globalDaily);
 
@@ -69,6 +73,10 @@ interface ISettlement {
     error NonceAlreadyUsed(address owner, uint256 nonce);
     error SessionNotAllowed(uint256 intentIndex, uint8 session);
     error AdapterNotAllowed(address adapter);
+
+    /// @notice The total baseline claimed for a pair direction sits below what the
+    /// venue itself would have quoted on that direction's volume. parameter.md 4C.
+    error BaselineBelowVenue(address sellToken, address buyToken, uint256 claimed, uint256 floor);
     error AdapterNotQuotable(address adapter);
     error TokenNotAllowed(address token);
     error MultiplierChanged(address token, uint256 atStart, uint256 atSettle);

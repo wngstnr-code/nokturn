@@ -124,6 +124,9 @@ contract Bootstrap is Script {
         // nowhere else. It is not an auction token and it has no pool of its own.
         _push(settlement, abi.encodeCall(Settlement.setTokenAllowed, (Addresses.quote(), true)));
         _push(settlement, abi.encodeCall(Settlement.setAdapterAllowed, (adapter, true)));
+        // The same adapter answers the baseline floor. Without it every batch is a
+        // pass through, which is safe but collects nothing. parameter.md 4C.
+        _push(settlement, abi.encodeCall(Settlement.setBaselineAdapter, (adapter)));
 
         address[] memory tokens = Addresses.allowlist();
         address[] memory pools = Addresses.pools();

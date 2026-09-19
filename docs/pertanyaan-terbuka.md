@@ -1127,7 +1127,14 @@ Kueri Dune 18 September 2026, **permanen dan publik sejak 19 September 2026**:
 
 ## RONDE 7 — baseline yang tidak pernah diperiksa kontrak (20 September 2026)
 
-### 🔴 P7-1 · Haruskah `Settlement` menghitung ulang baseline, bukan mempercayai solver?
+### ✅ P7-1 · TERJAWAB 20 September 2026 — lantai agregat, opsi 2
+
+> **Hasil.** `Settlement` sekarang menghitung lantai di bawah `baselineQuotes`, satu
+> kuotasi per arah pasangan atas volume kotor arah itu, lewat `baselineAdapter` yang
+> diset governance. Total di bawah lantai ditolak dengan `BaselineBelowVenue`. Kalau
+> lantainya tidak bisa dihitung sama sekali, `savings` dipaksa nol dan batch jadi
+> pass-through, bukan batch yang dipercaya begitu saja. Spesifikasi dan angkanya di
+> `parameter.md` §4C, skenario adversarialnya A16 di `rencana-uji.md` §7.1.
 
 **Ditemukan saat menyiapkan serah terima `quoteFromState` ke Dharu**, yaitu ketika
 mencari tahu angka mana yang harus cocok persis antara kontrak dan kalkulator
@@ -1242,8 +1249,12 @@ karena empat belas penyeberangan. Itu masih jauh di bawah batas blok, tapi ia
 menunjukkan biaya kuotasi tumbuh dengan ukuran, jadi keputusan menaikkan
 `CAP_PER_BATCH` nanti ikut menaikkan biaya ini.
 
-Belum ada yang dipilih. **Jangan tulis kode yang mengandaikan salah satunya**, aturan
-7 `CLAUDE.md`.
+**Opsi 2 dipilih dan sudah masuk kode, 20 September 2026.** Opsi 1 membalik keputusan
+`desain-ekonomi.md` §2.3 yang menetapkan kuotasi per pasangan dan bukan per intent,
+dan mengembalikan biaya yang keputusan itu sengaja hindari. Opsi 3 menambah state dan
+jendela sengketa ke kontrak immutable, menghukum setelah kejadian, dan bentuknya persis
+seperti `reportInvalidSurplus` yang sudah terbukti jadi kode mati. Opsi 4 berarti
+menerbitkan angka price improvement yang kita sendiri tahu bisa dikarang.
 
 ---
 

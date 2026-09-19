@@ -19,6 +19,7 @@ import {MockAggregator} from "./mocks/MockAggregator.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockPermit2} from "./mocks/MockPermit2.sol";
 import {MockSolverRegistry} from "./mocks/MockSolverRegistry.sol";
+import {MockAdapter} from "./mocks/MockAdapter.sol";
 import {MockSwapAdapter} from "./mocks/MockSwapAdapter.sol";
 
 contract SettlementTest is SettlementFixture {
@@ -514,5 +515,86 @@ contract SettlementTest is SettlementFixture {
         vm.expectRevert(Settlement.NotGovernor.selector);
         settlement.setExposureCaps(1, 2, 3);
     }
-}
 
+    /// parameter.md section 4C. Nothing on chain used to check the baseline a solver
+    /// claimed, and savings is what picks the winner and sets the fee cap. These
+    /// four hold the floor that closes it.
+    function test_aBaselineBelowTheVenueIsRefused() public {
+        Solution memory s = _nettedSolution();
+        s.baselineQuotes[0] = 0;
+        s.baselineQuotes[1] = 0;
+        s.claimedSavings = (1e18 * 200e18) / 1e18 + (200e6 * 1e30) / 1e18;
+
+        vm.warp(BATCH_ID + 1);
+        vm.prank(solver);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettlement.BaselineBelowVenue.selector, address(usdg), address(nvda), 0, 0.99e18
+            )
+        );
+        settlement.submitSolution(s);
+    }
+
+    /// The floor is a floor, not a target. Claiming exactly what the venue quotes
+    /// is allowed, and one unit under it is not.
+    function test_theFloorBitesAtExactlyOneUnitBelow() public {
+        Solution memory s = _nettedSolution();
+        s.baselineQuotes[0] = 0.99e18 - 1;
+        _submitExpectingFloor(s, 0.99e18 - 1);
+
+        Solution memory atTheFloor = _nettedSolution();
+        atTheFloor.baselineQuotes[0] = 0.99e18;
+        atTheFloor.claimedSavings = 0.01e18 * 200 + 2e18;
+        vm.warp(BATCH_ID + 1);
+        vm.prank(solver);
+        settlement.submitSolution(atTheFloor);
+    }
+
+    /// A venue that cannot be read is not an excuse to trust the solver's number.
+    /// The batch still settles and the users still get their fills, but there is no
+    /// surplus to share, so nobody is paid.
+    function test_anUnreadableVenueMakesTheBatchAPassThrough() public {
+        // MockAdapter answers isQuotable but reverts on the quote itself, which is
+        // what a pool past MAX_TICK_CROSSINGS or behind a dynamic fee looks like.
+        MockAdapter blind = new MockAdapter();
+        vm.startPrank(governor);
+        settlement.setAdapterAllowed(address(blind), true);
+        settlement.setBaselineAdapter(address(blind));
+        vm.stopPrank();
+
+        Solution memory s = _nettedSolution();
+        s.claimedSavings = 0;
+
+        vm.warp(BATCH_ID + 1);
+        vm.prank(solver);
+        settlement.submitSolution(s);
+
+        vm.warp(BATCH_ID + 20);
+        settlement.finalize(BATCH_ID, s);
+
+        assertEq(nvda.balanceOf(alice), 1e18, "the user is filled either way");
+        assertEq(usdg.balanceOf(solver), 0, "and nobody is paid for an unchecked claim");
+    }
+
+    function test_onlyTheGovernorNamesTheBaselineAdapter() public {
+        vm.expectRevert(Settlement.NotGovernor.selector);
+        settlement.setBaselineAdapter(address(venueQuotes));
+
+        MockSwapAdapter stranger = new MockSwapAdapter();
+        vm.prank(governor);
+        vm.expectRevert(abi.encodeWithSelector(ISettlement.AdapterNotAllowed.selector, address(stranger)));
+        settlement.setBaselineAdapter(address(stranger));
+    }
+
+    function _submitExpectingFloor(Solution memory s, uint256 claimed) internal {
+        s.claimedSavings = ((1e18 - claimed) * 200e18) / 1e18 + ((200e6 - 198e6) * 1e30) / 1e18;
+        vm.warp(BATCH_ID + 1);
+        vm.prank(solver);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettlement.BaselineBelowVenue.selector, address(usdg), address(nvda), claimed, 0.99e18
+            )
+        );
+        settlement.submitSolution(s);
+    }
+}

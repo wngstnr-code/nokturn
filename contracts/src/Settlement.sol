@@ -87,6 +87,12 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
     mapping(address => bool) public tokenAllowed;
     mapping(address => bool) public adapterAllowed;
 
+    /// The adapter the floor under Solution.baselineQuotes is read from.
+    /// parameter.md section 4C. A parameter rather than an immutable, because the
+    /// V4 adapter arrives in v1.1 through the timelock and the settlement core does
+    /// not get redeployed for it.
+    address public baselineAdapter;
+
     uint256 public capPerBatchUsd = 5000e18;
     uint256 public capPerTokenDailyUsd = 50_000e18;
     uint256 public capGlobalDailyUsd = 200_000e18;
@@ -138,6 +144,17 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
     function setAdapterAllowed(address adapter, bool allowed) external onlyGovernor {
         adapterAllowed[adapter] = allowed;
         emit AdapterAllowlisted(adapter, allowed);
+    }
+
+    /// @notice Names the adapter the baseline floor is read from. Zero clears it,
+    /// which leaves every batch a pass through rather than an unchecked one.
+    function setBaselineAdapter(address adapter) external onlyGovernor {
+        if (adapter != address(0)) {
+            if (!adapterAllowed[adapter]) revert AdapterNotAllowed(adapter);
+            if (!IVenueAdapter(adapter).isQuotable()) revert AdapterNotQuotable(adapter);
+        }
+        baselineAdapter = adapter;
+        emit BaselineAdapterSet(adapter);
     }
 
     /// @notice The guardian is a parameter rather than an immutable, so a leaked
@@ -290,7 +307,7 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
         }
 
         Session session = sessions.sessionAt(s.batchId);
-        return verifier.verify(
+        uint256 savings = verifier.verify(
             _packIntents(s),
             _packExecutions(s),
             s.tokens,
@@ -301,6 +318,57 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
             sessions.maxDeviationBps(session),
             FEE_CAP_NOTIONAL_BPS
         );
+
+        // A baseline nobody checked is a baseline a solver writes for itself, and
+        // savings is what picks the winner and sets the fee cap. parameter.md 4C.
+        return _baselineFloor(s) ? savings : 0;
+    }
+
+    /// @dev One quote per pair direction on that direction's gross volume, not one
+    /// per intent. The bound is looser than the truth by the pool's own price impact
+    /// between a combined trade and the same volume split, which is zero at the
+    /// batch sizes this protocol actually sees. parameter.md section 4C carries the
+    /// measured table.
+    ///
+    /// @return priced false when no floor could be computed at all, which forces
+    /// the batch to pass through rather than trusting an unchecked number.
+    function _baselineFloor(Solution calldata s) internal view returns (bool priced) {
+        address adapter = baselineAdapter;
+        if (adapter == address(0)) return false;
+
+        uint256 n = s.tokens.length;
+        uint256[][] memory sold = new uint256[][](n);
+        uint256[][] memory claimed = new uint256[][](n);
+        for (uint256 t = 0; t < n; ++t) {
+            sold[t] = new uint256[](n);
+            claimed[t] = new uint256[](n);
+        }
+
+        for (uint256 k = 0; k < s.executions.length; ++k) {
+            Intent calldata i = s.intents[s.executions[k].intentIndex];
+            uint256 si = _tokenIndex(s.tokens, i.sellToken);
+            uint256 bi = _tokenIndex(s.tokens, i.buyToken);
+            sold[si][bi] += s.executions[k].executedSell;
+            claimed[si][bi] += s.baselineQuotes[k];
+        }
+
+        priced = true;
+        for (uint256 si = 0; si < n; ++si) {
+            for (uint256 bi = 0; bi < n; ++bi) {
+                if (sold[si][bi] == 0) continue;
+                try IVenueAdapter(adapter).quoteFromState(s.tokens[si], s.tokens[bi], sold[si][bi]) returns (
+                    uint256 floor
+                ) {
+                    if (claimed[si][bi] < floor) {
+                        revert BaselineBelowVenue(s.tokens[si], s.tokens[bi], claimed[si][bi], floor);
+                    }
+                } catch {
+                    // The venue cannot be read for this pair right now, so there is
+                    // no floor to hold the solver to and no fee to charge.
+                    priced = false;
+                }
+            }
+        }
     }
 
     function _pull(Solution calldata s, uint64 collectEnd) internal {

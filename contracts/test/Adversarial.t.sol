@@ -87,7 +87,7 @@ contract AdversarialSettlementTest is SettlementFixture {
     function test_A4_oracleManipulatedForOneBlock() public {
         // The fixture quotes the venue in raw USDG units. Disagreement is measured
         // against the WAD price, so the TWAP has to speak the same convention.
-        adapter.setRate(address(nvda), address(usdg), 200e18);
+        adapter.setTwapRate(address(nvda), address(usdg), 200e18);
 
         (,, bool agreeBefore) = oracle.dualCheck(address(nvda));
         assertTrue(agreeBefore, "the two sources start together");
@@ -291,6 +291,34 @@ contract AdversarialSettlementTest is SettlementFixture {
         assertEq(usdg.balanceOf(treasury), 0);
         assertEq(nvda.balanceOf(alice), 1e18, "the users still got their fills");
         assertEq(usdg.balanceOf(bob), 200e6);
+    }
+
+    /// A16. Understating the baseline is the one lie the verifier used to accept,
+    /// because it only ever checked that the fill beat the claim. Savings picks the
+    /// winner and sets the fee cap, so the lie paid twice. parameter.md 4C.
+    function test_A16_solverUnderstatesTheBaselineToInflateSavings() public {
+        Solution memory honest = _nettedSolution();
+        honest.claimedSavings = 4e18;
+        vm.warp(BATCH_ID + 1);
+        vm.prank(solver);
+        settlement.submitSolution(honest);
+
+        Solution memory shaded = _nettedSolution();
+        shaded.baselineQuotes[0] = 0;
+        shaded.baselineQuotes[1] = 0;
+        shaded.claimedSavings = (1e18 * 200e18) / 1e18 + (200e6 * 1e30) / 1e18;
+
+        vm.prank(solver);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettlement.BaselineBelowVenue.selector, address(usdg), address(nvda), 0, 0.99e18
+            )
+        );
+        settlement.submitSolution(shaded);
+
+        (, uint256 savings, address winner) = settlement.bestSolution(BATCH_ID);
+        assertEq(savings, 4e18, "the honest solution is still the one to beat");
+        assertEq(winner, solver);
     }
 
     /// A14. A batch whose identifier sits on a session boundary is refused rather

@@ -424,6 +424,76 @@ ulang tiap malam, menegaskan cap peluncuran menyentuh paling banyak empat tick d
 setiap pool masih menjawab di sepuluh kali cap, lalu mencetak tabel ini apa adanya.
 Ukur lagi sebelum menambah pool baru ke allowlist adapter.
 
+### 4C. Batas bawah baseline — ditambahkan 20 September 2026
+
+**Masalah yang ditutupnya.** Sampai hari ini `Solution.baselineQuotes` datang dari
+solver dan tidak ada apa pun onchain yang memeriksanya. `ClearingVerifier` hanya
+menolak baseline yang **dilebihkan**, lewat `executedBuy >= baselineQuotes[k]`.
+Baseline yang **dikurangi** lolos, dan dari situ `savings` dihitung, plafon fee
+ditentukan, dan pemenang lelang dipilih. Rinciannya di `pertanyaan-terbuka.md` P7-1,
+lengkap dengan dua solusi yang eksekusinya identik sampai wei dan hanya berbeda
+baseline.
+
+**Aturannya.** Untuk setiap arah pasangan yang muncul di sebuah batch, jumlah
+`baselineQuotes` pada arah itu tidak boleh di bawah `quoteFromState` atas **jumlah
+`executedSell` arah itu**. Satu kuotasi per arah, bukan satu per intent.
+
+| Konstanta | Nilai | Alasan |
+|---|---|---|
+| `baselineAdapter` | Diset governance, awalnya kosong | Adapter yang dipakai menghitung lantai. Wajib ada di `adapterAllowed` dan `isQuotable()`. Parameter, bukan immutable, supaya adapter V4 di v1.1 masuk lewat time-lock |
+
+**Kalau lantainya tidak bisa dihitung, batch jadi pass-through.** Itu terjadi kalau
+`baselineAdapter` belum diset, atau kuotasinya revert karena
+`TooManyTickCrossings`, pool tidak terdaftar, atau fee dinamis. Dalam kasus itu
+`savings` dipaksa nol, yang berarti solver tidak boleh menahan apa pun dan fee nol.
+Batch tetap selesai dan pengguna tetap menerima penuh. Ini perilaku yang sama dengan
+"tidak ada baseline" yang sudah ditetapkan `desain-baseline.md` §5, dan arah amannya
+sama. **Tanpa informasi, protokol tidak menagih.**
+
+**Celah sisa, dan kenapa ia dapat diterima.** Lantai agregat lebih longgar daripada
+kebenaran, tepat sebesar dampak harga antara satu perdagangan gabungan dan volume
+yang sama dipecah jadi beberapa intent. Diukur 20 September 2026 lewat
+`test/fork/BaselineBoundFork.t.sol`, dalam bps dari baseline jujur.
+
+| Token | $172 | $1.000 | $5.000, cap | $50.000 |
+|---|---|---|---|---|
+| NVDA | 0 | 0 | 0 | 1 |
+| GOOGL | 0 | 0 | 0 | 3 sampai 6 |
+| AAPL | 0 | 0 | 0 sampai 1 | 10 sampai 16 |
+| TSLA | 0 | 0 | 1 sampai 3 | 19 sampai 34 |
+| GME | 0 | 0 sampai 1 | 1 sampai 3 | 69 sampai 85 |
+
+Kolom $172 adalah tiket median Agustus $57,44 dikali tiga, yaitu bentuk batch yang
+sebenarnya pada pangsa awal. **Pada bentuk itu celahnya nol di kelima token.**
+Rentangnya pecahan 2, 3, 5, dan 10 intent.
+
+Plafon fee mengambil 20% dari surplus, jadi celah baseline 3 bps menaikkan plafon
+paling banyak 0,6 bps notional, dengan langit langit keras tetap 3 bps. Sebelum
+aturan ini celahnya tidak terbatas sampai langit langit itu.
+
+**Biaya gas, satu kuotasi per arah pasangan.**
+
+| Token | $172 | $5.000, cap | $50.000 |
+|---|---|---|---|
+| TSLA | 24.572 | 25.493 | 53.394 |
+| GOOGL | 25.589 | 25.557 | 39.948 |
+| GME | 25.713 | 40.233 | 287.296 |
+| AAPL | 26.073 | 40.945 | 85.546 |
+| NVDA | 26.416 | 26.416 | 26.348 |
+
+Batch nyata menyentuh satu sampai tiga pasangan, jadi tambahannya sekitar 50 sampai
+160 ribu gas. Pada 0,01 gwei itu 0,0000016 ETH, dan biaya data L1 di chain ini nol.
+
+⚠️ **Biaya kuotasi tumbuh dengan ukuran.** GME menghabiskan 287 ribu gas di $50.000
+karena empat belas penyeberangan. Menaikkan `CAP_PER_BATCH` ke arah plafon governance
+menaikkan biaya ini juga, jadi ukur lagi sebelum menaikkannya.
+
+**Yang tidak ditutup aturan ini.** Pembagian baseline di antara intent pada pasangan
+yang sama masih ditentukan solver. Yang tidak bisa lagi digeser adalah totalnya, dan
+totalnya yang menentukan `savings`, plafon fee, dan pemenang lelang.
+
+---
+
 > **Arah pembulatan `baselineReceived`: KE ATAS.** Ini pengecualian sadar terhadap
 > §9 ("kuantitas diterima pengguna dibulatkan ke bawah") — baseline bukan jumlah
 > yang dibayarkan ke siapa pun, ia nilai pembanding yang menentukan fee.

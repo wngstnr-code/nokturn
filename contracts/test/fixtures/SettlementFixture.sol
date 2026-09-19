@@ -33,6 +33,7 @@ abstract contract SettlementFixture is Test {
     MockPermit2 permit2;
     MockSolverRegistry registry;
     MockSwapAdapter adapter;
+    MockSwapAdapter venueQuotes;
 
     MockERC20 usdg;
     MockERC20 nvda;
@@ -65,6 +66,11 @@ abstract contract SettlementFixture is Test {
         usdgFeed = new MockAggregator(8, "USDG / USD");
         nvdaFeed = new MockAggregator(8, "RHNVDA / USD");
         adapter = new MockSwapAdapter();
+        // What the venue would have quoted, which is not the rate the swap path
+        // uses. A real pool answers quoteFromState from its own curve and charges a
+        // fee, so the counterfactual is below the price a batch clears at. A linear
+        // mock cannot be both, so the two live in two instances.
+        venueQuotes = new MockSwapAdapter();
 
         oracle = new PriceOracle(ISessionManager(address(sessions)), governor);
         vm.startPrank(governor);
@@ -94,6 +100,8 @@ abstract contract SettlementFixture is Test {
         settlement.setTokenAllowed(address(usdg), true);
         settlement.setTokenAllowed(address(nvda), true);
         settlement.setAdapterAllowed(address(adapter), true);
+        settlement.setAdapterAllowed(address(venueQuotes), true);
+        settlement.setBaselineAdapter(address(venueQuotes));
         vm.stopPrank();
 
         usdgFeed.push(1e8, DAY_OPEN);
@@ -111,6 +119,10 @@ abstract contract SettlementFixture is Test {
         // decimal base. 200 USDG in gives 1 NVDA out.
         adapter.setRate(address(usdg), address(nvda), 5e27);
         adapter.setRate(address(nvda), address(usdg), 200e6);
+        // One percent below, which is exactly the baselineQuotes the solutions in
+        // these tests carry. parameter.md section 4C.
+        venueQuotes.setRate(address(usdg), address(nvda), 4.95e27);
+        venueQuotes.setRate(address(nvda), address(usdg), 198e6);
     }
 
     function _intent(
