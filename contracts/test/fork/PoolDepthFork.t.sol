@@ -84,7 +84,24 @@ contract PoolDepthForkTest is Test {
                 }
             }
             emit log_named_uint("  largest quotable usd", _largestQuotable(tokens[k]));
+            emit log_named_uint(
+                "  impact bps at ten times the cap", _impactBps(tokens[k], CAP_PER_BATCH_USD * 10)
+            );
         }
+    }
+
+    /// @dev How much worse the effective price is than at the launch cap. Printed
+    /// next to the quotable size because the quotable size on its own cannot tell a
+    /// deep pool from a thin one. A pool can keep answering long past the point the
+    /// answer is worth anything, and one candidate measured on 20 September quoted a
+    /// million dollars at seventy six times its own launch cap price without ever
+    /// tripping MAX_TICK_CROSSINGS.
+    function _impactBps(address token, uint256 amountIn) internal view returns (uint256) {
+        uint256 basePrice =
+            (CAP_PER_BATCH_USD * 1e18) / adapter.quoteFromState(Addresses.quote(), token, CAP_PER_BATCH_USD);
+        uint256 price = (amountIn * 1e18) / adapter.quoteFromState(Addresses.quote(), token, amountIn);
+        if (price <= basePrice) return 0;
+        return ((price - basePrice) * 10_000) / basePrice;
     }
 
     /// @dev Binary search on the real adapter rather than a copy of its loop. The

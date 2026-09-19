@@ -1362,6 +1362,79 @@ Agustus, sesi off-hours saja, dengan definisi pedagang yang mungkin berbeda. Yan
 sah dipakai dari tabel ini adalah **peringkat antar token**, karena seluruh barisnya
 diukur dengan satu metode yang sama.
 
+### Kandidat GME dan META, diperiksa tuntas 20 September 2026
+
+Keduanya lolos gerbang Stock Token. Slot beacon benar, `uiMultiplier()` tepat 1e18,
+delapan belas desimal.
+
+| | GME | META |
+|---|---|---|
+| Token | `0x1b0E319c6A659F002271B69dB8A7df2F911c153E` | `0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35` |
+| Proxy feed | `0x27C71df6A64fB476468EdF256CF72c038baB5B67` | `0x7C38C00C30BEe9378381E7B6135d7283356D71b1` |
+| `description()` | `Robinhood GME / USD` | `Robinhood META / USD` |
+| Harga feed saat diukur | $22,55 | $666,76 |
+| Jeda `OPEN` p99 | 64.479 dtk | 19.868 dtk |
+| Netting per batch | 48,9% | 45,4% |
+
+Proxy keduanya ditemukan dengan menelusuri deployer yang sama dengan empat proxy
+allowlist, `0xfe3c266c…`, lalu diverifikasi lewat `aggregator()` dan
+`description()`. Bukan ditebak dari pola urutan deploy, meski polanya memang ada.
+
+**GME lolos, dan pool utamanya ada di venue yang benar.**
+
+| Ukuran | Crossing | Harga efektif | Dampak |
+|---|---|---|---|
+| $5.000, cap peluncuran | 1 | $22,54 | 0 bps |
+| $10.000 | 1 | $22,55 | 4 bps |
+| $50.000, sepuluh kali cap | 14 | $22,71 | 75 bps |
+| $250.000 | ditolak | | |
+
+Harga efektif di cap peluncuran $22,54 berbanding feed $22,55, selisih di bawah satu
+bps. Pool utamanya Uniswap V3 dengan $145,5jt volume September, lawan $2,6jt di V4.
+
+**META gugur, dan bukan karena kedalaman.** Pasar META ada di **Uniswap V4**.
+
+| Venue | Volume September |
+|---|---|
+| Uniswap V4 | $97,5jt |
+| ramsesxyz cl | $11,2jt |
+| **Uniswap V3** | **$5,4jt** |
+
+Adapter v1.0 hanya Uniswap V3, karena pool V4 dominan memakai hook fee dinamis
+sehingga baseline tidak bisa dihitung dari state. Artinya **95% arus META berada di
+venue yang tidak bisa dikuotasi v1.0**. Pool V3 yang tersisa tipis, likuiditas
+1,77e17 atau sepuluh kali lebih tipis daripada GME, dan harganya 109 bps di atas
+feed pada saat yang sama. Itu tanda pool yang ditinggalkan arus, bukan pool yang
+sehat.
+
+Menempatkan META di allowlist berarti mengiklankan harga pembanding dari pool yang
+memegang seperdua puluh arusnya. Klaim price improvement terhadap baseline seperti
+itu tidak akan bertahan diperiksa.
+
+**META masuk lagi di v1.1 bersama adapter V4**, bukan lewat proposal allowlist.
+
+### Pelajaran metodologi kesembilan, 20 September 2026. Ukuran yang bisa dikuotasi bukan kedalaman
+
+`PoolDepthFork.t.sol` mencetak `largest quotable usd`, dicari dengan binary search
+atas ukuran yang tidak ditolak adapter. Diterapkan ke META, angkanya **$3.999.999**,
+yaitu batas atas pencariannya sendiri. Terdengar seperti pool paling dalam di repo.
+
+Harga efektifnya di angka itu **76 kali lipat** harga di cap peluncuran.
+
+Adapter memang benar. Ia menolak hasil parsial dan menolak melewati
+`MAX_TICK_CROSSINGS`, dan META tidak melanggar keduanya. Ia melewati dua puluh
+crossing lalu tetap menemukan likuiditas, hanya pada harga yang tidak berarti apa
+apa. **Kuotasi yang berhasil bukan kuotasi yang layak**, dan metrik yang hanya
+menanyakan berhasil atau tidak tidak bisa membedakannya.
+
+Metriknya diganti menjadi **dampak harga dalam bps terhadap harga di cap
+peluncuran**. Untuk keempat pool allowlist angkanya tidak berubah, karena ketiganya
+memang menolak jauh sebelum harga jadi absurd. Yang berubah adalah ia sekarang bisa
+menangkap kasus seperti META.
+
+Bentuknya sama dengan pelajaran kedelapan, yaitu angka yang stabil, bisa diulang,
+dan menjawab pertanyaan yang salah.
+
 ---
 
 ## RONDE 5 — peta venue lengkap (10 September 2026)
