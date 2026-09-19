@@ -14,6 +14,7 @@
 
 ```
 Settlement.sol          ← inti; orkestrasi, immutable
+├── Guarded.sol         ← penghentian darurat, diwarisi Settlement & AuctionHouse
 ├── SessionManager.sol  ← keadaan pasar (fungsi murni + tabel kalender)
 ├── SolverRegistry.sol  ← bond, slashing, papan skor
 ├── AuctionHouse.sol    ← lelang buka/tutup, escrow, tantangan
@@ -27,6 +28,52 @@ Settlement.sol          ← inti; orkestrasi, immutable
     (Stylus/Rust ATAU Solidity — belum final, tergantung benchmark
      aktivasi vs eksekusi; lihat pertanyaan-terbuka.md P1-3)
 ```
+
+---
+
+### 1.1 `Guarded` — permukaan penghentian darurat
+
+Ditambahkan 19 September 2026. Dokumen ini sebelumnya **tidak memuatnya sama
+sekali**, padahal `parameter.md` §8 dan `threat-model.md` sudah menentukannya sejak
+awal. Kontrak ditulis dari dokumen ini, jadi pause lolos tanpa ada yang menolaknya.
+Itu kebocoran yang diperbaiki di sini, bukan fitur baru.
+
+Diwarisi `Settlement` dan `AuctionHouse`. Keduanya punya guardian dan jam pause
+sendiri, jadi masalah di lelang tidak menghentikan settlement dan sebaliknya.
+
+```solidity
+abstract contract Guarded {
+    uint32 public constant PAUSE_DURATION = 6 hours;
+
+    address public guardian;
+    uint64 public pausedUntil;
+
+    error NotGuardian(address caller);
+    error ProtocolPaused(uint64 until);
+
+    event GuardianChanged(address indexed guardian);
+    event Paused(address indexed guardian, uint64 until);
+
+    function pause() external;              // hanya guardian, instan, tanpa timelock
+    function isPaused() external view returns (bool);
+}
+```
+
+Pada kedua pewarisnya, ditambah satu fungsi governor.
+
+```solidity
+function setGuardian(address guardian_) external;   // hanya timelock
+```
+
+**Tidak ada `unpause`.** Ini bukan kelalaian. `parameter.md` §8.1 menjelaskan kenapa,
+yaitu owner-nya timelock 48 jam sehingga cooldown enam jam tidak akan pernah bisa
+dieksekusi siapa pun. Pause membawa tenggatnya sendiri dan lewat begitu saja.
+
+Fungsi mana yang berhenti dan mana yang tidak ada di `parameter.md` §8.2. Ringkasnya
+satu kalimat. **Pause menghentikan masuknya nilai baru, tidak pernah menghentikan
+keluarnya nilai yang sudah masuk.** `refundEscrow` hanya menjawab setelah lelangnya
+terminal, jadi `abortAuction` wajib tetap hidup saat pause atau escrow pengguna
+terjebak.
 
 ---
 

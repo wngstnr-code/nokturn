@@ -715,12 +715,57 @@ Tidak ada harga pembukaan/penutupan resmi yang terekspos onchain — lihat §12.
 | `TIMELOCK_DELAY` | **48 jam** | Cukup untuk mendeteksi kunci owner yang dikompromikan |
 | Guardian pause | **instan, tanpa time-lock** | Penghentian darurat harus cepat |
 | Guardian unpause | **tidak bisa** | Guardian sengaja dibuat tidak berdaya |
-| Owner unpause | setelah **6 jam** cooldown | Cukup untuk telaah; tidak melumpuhkan kalau pause-nya keliru |
+| `PAUSE_DURATION` | **6 jam**, lalu lepas sendiri | Cukup untuk telaah; tidak melumpuhkan kalau pause-nya keliru |
+| Alamat guardian | parameter, diubah lewat time-lock | Membatasi griefing kunci bocor ke 48 jam |
 | Kekuasaan memindahkan dana | **tidak ada, untuk siapa pun** | Properti inti; bisa diverifikasi dengan membaca kode |
 
 Yang bisa diubah lewat time-lock: allowlist token, allowlist adapter, parameter
 sesi (dalam rentang keras), tabel kalender, tabel DST, exposure cap, parameter fee
-(dalam batas keras).
+(dalam batas keras), dan alamat guardian.
+
+### 8.1 Pause berakhir sendiri, tidak ada yang mencabutnya
+
+Diperbaiki 19 September 2026. Baris lama berbunyi "owner unpause setelah 6 jam
+cooldown", dan itu **tidak bisa dieksekusi siapa pun**. Owner di desain ini adalah
+timelock 48 jam, jadi setiap panggilan owner butuh dua hari dan angka enam jam itu
+tidak pernah bisa tercapai.
+
+Yang menggantikannya, `pause()` menulis tenggat enam jam ke depan dan tidak ada
+fungsi unpause sama sekali. Ia lewat begitu saja.
+
+Bentuk ini mempertahankan keempat maksud aslinya. Penghentian tetap instan. Guardian
+tetap tidak berdaya, karena ia bahkan tidak bisa mencabut pause-nya sendiri. Enam jam
+tetap jadi jendela telaah. Dan pause yang keliru tidak melumpuhkan protokol selama
+dua hari.
+
+Guardian boleh memanggil `pause()` lagi selama insidennya berlanjut. Artinya kunci
+guardian yang bocor bisa menahan protokol terus-menerus, dan batasnya adalah **48 jam**,
+yaitu waktu yang dibutuhkan timelock untuk merotasi alamatnya. Itu sebabnya alamat
+guardian adalah parameter, bukan nilai immutable.
+
+### 8.2 Pause menghentikan nilai masuk, tidak pernah nilai keluar
+
+Kunci yang bisa menjebak dana pengguna sama buruknya dengan kunci yang bisa
+memindahkannya, dan lebih licin karena tidak terbaca seperti pencurian. Aturan 5 di
+`CLAUDE.md` mencakup keduanya.
+
+`refundEscrow` hanya bisa dipanggil setelah lelangnya `EXECUTED` atau `ABORTED`, jadi
+pause yang memblokir `abortAuction` akan menjebak escrow sampai pause lepas. Itu jalur
+yang harus dijaga secara eksplisit, bukan diserahkan pada kehati-hatian.
+
+| Dihentikan pause | Tidak pernah dihentikan |
+|---|---|
+| `Settlement.submitSolution` | `Settlement.expireBatch` |
+| `Settlement.finalize` | `Settlement.submitIntentOnchain` |
+| `AuctionHouse.openAuction` | `AuctionHouse.abortAuction` |
+| `AuctionHouse.commitAuctionIntent` | `AuctionHouse.refundEscrow` |
+| `AuctionHouse.freeze` | `AuctionHouse.cancelBeforeFreeze` |
+| `AuctionHouse.submitCross` | `AuctionHouse.extend` |
+| `AuctionHouse.challenge` | `AuctionHouse.publishIndicative` |
+| `AuctionHouse.executeCross` | Seluruh `SolverRegistry`, termasuk `withdrawBond` |
+
+`SolverRegistry` sengaja tidak punya guardian. Ia tidak menyelesaikan apa pun, dan
+`withdrawBond` adalah jalur keluar yang harus selalu hidup.
 
 ---
 
