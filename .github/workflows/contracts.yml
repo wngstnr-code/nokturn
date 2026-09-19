@@ -44,6 +44,17 @@ jobs:
       # flaky endpoint cannot block a pull request.
       - run: forge test -vvv --no-match-path "test/fork/*"
       - name: coverage gate, 95 percent lines on core contracts
+        # Default profile rather than ci, which is the workflow wide setting. The
+        # ci profile runs four times the fuzz iterations and eight times the
+        # invariant work, and coverage instruments every one of them. Measured on
+        # one machine on 19 September 2026, the two profiles report line coverage
+        # that is identical on every file, down to SessionManager at 118 of 123,
+        # which is the tightest margin above the threshold. The ci profile took
+        # 1075 seconds to reach those numbers and the default profile took 103.
+        # More iterations find deeper states, and the test step above is where that
+        # belongs. They do not find new lines, and this step only counts lines.
+        env:
+          FOUNDRY_PROFILE: default
         run: |
           # --ir-minimum because coverage disables the IR pipeline, and the
           # clearing verifier needs it to compile at all. There is no "|| true"
