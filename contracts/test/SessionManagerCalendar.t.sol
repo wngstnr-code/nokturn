@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {SessionManager} from "../src/SessionManager.sol";
 import {Session} from "../src/types/Types.sol";
-import {CalendarFixture} from "./fixtures/CalendarFixture.sol";
+import {CalendarFixture} from "../script/Calendar.sol";
 
 /// @notice Walks every calendar day from 2020 to 2035 against the committed NYSE
 /// fixture. rencana-uji.md section 8 asks for exhaustion at every boundary rather

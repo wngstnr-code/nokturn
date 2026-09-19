@@ -14,7 +14,7 @@ import {ISolverRegistry} from "../../src/interfaces/ISolverRegistry.sol";
 import {IntentLib} from "../../src/libraries/IntentLib.sol";
 import {Permit2Witness} from "../../src/libraries/Permit2Witness.sol";
 import {Intent, IntentFlags, IntentKind, SessionMask} from "../../src/types/Types.sol";
-import {CalendarFixture} from "../fixtures/CalendarFixture.sol";
+import {CalendarFixture} from "../../script/Calendar.sol";
 import {ForkFixture} from "../fixtures/ForkFixture.sol";
 import {MockAggregator} from "../mocks/MockAggregator.sol";
 import {MockSolverRegistry} from "../mocks/MockSolverRegistry.sol";

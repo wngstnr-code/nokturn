@@ -15,7 +15,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IntentLib} from "../src/libraries/IntentLib.sol";
 import {Permit2Witness} from "../src/libraries/Permit2Witness.sol";
 import {Execution, Intent, IntentFlags, IntentKind, SessionMask} from "../src/types/Types.sol";
-import {CalendarFixture} from "./fixtures/CalendarFixture.sol";
+import {CalendarFixture} from "../script/Calendar.sol";
 import {MockAggregator} from "./mocks/MockAggregator.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockPermit2} from "./mocks/MockPermit2.sol";

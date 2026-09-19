@@ -589,6 +589,29 @@ curl --resolve rpc.mainnet.chain.robinhood.com:443:172.66.147.70 \
   -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}'
 ```
+> ### Verifikasi kontrak, diukur ulang 19 September 2026
+>
+> Catatan di dokumen ini dan di `CLAUDE.md` berbunyi *"Blockscout masih butuh
+> `--resolve`"*. Itu **tidak lagi cukup**. Origin di balik workaround itu sekarang
+> menjawab tantangan Cloudflare, bukan API-nya, dan lewat DNS biasa ia menjawab
+> 403. Artinya `forge verify-contract` ke Blockscout tidak bisa dipakai dari sini
+> sama sekali, bukan sekadar merepotkan.
+>
+> **Jalannya Sourcify.** Chain 4663 dan 46630 keduanya terdaftar `supported: true`
+> di `https://sourcify.dev/server/chains`, endpoint-nya tembus dari jaringan ini
+> tanpa workaround apa pun, dan Blockscout membaca Sourcify. Script-nya ada di
+> `contracts/tools/verify.sh`.
+>
+> Satu hal yang harus disebut, bukan disembunyikan. `foundry.toml` menyetel
+> `bytecode_hash = "none"` dan mematikan CBOR metadata, jadi bytecode yang
+> ter-deploy tidak membawa trailer metadata. Verifier yang mengompilasi ulang dari
+> standard json menghasilkan byte yang sama, dan itu kecocokan yang penting, tapi
+> tidak ada hash metadata untuk dibandingkan. Sourcify mencatatnya sebagai
+> `match`, bukan `exact_match`. Itu sifat setelan kompiler, bukan sifat
+> verifikasinya.
+>
+> RPC `https://robinhood.drpc.org` sendiri tetap sehat, menjawab `0x1237`.
+
 > ### Terpecahkan 16 September 2026, dan klaim lama di bawahnya salah
 >
 > Catatan lama berbunyi *"`https://robinhood.drpc.org` bisa diakses tapi hanya

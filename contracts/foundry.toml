@@ -14,7 +14,12 @@ via_ir = true
 bytecode_hash = "none"
 cbor_metadata = false
 gas_reports = ["*"]
-fs_permissions = [{ access = "read", path = "../data" }]
+fs_permissions = [
+  { access = "read", path = "../data" },
+  # The deploy script records what it put on chain, one file per chain id so a
+  # mainnet run cannot quietly overwrite a testnet rehearsal.
+  { access = "read-write", path = "deployments" },
+]
 remappings = [
   "forge-std/=lib/forge-std/src/",
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",

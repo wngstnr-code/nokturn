@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {SessionManager} from "../src/SessionManager.sol";
 import {Session} from "../src/types/Types.sol";
-import {CalendarFixture} from "./fixtures/CalendarFixture.sol";
+import {CalendarFixture} from "../script/Calendar.sol";
 
 contract SessionManagerTest is Test {
     SessionManager manager;

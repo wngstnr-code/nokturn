@@ -2,9 +2,12 @@
 pragma solidity 0.8.28;
 
 import {Vm} from "forge-std/Vm.sol";
-import {SessionManager} from "../../src/SessionManager.sol";
+import {SessionManager} from "../src/SessionManager.sol";
 
-/// @notice Loads the committed NYSE fixtures into a SessionManager.
+/// @notice Loads the committed NYSE calendar into a SessionManager.
+/// Lives beside the deploy rather than under test, because the deploy is what puts
+/// this table on chain and the tests are what check it. Production importing from
+/// a test directory is the wrong way round.
 /// Everything comes from nyse-sessions.csv, which holds one row per calendar day
 /// from 2020-01-01 to 2035-12-31. Deriving the holiday and early close table from
 /// the same file the exhaustive test walks means the two can never disagree.
