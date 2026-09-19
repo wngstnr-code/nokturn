@@ -124,5 +124,5 @@ testnet sekarang ikut dicegat DNS ISP Indonesia, lihat `parameter.md` §10.6.
 ## Gerbang sebelum mainnet
 
 `rencana-uji.md` §10 adalah daftarnya, dan deploy mainnet hanya jalan kalau semuanya
-hijau. Per hari ini enam dari empat belas tercentang. Testnet 46630 tidak menunggu
+hijau. Per hari ini sembilan dari empat belas tercentang. Testnet 46630 tidak menunggu
 itu, karena ia gladi resik dan tokennya token uji. Sebut begitu apa adanya.

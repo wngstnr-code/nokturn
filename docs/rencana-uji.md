@@ -397,7 +397,7 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 - [x] Threat model selesai, risiko sisa terdokumentasi · sepuluh risiko sisa terbuka di §5, runbook §6.3 terisi 19 September 2026. Risiko 10 sengaja tidak dimitigasi, dibatasi ruang lingkupnya
 - [ ] Monitoring jalan, runbook tertulis, kunci guardian teruji · runbook tertulis dan kunci guardian teruji lewat 16 test plus 5 bukti simbolis. Monitoring belum berjalan
 - [ ] Exposure cap diset ke nilai peluncuran
-- [ ] Semua P0 di `pertanyaan-terbuka.md` terjawab
+- [x] Semua P0 di `pertanyaan-terbuka.md` terjawab · P0-3 ditutup 19 September 2026 lewat P6-1, keluarga feed `RH` dengan ambang p99 per feed
 - [ ] **Audit provenansi data §11 lulus — nol temuan mock di permukaan produk**
 
 ---

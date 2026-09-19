@@ -545,13 +545,15 @@ Saat sesi `WEEKEND`, `HOLIDAY`, atau `PROTECTIVE`, seluruh cap **dikalikan 0,5**
 
 ### 7.1 Staleness — per feed, bukan global
 
-Diturunkan dari cadence terukur 24–31 Juli 2026 (p95 jeda antar-update, dibulatkan
-ke atas). **Wajib per-feed:** cadence antar-aset berbeda sampai 15×.
+Diturunkan dari cadence terukur atas seluruh riwayat feed, 22 Juni sampai 18
+September 2026 (p99 jeda antar-update, dibulatkan ke atas). **Wajib per-feed:**
+cadence antar-aset berbeda sampai empat kali di sesi `OPEN`.
 
-> ### Alamat lengkap dan pengukuran ulang, 16 September 2026
+> ### Alamat lengkap dan pengukuran ulang, 19 September 2026
 >
-> Tabel di bawah ini dibuat 1 Agustus 2026 dari cadence 24 sampai 31 Juli. **Tiga
-> hal di dalamnya sekarang salah**, dan ketiganya menyentuh `PriceOracle`.
+> Tabel di bawah ini dibuat 1 Agustus 2026 dari cadence 24 sampai 31 Juli, lalu
+> diukur ulang 16 September atas jendela yang terlalu pendek. **Tiga hal di
+> dalamnya sekarang salah**, dan ketiganya menyentuh `PriceOracle`.
 >
 > **1. Yang tercatat adalah alamat aggregator, bukan proxy.** `0xC9D16E4F...` tidak
 > punya `aggregator()`, sedangkan `0x379ec4f7...` punya dan menunjuk ke sana. Feed
@@ -568,52 +570,77 @@ ke atas). **Wajib per-feed:** cadence antar-aset berbeda sampai 15×.
 > Semuanya 8 desimal. GOOGL sebelumnya tidak punya baris di tabel di bawah sama
 > sekali, padahal ia ada di allowlist v1.0. Sekarang punya.
 >
-> **2. Ada dua keluarga feed, dan keduanya hidup.** Selain keluarga `RH*` di atas,
-> ada keluarga bernama polos: `NVDA / USD` (`0xe5f00a9e04ed6d86dc53bfcd8de4bad22e4fe5e4`),
-> `GOOGL / USD` (`0x3d5661b635da3bb607a95be39d4d28fc24f4c683`), `AAPL / USD`
-> (`0x273cb738fe4ef162bcdfb603c89da224e1b67b0e`). Keluarga polos **tidak dibaca
-> satu konsumen pun** di chain ini, tapi ia diperbarui dengan heartbeat teratur.
-> Harganya berbeda. RHNVDA 213,04 lawan NVDA 212,17 pada saat yang sama, yaitu
-> **41 bps**, lebih lebar dari price band `OPEN` yang 30 bps.
+> **2. Ada dua keluarga feed, dan yang kedua baru berumur empat hari.** Selain
+> keluarga `RH*` di atas, ada keluarga bernama polos: `NVDA / USD`
+> (`0xe5f00a9e04ed6d86dc53bfcd8de4bad22e4fe5e4`), `GOOGL / USD`
+> (`0x3d5661b635da3bb607a95be39d4d28fc24f4c683`), `AAPL / USD`
+> (`0x273cb738fe4ef162bcdfb603c89da224e1b67b0e`). Ketiganya memancarkan
+> `AnswerUpdated` pertamanya **15 September 2026 pukul 09.03 UTC**, dalam rentang
+> sepuluh detik satu sama lain. Keluarga polos mengukur saham biasa, bukan token
+> Robinhood, dan **tidak dibaca satu konsumen pun** di chain ini.
 >
-> **3. Cadence September jauh lebih buruk daripada Juli, dan ekornya yang berbahaya.**
-> Diukur dari log `AnswerUpdated` 1 sampai 16 September 2026, dipisah per sesi.
+> **3. Cadence sebenarnya, diukur atas seluruh riwayat feed.** Pengukuran 16
+> September memakai jendela 1 sampai 16 September dan **tidak tereproduksi**.
+> Angka di bawah ini memakai seluruh 88 hari sejak `AnswerUpdated` pertama pada
+> 22 Juni 2026, dengan jeda akhir pekan dikeluarkan dari ember off-hours supaya
+> ia tidak mencemari angka semalam. Kueri `8776938` dan `8776980`.
 >
-> | Feed | Sesi | p50 | p95 | max |
-> |---|---|---|---|---|
-> | NVDA `RH` | OPEN | 3.211 dtk | **63.394 dtk** | 281.670 dtk |
-> | NVDA `RH` | off-hours | 2.658 dtk | 29.319 dtk | 187.006 dtk |
-> | AAPL `RH` | OPEN | 1.860 dtk | **66.801 dtk** | 274.168 dtk |
-> | TSLA `RH` | OPEN | 1.561 dtk | 31.000 dtk | 279.973 dtk |
-> | **GOOGL `RH`** | OPEN | 4.519 dtk | **191.721 dtk** | 293.596 dtk |
-> | NVDA polos | OPEN | 3.005 dtk | **9.793 dtk** | 9.793 dtk |
-> | NVDA polos | off-hours | 2.401 dtk | **3.437 dtk** | 12.949 dtk |
-> | AAPL polos | off-hours | 2.401 dtk | **2.873 dtk** | 13.528 dtk |
+> | Feed | OPEN p50 | OPEN p95 | OPEN p99 | Semalam p95 | Semalam p99 |
+> |---|---|---|---|---|---|
+> | TSLA | 783 dtk | 7.153 | **14.885** | 31.890 | **59.585** |
+> | NVDA | 1.107 dtk | 8.686 | **18.785** | 31.412 | **60.379** |
+> | GOOGL | 1.359 dtk | 15.227 | **54.617** | 43.664 | **64.792** |
+> | AAPL | 1.477 dtk | 19.441 | **63.260** | 55.684 | **66.801** |
 >
-> Keluarga `RH` memperbarui lebih sering secara jumlah, tapi tidak teratur dan
-> berekor panjang. Keluarga polos memperbarui lebih jarang dengan heartbeat yang
-> hampir tetap sekitar 2.400 detik, sehingga p95-nya sepuluh kali lebih rapat.
+> Basis 1.279 update TSLA, 1.061 NVDA, 798 GOOGL, 645 AAPL. Nol baris akhir pekan
+> pada keluarga `RH`, jadi §7.3 tetap berdiri apa adanya.
 >
-> **Konsekuensi yang belum diputuskan.** `STALENESS_OPEN` NVDA 6.000 dtk dihitung
-> dari p95 Juli. Dengan p95 September 63.394 dtk, nilai itu akan melempar NVDA ke
-> `PROTECTIVE` berulang kali di sesi paling ramai. Dan GOOGL, yang ada di allowlist
-> justru karena kualitas feed, sekarang punya p95 terburuk di antara keempatnya.
-> **Jangan kunci `PriceOracle` sebelum ini diputuskan.** Pertanyaannya terbuka di
-> `pertanyaan-terbuka.md` RONDE 6.
+> **Selisih harga antar keluarga jauh lebih lebar dari satu sampel 41 bps.**
+> Diukur di setiap update keluarga polos terhadap jawaban `RH` terakhir saat itu,
+> 15 sampai 19 September, kueri `8776946`.
 >
-> Tidak ada satu pun baris akhir pekan di seluruh pengukuran, pada kedua keluarga.
-> Feed benar-benar mati dari Jumat sore sampai Senin, persis seperti §7.3.
+> | Token | p50 | p95 | max |
+> |---|---|---|---|
+> | AAPL | 14,4 bps | 43,0 | 74,9 |
+> | GOOGL | 19,2 bps | 207,6 | 256,4 |
+> | NVDA | 26,7 bps | 162,3 | 213,6 |
+>
+> Sebagian dari selisih itu adalah keterlambatan `RH`, bukan ketidaksepakatan.
+> Saat diukur, jawaban `RH` rata-rata sudah berumur dua sampai empat jam. Keduanya
+> tidak bisa dipisahkan dengan data yang ada sekarang.
+>
+> **Keputusan, 19 September 2026.** `PriceOracle` v1.0 memakai **keluarga `RH`
+> saja**. Keluarga polos ditolak untuk v1.0 karena umurnya empat hari dan tidak
+> ada konsumen lain yang akan menyadari kalau ia rusak. Ia juga tidak dipasang
+> sebagai pemeriksa kedua, karena p95 selisihnya 208 bps sementara
+> `ORACLE_DISAGREE_BPS` sesi `OPEN` adalah 50 bps. Alarm yang berbunyi rutin pada
+> kondisi normal sama saja dengan tidak ada alarm.
+>
+> Satu sifat keluarga polos tetap dicatat dan dipantau, yaitu ia terus memperbarui
+> di akhir pekan sementara `RH` membeku. Buktinya baru satu akhir pekan. Lihat
+> P6-3 di `pertanyaan-terbuka.md`.
 
-| Aset | Feed | `STALENESS_OPEN` | `STALENESS_CLOSED` | Layak diluncurkan? |
+**Ambang staleness allowlist v1.0, diturunkan 19 September 2026.** Aturannya
+**p99 dibulatkan ke atas ke kelipatan seribu**, bukan p95. Alasannya, p95 berarti
+satu dari dua puluh batch di sesi teramai jatuh ke `PROTECTIVE` tanpa ada yang
+rusak. Yang menahan kerugian adalah exposure cap dan price band, bukan staleness.
+`STALENESS_OPEN` dibaca dari kolom OPEN p99, `STALENESS_CLOSED` dari semalam p99.
+
+| Aset | Proxy yang dibaca kontrak | `STALENESS_OPEN` | `STALENESS_CLOSED` | Layak diluncurkan |
 |---|---|---|---|---|
-| NVDA | `0xC9D16E4F…` | 6.000 dtk | 20.000 dtk | ✅ |
-| TSLA | `0x7A6B81BA…` | 6.000 dtk | 18.000 dtk | ✅ |
-| META | `0xC190B616…` | 6.000 dtk | 22.000 dtk | ✅ |
-| MSFT | `0xC3B117F5…` | 10.000 dtk | 30.000 dtk | ✅ |
-| AAPL | `0xBB11A212…` | 10.000 dtk | 35.000 dtk | ✅ |
-| GME | `0xF83CDE62…` | **70.000 dtk** | 190.000 dtk | ⚠️ Feed sangat jarang meski volume #2 |
-| SPY | `0x78BCB218…` | **90.000 dtk** | 195.000 dtk | ⚠️ Feed paling jarang |
-| SPCX | *tidak ada* | — | — | ❌ **Tidak ada feed sama sekali** |
+| TSLA | `0x4a1166a6…` | 15.000 dtk | 60.000 dtk | Ya |
+| NVDA | `0x379ec4f7…` | 19.000 dtk | 61.000 dtk | Ya |
+| GOOGL | `0xf6f373a0…` | 55.000 dtk | 65.000 dtk | Ya, lihat P6-2 |
+| AAPL | `0x6b22a786…` | 64.000 dtk | 67.000 dtk | Ya |
+
+Nilai lama yang diturunkan dari p95 Juli, yaitu `STALENESS_OPEN` 6.000 dtk untuk
+NVDA dan TSLA serta 10.000 dtk untuk AAPL, **jangan dipakai lagi**. Ketiganya
+terlalu ketat terhadap perilaku feed yang terukur.
+
+Token di luar allowlist v1.0 belum diukur ulang di atas basis 88 hari. Angka Juli
+untuk META, MSFT, GME, dan SPY disimpan sebagai jejak di §1B dan tidak boleh
+dipakai untuk menyetel apa pun sebelum diukur ulang dengan metode yang sama.
+SPCX tetap dikecualikan permanen karena tidak punya feed sama sekali.
 
 | Konstanta | Nilai | Alasan |
 |---|---|---|

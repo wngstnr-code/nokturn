@@ -700,6 +700,31 @@ namanya mirip. Yang menangkapnya bukan kecurigaan, melainkan memaksa diri
 memverifikasi ke rantai apa yang sudah terbaca di fork. Angka yang cocok dengan
 harapan tetap harus dicek terhadap sumber kedua.
 
+### Pelajaran metodologi kedelapan, 19 September 2026. Jendela ukur yang terlalu pendek
+
+Ditemukan saat menutup P6-1. `parameter.md` §7.1 mencatat p95 jeda feed NVDA di
+sesi `OPEN` sebesar **63.394 detik**, diukur atas 1 sampai 16 September 2026.
+Diukur ulang atas seluruh riwayat feed, 88 hari sejak 22 Juni, angkanya
+**8.686 detik**. Tujuh kali lebih rapat.
+
+Dua sebabnya. Jendela enam belas hari hanya memuat dua sampai tiga akhir pekan,
+sehingga satu pembekuan panjang cukup untuk menggeser p95 sendirian. Dan jeda
+yang membentang dari Jumat sore sampai Senin masuk ke ember sesi tempat ia
+berakhir, bukan tempat ia bermula, jadi pembekuan akhir pekan ikut terhitung
+sebagai jeda sesi kerja.
+
+Akibatnya bukan sekadar angka meleset. Angka itu hampir membuat GOOGL dicoret
+dari allowlist lewat P6-2, dan hampir membuat keluarga feed berumur empat hari
+dipilih sebagai referensi harga seluruh protokol justru karena ia tampak lebih
+rapat. Yang membuatnya tampak rapat adalah riwayatnya yang pendek, bukan
+kualitasnya.
+
+**Bentuknya mirip pelajaran pertama sampai keenam,** yaitu satu pengamatan atas
+jendela sempit dibaca sebagai sifat umum. Bedanya kali ini sumbernya pengukuran
+sendiri, bukan artikel orang lain. Aturan yang dipakai sekarang, **setiap angka
+cadence diukur atas seluruh riwayat feed dan jeda yang membentang akhir pekan
+dikeluarkan secara eksplisit**, bukan diserahkan ke ember sesi.
+
 ---
 
 Untuk Foundry: pakai `https://robinhood.drpc.org` yang terbukti bekerja di atas.
@@ -817,7 +842,18 @@ state pool"**. Interface adapter perlu `quoteFromState(...)` yang `view`.
 
 ---
 
-### 🟡 P0-3 — Feed oracle & harga pembukaan resmi
+### ✅ P0-3 — Feed oracle & harga pembukaan resmi
+
+> **Ditutup 19 September 2026.** Tiga hal yang membuatnya kuning sudah selesai.
+> ROO didefinisikan ulang lewat opsi A dan istilahnya sudah diganti di seluruh
+> dokumen. RedStone diganti TWAP Uniswap V3. Dan yang terakhir, kalibrasi
+> staleness, ditutup lewat P6-1, yaitu keluarga `RH` dengan ambang p99 per feed
+> atas seluruh riwayat 88 hari. Nilainya di `parameter.md` §7.1.
+>
+> Satu kalimat di bawah ini **sudah tidak berlaku**, yaitu klaim feed hidup 24 jam
+> dan tidak pernah berhenti. Terukur kemudian, feed `RH` membeku total 48 sampai
+> 56 jam setiap akhir pekan, nol update. Penanganannya di §7.3, dan sinyal baru
+> soal itu ada di P6-3.
 
 **Sebagian baik, sebagian buruk.** Diuji 31 Juli 2026 di mainnet.
 
@@ -1091,50 +1127,92 @@ Kueri Dune 18 September 2026, **permanen dan publik sejak 19 September 2026**:
 
 ## RONDE 6 — feed oracle, diukur ulang 16 September 2026
 
-### P6-1 · Keluarga feed mana yang dipakai `PriceOracle`, dan berapa staleness yang jujur?
+### ✅ P6-1 · TERJAWAB 19 September 2026 — keluarga `RH` saja, ambang dari p99
 
-**Kenapa ini menentukan arsitektur.** `STALENESS_OPEN` dan `STALENESS_CLOSED` di
-`parameter.md` §7.1 diturunkan dari cadence 24 sampai 31 Juli. Diukur ulang atas
-1 sampai 16 September, angkanya tidak lagi berlaku dan arah kesalahannya berbahaya,
-yaitu nilai yang sekarang tertulis terlalu ketat sehingga token sehat akan dilempar
-ke `PROTECTIVE` di sesi paling ramai.
+> **Hasil.** `PriceOracle` v1.0 membaca **keluarga `RH`** dan hanya itu.
+> `STALENESS_OPEN` dan `STALENESS_CLOSED` diturunkan dari **p99 atas seluruh
+> riwayat feed**, bukan p95 atas satu jendela. Nilai per token, alamat proxy, dan
+> seluruh tabel pengukuran ada di `parameter.md` §7.1. Kueri `8776936`,
+> `8776938`, `8776946`, `8776980`.
 
-| Yang berubah | Juli | September |
+**Kenapa keluarga polos gugur, dan bukan karena selera.** Ketiga feednya
+memancarkan `AnswerUpdated` pertamanya 15 September 2026 pukul 09.03 UTC, dalam
+rentang sepuluh detik satu sama lain. Umurnya empat hari saat diputuskan. Ia
+mengukur saham biasa, bukan token Robinhood yang diperdagangkan di sini, dan
+tidak ada satu konsumen pun di chain ini yang membacanya. Feed yang dibaca banyak
+pihak ketahuan rusak dalam hitungan menit. Feed yang hanya dibaca kita ketahuan
+rusak setelah kita rugi.
+
+**Kenapa ia juga tidak dipasang sebagai pemeriksa kedua.** Kedua keluarga berbeda
+harga pada kondisi normal, bukan hanya saat rusak, karena yang satu mengukur token
+dan yang lain mengukur saham. p95 selisihnya 208 bps untuk GOOGL dan 162 bps untuk
+NVDA, sementara `ORACLE_DISAGREE_BPS` sesi `OPEN` adalah 50 bps. Alarm yang
+berbunyi rutin pada kondisi normal akan diabaikan, dan alarm yang diabaikan lebih
+berbahaya daripada tidak ada alarm.
+
+**Kenapa ambangnya p99 dan bukan p95.** p95 berarti satu dari dua puluh batch di
+sesi teramai jatuh ke `PROTECTIVE` tanpa ada yang rusak. Staleness bukan alat
+penahan kerugian, itu tugas exposure cap dan price band. Tugas staleness adalah
+menolak harga yang sudah tidak berarti, dan p99 sudah cukup untuk itu.
+
+**Yang berubah dari premis pertanyaan ini.** Premisnya berdiri di atas pengukuran
+16 September yang tidak tereproduksi. Lihat pelajaran metodologi kedelapan.
+
+### P6-3 · Apakah keluarga feed polos benar-benar hidup di akhir pekan?
+
+**Kenapa ini layak dipantau meski keluarganya sudah ditolak untuk v1.0.** Feed
+`RH` membeku 48 sampai 56 jam dari Jumat sore sampai Senin, dan itu memaksa §7.3
+memberi TWAP Uniswap V3 peran sumber harga utama di akhir pekan. Tambalan itu sah
+tapi lebih lemah, karena sumbernya pasar itu sendiri dan bukan pengukur
+independen. Akhir pekan juga sesi yang paling ingin dilayani, 33,2% trade ada di
+sana.
+
+**Yang terlihat, Sabtu 19 September 2026.** Keluarga `RH` berhenti Jumat 18
+September pukul 20.11 UTC. Keluarga polos mencatat 69 update pada hari Sabtu yang
+sama, terakhir pukul 15.18 UTC. Ia tidak ikut libur.
+
+| Hari | Keluarga polos | Keluarga `RH` |
 |---|---|---|
-| NVDA p95, sesi OPEN | 5.281 dtk | **63.394 dtk** |
-| GOOGL p95, sesi OPEN | tidak diukur | **191.721 dtk** |
+| Selasa 15 Sep | 42 | 28 |
+| Rabu 16 Sep | 111 | 40 |
+| Kamis 17 Sep | 111 | 37 |
+| Jumat 18 Sep | 115 | 45 |
+| **Sabtu 19 Sep** | **69** | **0** |
 
-**Dan ada dua keluarga feed, bukan satu.** Keluarga `RH*` yang selama ini tercatat,
-dan keluarga bernama polos yang tidak dibaca satu konsumen pun tapi punya heartbeat
-teratur sekitar 2.400 detik dengan p95 sepuluh kali lebih rapat. Harga keduanya
-berselisih 41 bps pada saat yang sama, lebih lebar dari price band `OPEN`.
+**Kenapa belum diapa-apakan.** Buktinya satu akhir pekan, dan itu akhir pekan yang
+sedang berlangsung saat catatan ini ditulis. Mengubah keputusan desain terbesar
+proyek di atas satu pengamatan adalah bentuk kesalahan yang sudah delapan kali
+tercatat di dokumen ini.
 
-**Tiga pilihan, dan tidak satu pun boleh dipilih tanpa pengukuran lanjutan.**
+**Cara menutupnya.** Amati **dua akhir pekan**, yaitu 19 sampai 20 September dan
+26 sampai 27 September, lalu putuskan sebelum audit provenansi 28 September.
+Jalankan ulang kueri `8776942` dengan batas tanggal digeser. Yang dicari tiga hal.
+Apakah ia memperbarui di kedua hari akhir pekan, apakah heartbeat-nya tetap sama
+seperti hari kerja, dan apakah harganya bergerak atau hanya mengulang nilai Jumat.
+Yang ketiga yang paling menentukan, karena feed yang memancarkan update tapi
+mengulang angka lama tidak lebih berguna daripada feed yang diam.
 
-1. Tetap di keluarga `RH`, naikkan `STALENESS_OPEN` sampai p95 September. Jujur,
-   tapi berarti harga referensi boleh berumur 17 jam di sesi OPEN.
-2. Pindah ke keluarga polos. p95 jauh lebih rapat, tapi ia mengukur saham biasa,
-   bukan token Robinhood yang benar-benar kita perdagangkan, dan **tidak ada
-   konsumen lain yang memakainya** sehingga tidak ada yang akan memperhatikan
-   kalau ia rusak.
-3. Pakai keduanya, `RH` sebagai referensi dan polos sebagai pemeriksa kedua. Ini
-   menggeser peran TWAP Uniswap V3 dan harus diputuskan bersama §7.3.
-
-**Yang perlu diukur sebelum memilih:** sebaran selisih harga antar keluarga
-sepanjang satu bulan, bukan satu sampel, dan apakah keluarga polos pernah membeku
-lebih lama dari heartbeat-nya.
-
-**Ini tidak memblokir `SessionManager`**, yang tidak menyentuh oracle sama sekali.
-Ia memblokir `PriceOracle`. Alamat lengkap proxy dan aggregator sudah tercatat di
-`parameter.md` §7.1, jadi implementasinya bisa dimulai begitu keluarganya dipilih.
+**Kalau ia bertahan,** ini argumen untuk v1.1, bukan v1.0, dan bentuknya bukan
+mengganti referensi harga melainkan menambah jangkar akhir pekan di samping TWAP.
+§7.3 tidak berubah sebelum itu terjadi.
 
 ### P6-2 · Apakah allowlist v1.0 masih benar sekarang GOOGL terukur paling buruk?
 
 GOOGL masuk allowlist karena kualitas feed, sementara GME dan SPY ditunda persis
-karena alasan itu. Diukur September, p95 GOOGL di sesi OPEN adalah **191.721 detik**,
-yang terburuk di antara keempat token allowlist dan lebih buruk daripada angka yang
-dulu dipakai untuk menunda GME. Keputusan §7.4 perlu ditinjau dengan data ini,
-bukan dibiarkan berdiri di atas pengukuran Juli.
+karena alasan itu.
+
+⚠️ **Premis pertanyaan ini sudah dikoreksi, 19 September 2026.** Angka yang
+melahirkannya, p95 GOOGL di sesi `OPEN` sebesar **191.721 detik**, tidak
+tereproduksi. Ia diukur atas jendela 1 sampai 16 September. Diukur atas seluruh
+88 hari riwayat feed, p95-nya **15.227 detik** dan p99-nya **54.617 detik**. Lihat
+pelajaran metodologi kedelapan dan `parameter.md` §7.1.
+
+GOOGL memang tetap yang terburuk kedua di antara keempatnya setelah AAPL, tapi ia
+tidak lagi berada di kelas yang sama dengan GME dan SPY. Ditambah pengukuran
+kedalaman pool 19 September yang mencatat GOOGL pada 5,2e18, lebih tebal daripada
+TSLA dan bisa dikuotasi sampai $358rb. Keputusan §7.4 tetap perlu dinyatakan
+secara eksplisit, tapi bukti yang ada sekarang mengarah ke mempertahankan GOOGL,
+bukan mencoretnya.
 
 ---
 
