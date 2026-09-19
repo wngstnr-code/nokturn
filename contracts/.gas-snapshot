@@ -319,7 +319,7 @@ SettlementInvariants:invariant_theGovernorNeverHoldsAToken() (runs: 128, calls: 
 SettlementInvariants:invariant_theSettlementCoreNeverHoldsATokenBetweenCalls() (runs: 128, calls: 8192, reverts: 0)
 SettlementInvariants:invariant_theSolverNeverTakesMoreThanItsCap() (runs: 128, calls: 8192, reverts: 0)
 SettlementInvariants:test_everyDishonestShapeIsRefused() (gas: 5997517)
-SettlementInvariants:test_theHandlerActuallyReachesSettlement() (gas: 5213713)
+SettlementInvariants:test_theHandlerActuallyReachesSettlement() (gas: 5213678)
 SettlementTest:test_aBatchNobodySolvedHasNothingToExpire() (gas: 80994)
 SettlementTest:test_aBatchTheWinnerAbandonedCanBeRetiredByAnyone() (gas: 538431)
 SettlementTest:test_aFinalizedBatchAcceptsNoMoreSolutions() (gas: 908940)
