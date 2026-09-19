@@ -391,6 +391,34 @@ Tiga hal yang sekarang berdiri di atas data.
    allowlist jatuh ke pass-through, atau menaikkan `MAX_TICK_CROSSINGS` lebih dulu,
    dan yang kedua menaikkan gas verifikasi terburuk.
 
+**GME, ditambahkan ke allowlist 20 September 2026.** Diukur terpisah karena masuk
+belakangan, dengan metode dan adapter yang sama. Pool `0xE2b46c90…`, fee 500,
+Uniswap V3, $145,5jt volume September.
+
+| USDG masuk | Penyeberangan | Harga efektif | Dampak vs cap |
+|---|---|---|---|
+| 5.000 (= `CAP_PER_BATCH`) | 1 | $22,54 | 0 bps |
+| 10.000 | 1 | $22,55 | 4 bps |
+| 50.000 | 14 | $22,71 | 75 bps |
+| 250.000 | ditolak | | |
+
+Harga efektif di cap peluncuran berselisih **di bawah satu bps** terhadap feed
+Chainlink yang membaca $22,55 pada saat yang sama. Dua sumber independen sepakat,
+dan itu pemeriksaan yang tidak bisa diberikan tabel kedalaman sendirian.
+
+GME menyeberang satu tick di cap peluncuran, satu-satunya dari kelima pool yang
+tidak nol. Masih jauh di bawah ambang empat yang dijaga gerbang, dan disebut di sini
+supaya tidak terbaca sebagai kelalaian saat ada yang memeriksa.
+
+🔴 **"Ukuran terbesar yang bisa dikuotasi" bukan ukuran kedalaman.** Baris itu
+mencatat ukuran terbesar yang tidak ditolak adapter, dan sebuah pool bisa terus
+menjawab jauh setelah jawabannya tidak berarti. Diterapkan ke kandidat META pada
+20 September, angkanya keluar **$4jt** sekaligus harga efektif **76 kali lipat**
+harga di cap peluncuran, tanpa pernah melanggar `MAX_TICK_CROSSINGS`. Baca baris itu
+selalu bersama **dampak harga dalam bps**, yang sekarang ikut dicetak. Di sepuluh
+kali cap, kelima pool berada di NVDA 1 bps, GOOGL 6 bps, AAPL 16 bps, TSLA 34 bps,
+GME 75 bps.
+
 ⚠️ Angka ini pasar hidup, bukan konstanta. `test/fork/PoolDepthFork.t.sol` mengukur
 ulang tiap malam, menegaskan cap peluncuran menyentuh paling banyak empat tick dan
 setiap pool masih menjawab di sepuluh kali cap, lalu mencetak tabel ini apa adanya.
@@ -566,6 +594,7 @@ cadence antar-aset berbeda sampai empat kali di sesi `OPEN`.
 > | **AAPL** | `0x6b22a786baa607d76728168703a39ea9c99f2cd0` | `0xBb11A21267cFDb63d4935d99a499133DD1744ACb` | `Robinhood AAPL / USD` |
 > | **TSLA** | `0x4a1166a659a55625345e9515b32adecea5547c38` | `0x7A6b81ba7FbCB90104d8C496158Cf383cD7233b1` | `RHTSLA / USD` |
 > | **GOOGL** | `0xf6f373a037c30f0e5010d854385ca89185ae638b` | `0x11eD6d598eF565DDA86fAfE7E779303e7CC6b2Bd` | `Robinhood GOOGL / USD` |
+> | **GME** | `0x27C71df6A64fB476468EdF256CF72c038baB5B67` | `0xf83Cde62D1Cd90dE8d2Bf3332B90c590985aD679` | `Robinhood GME / USD` |
 >
 > Semuanya 8 desimal. GOOGL sebelumnya tidak punya baris di tabel di bawah sama
 > sekali, padahal ia ada di allowlist v1.0. Sekarang punya.
@@ -632,10 +661,15 @@ rusak. Yang menahan kerugian adalah exposure cap dan price band, bukan staleness
 | NVDA | `0x379ec4f7…` | 19.000 dtk | 61.000 dtk | Ya |
 | GOOGL | `0xf6f373a0…` | 55.000 dtk | 65.000 dtk | Ya, lihat P6-2 |
 | AAPL | `0x6b22a786…` | 64.000 dtk | 67.000 dtk | Ya |
+| GME | `0x27C71df6…` | 65.000 dtk | 56.000 dtk | Ya, ditambahkan 20 September 2026 |
 
 Nilai lama yang diturunkan dari p95 Juli, yaitu `STALENESS_OPEN` 6.000 dtk untuk
 NVDA dan TSLA serta 10.000 dtk untuk AAPL, **jangan dipakai lagi**. Ketiganya
 terlalu ketat terhadap perilaku feed yang terukur.
+
+GME satu-satunya yang `STALENESS_CLOSED`-nya lebih kecil daripada `STALENESS_OPEN`.
+Itu bukan salah ketik. Feednya memang lebih teratur di luar jam bursa daripada di
+dalamnya, p99 55.818 dtk semalam lawan 64.479 dtk saat buka.
 
 Token di luar allowlist v1.0 belum diukur ulang di atas basis 88 hari. Angka Juli
 untuk META, MSFT, GME, dan SPY disimpan sebagai jejak di §1B dan tidak boleh
@@ -736,12 +770,62 @@ saja. Setelah volume per-token diukur, **META dan MSFT terlalu tipis**.
 | META | **Rendah (<500)** | ✅ | — | 572 bps | ⚠️ Volume terlalu tipis |
 | SPY | Rendah (8.432) | ❌ p95 **86.417 dtk** | ⚠️ 1.008 trade | — | ⚠️ Ditunda |
 
-**Allowlist v1.0: NVDA, AAPL, TSLA, GOOGL.**
+**Allowlist v1.0: NVDA, AAPL, TSLA, GOOGL, GME.**
 
-Catatan yang tidak nyaman tapi penting: **dua token volume tertinggi kedua dan
-ketiga (GME dan SPCX) tidak bisa diluncurkan** — bukan karena likuiditas, tapi
-karena infrastruktur oracle-nya. Itu batasan nyata yang harus disebut di pitch,
-bukan disembunyikan.
+> ### GME ditambahkan 20 September 2026, dan kenapa penundaannya sudah tidak berdiri
+>
+> Baris GME di tabel di atas menundanya karena feed, dengan p95 64.297 detik dari
+> jendela 24 sampai 31 Juli. Angka itu **tidak tereproduksi**. Diukur atas seluruh
+> 88 hari riwayat feed dengan jeda akhir pekan dikeluarkan, p95-nya 46.370 dan
+> p99-nya 64.479, yang menempatkannya sekelas AAPL di 63.260. AAPL ada di allowlist
+> sejak awal. Lihat pelajaran metodologi kedelapan di `pertanyaan-terbuka.md`.
+>
+> Ketiga syarat diperiksa ulang, bukan hanya yang dulu menggugurkannya.
+>
+> | Syarat | GME |
+> |---|---|
+> | Volume | Nomor tujuh dari 192 token, $240,4jt dalam 30 hari |
+> | Kualitas feed | p99 sesi `OPEN` 64.479 dtk, sekelas AAPL |
+> | Likuiditas akhir pekan | 13.162 trade, jeda antar-trade 2 detik |
+> | Kedalaman pool | 75 bps di sepuluh kali cap, lihat §4B |
+> | Venue | Uniswap V3 dominan, $145,5jt lawan $2,6jt di V4 |
+>
+> Token aslinya `0x1b0E319c6A659F002271B69dB8A7df2F911c153E`, lolos gerbang beacon
+> dan `uiMultiplier()` tepat 1e18. **Jangan tertukar dengan memecoin bersimbol GME**
+> `0xc2362aff…` yang slot beacon-nya kosong, lihat `CLAUDE.md` §5.
+
+**Yang masih di luar, dan alasannya masing-masing berbeda.**
+
+**SPY** tetap ditunda, dan pengukuran ulang justru memperkuat penundaannya. Atas 88
+hari riwayat, ia hanya mencatat 76 jeda di sesi `OPEN` dengan p50 25.748 detik dan
+p99 mentok di 86.428 detik. Itu tanda feed harian, bukan feed intraday. Volumenya
+naik 42 kali lipat, feednya tidak ikut.
+
+**SPCX** tetap dikecualikan permanen. Tidak ada feed sama sekali, dan tidak akan
+ada, karena aset pra-IPO tidak punya bursa induk.
+
+**META** diperiksa tuntas 20 September dan **gugur karena venue, bukan karena feed
+maupun kedalaman**. Feednya justru ketiga terbaik dengan p99 19.868 detik, netting
+per batch-nya kedua terbaik di 45,4%, dan volumenya $116,8jt. Tapi arusnya ada di
+Uniswap V4, $97,5jt lawan $5,4jt di V3, sementara adapter v1.0 hanya V3. Pool V3
+yang tersisa sepuluh kali lebih tipis daripada GME dan harganya 109 bps di atas
+feed, yaitu pola pool yang ditinggalkan arus. Menempatkannya di allowlist berarti
+menerbitkan harga pembanding dari pool yang memegang seperdua puluh arusnya. **META
+masuk di v1.1 bersama adapter V4.**
+
+**AMC dan GLD** belum pernah diperiksa sama sekali, dan keduanya ada di sepuluh
+besar volume. Bukan ditolak, melainkan belum diukur.
+
+Catatan yang tidak nyaman tapi penting, **diperbarui 20 September 2026.** Kalimat
+lama di sini menyebut GME dan SPCX sebagai dua token yang tidak bisa diluncurkan
+karena infrastruktur oracle. Untuk GME itu sudah tidak benar dan ia sekarang ada di
+allowlist. Yang tetap benar, dan tetap harus disebut di pitch, adalah bahwa **SPY
+dan SPCX tidak bisa diluncurkan karena feednya, bukan karena likuiditasnya**, dan
+keduanya token volume nomor dua dan nomor tiga.
+
+Diukur atas 30 hari dan 192 token asli, **allowlist v1.0 dengan lima token memegang
+31,9% volume stock token**. Sebut angka itu apa adanya. Ia bukan mayoritas, dan
+yang menahannya adalah infrastruktur harga di chain ini, bukan pilihan kita.
 
 **Sumber harga referensi:** lihat §7.2 (peran dasar) dan §7.3 (peran bergeser saat
 akhir pekan — Chainlink membeku, TWAP jadi sumber utama). Jangan menyalin ulang
@@ -915,7 +999,7 @@ bernilai **>= 1e18**.
 | **NVDA** | `0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec` | $125,0jt | **$436,4jt** | 76.397 | ✅ Jangkar |
 | SPCX | `0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea` | $40,8jt | **$212,9jt** | 56.537 | ❌ Tidak ada feed |
 | 🔴 SPY | `0x117cc2133c37b721f49de2a7a74833232b3b4c0c` | $5,1jt | **$211,6jt** | 67.064 | ⚠️ Ditunda — feed. **Lihat peringatan di bawah** |
-| GME | `0x1b0e319c6a659f002271b69db8a7df2f911c153e` | $72,1jt | $72,0jt | 42.442 | ⚠️ Ditunda — feed |
+| **GME** | `0x1b0e319c6a659f002271b69db8a7df2f911c153e` | $72,1jt | $72,0jt | 42.442 | ✅ Ditambahkan 20 Sep 2026, lihat §7.4 |
 | **AAPL** | `0xaf3d76f1834a1d425780943c99ea8a608f8a93f9` | $16,1jt | $36,1jt | 34.176 | ✅ |
 | **TSLA** | `0x322f0929c4625ed5bad873c95208d54e1c003b2d` | $9,1jt | $17,3jt | 27.320 | ✅ |
 | **GOOGL** | `0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3` | $7,6jt | $11,3jt | 19.713 | ✅ |

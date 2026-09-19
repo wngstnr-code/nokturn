@@ -84,6 +84,14 @@ dan itu satu-satunya bentuk yang tidak bisa dilewati §7.3.
 Script ini menolak jalan di chain selain 4663, karena 46630 tidak punya feed
 Chainlink sama sekali.
 
+⚠️ **Allowlist mainnet lima token, gladi resik 46630 masih empat.** GME masuk
+allowlist 20 September 2026 dan chain 46630 belum punya umpan untuknya. Kedua daftar
+sengaja dibiarkan berbeda panjang, bukan dipadankan diam-diam, supaya selisihnya
+terlihat. Gladi resik berikutnya menambahkan umpan GME lewat
+`DeployTestnetFixtures.s.sol` lalu mengisi konstanta `TESTNET_GME` dan
+`TESTNET_POOL_GME` di `script/Addresses.sol`. Sampai itu terjadi, gladi resik
+menguji bentuk batch yang sama dengan satu token lebih sedikit.
+
 ## Verifikasi
 
 ```bash

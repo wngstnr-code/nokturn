@@ -48,8 +48,13 @@ contract SetFeedsForkTest is Test {
     /// ticker at addresses that look alike.
     function test_everyFeedIsTheRobinhoodOneAndEightDecimals() public view {
         address[] memory aggregators = Addresses.feeds();
-        string[4] memory expected =
-            ["RHNVDA / USD", "Robinhood AAPL / USD", "RHTSLA / USD", "Robinhood GOOGL / USD"];
+        string[5] memory expected = [
+            "RHNVDA / USD",
+            "Robinhood AAPL / USD",
+            "RHTSLA / USD",
+            "Robinhood GOOGL / USD",
+            "Robinhood GME / USD"
+        ];
 
         for (uint256 k = 0; k < aggregators.length; ++k) {
             AggregatorV3Interface feed = AggregatorV3Interface(aggregators[k]);
