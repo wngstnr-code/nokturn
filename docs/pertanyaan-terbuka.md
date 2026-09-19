@@ -1196,6 +1196,52 @@ menyadari.
    di kontrak immutable.
 4. Menerima apa adanya dan mendokumentasikannya sebagai risiko sisa kesebelas.
 
+**Opsi 2 diukur, 20 September 2026.** Dua angka yang menentukan apakah ia layak,
+keduanya dari fork mainnet lewat `test/fork/BaselineBoundFork.t.sol`.
+
+**Celah sisa.** Batas bawah agregat lebih longgar daripada kebenaran, tepat sebesar
+dampak harga antara satu perdagangan gabungan dan volume yang sama dipecah jadi
+beberapa intent. Tabel di bawah adalah seberapa jauh di bawah jumlah jujur sebuah
+total masih bisa digeser dan tetap lolos, dalam bps.
+
+| Token | $172 | $1.000 | $5.000, cap | $50.000 |
+|---|---|---|---|---|
+| NVDA | 0 | 0 | 0 | 1 |
+| GOOGL | 0 | 0 | 0 | 3 sampai 6 |
+| AAPL | 0 | 0 | 0 sampai 1 | 10 sampai 16 |
+| TSLA | 0 | 0 | 1 sampai 3 | 19 sampai 34 |
+| GME | 0 | 0 sampai 1 | 1 sampai 3 | 69 sampai 85 |
+
+Rentangnya adalah pecahan 2, 3, 5, dan 10 intent. Kolom $172 adalah tiket median
+Agustus $57,44 dikali tiga, yaitu bentuk batch yang sebenarnya pada pangsa awal,
+bukan ukuran yang dikarang. **Pada bentuk itu celahnya nol di kelima token.**
+
+Terjemahannya ke uang. Plafon fee mengambil 20% dari surplus, jadi celah baseline
+3 bps menaikkan plafon paling banyak **0,6 bps notional**, dengan langit langit keras
+tetap 3 bps notional. Hari ini celahnya tidak terbatas sampai langit langit itu. Jadi
+opsi 2 memperkecil jendela yang bisa dieksploitasi dari 3 bps menjadi 0,6 bps di cap
+peluncuran, dan menjadi **nol pada ukuran batch yang nyata**.
+
+**Biaya gas.** Satu kuotasi per arah pasangan per batch, bukan per intent.
+
+| Token | $172 | $5.000, cap | $50.000 |
+|---|---|---|---|
+| TSLA | 24.572 | 25.493 | 53.394 |
+| GOOGL | 25.589 | 25.557 | 39.948 |
+| GME | 25.713 | 40.233 | 287.296 |
+| AAPL | 26.073 | 40.945 | 85.546 |
+| NVDA | 26.416 | 26.416 | 26.348 |
+
+Batch nyata menyentuh satu sampai tiga pasangan, jadi dua sampai enam arah.
+Tambahannya sekitar **50 sampai 160 ribu gas per batch** pada ukuran nyata. Pada
+harga gas 0,01 gwei yang terukur saat gladi resik, itu 0,0000016 ETH. Biaya data L1
+di chain ini nol.
+
+Satu hal yang harus ikut diputuskan. Pada $50.000 GME menghabiskan 287 ribu gas
+karena empat belas penyeberangan. Itu masih jauh di bawah batas blok, tapi ia
+menunjukkan biaya kuotasi tumbuh dengan ukuran, jadi keputusan menaikkan
+`CAP_PER_BATCH` nanti ikut menaikkan biaya ini.
+
 Belum ada yang dipilih. **Jangan tulis kode yang mengandaikan salah satunya**, aturan
 7 `CLAUDE.md`.
 
