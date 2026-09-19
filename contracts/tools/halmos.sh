@@ -16,9 +16,9 @@
 # default bound of two would stop partway and report the unexplored paths as a
 # failure rather than as a gap.
 #
-# The three contracts are run one at a time rather than by a shared prefix, so
-# that a new proof file has to be named here to be gated. A glob would let one
-# arrive unproved and unnoticed.
+# The contracts are run one at a time rather than by a shared prefix, so that a
+# new proof file has to be named here to be gated. A glob would let one arrive
+# unproved and unnoticed.
 #
 # --solver-timeout-assertion 300000 is what the limit monotonicity proof needs.
 # It is a product of two unknown 128 bit values and z3 takes about 170 seconds on
@@ -30,7 +30,7 @@ cd "$(dirname "$0")/.."
 
 FOUNDRY_PROFILE=halmos forge build --force >/dev/null
 
-for contract in ClearingMathProofs AuctionMathProofs SessionProofs; do
+for contract in ClearingMathProofs AuctionMathProofs SessionProofs GuardianProofs; do
   echo "== $contract"
   FOUNDRY_PROFILE=halmos halmos \
     --contract "$contract" \

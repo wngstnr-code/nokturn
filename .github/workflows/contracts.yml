@@ -78,6 +78,11 @@ jobs:
         # and measures the unoptimized artifacts, which read about 2.5 times the
         # committed gas on the short revert paths.
         run: FOUNDRY_PROFILE=default forge snapshot --check --force --no-match-path "test/fork/*"
+      - name: the guardian has exactly one power
+        # A solver proves what pause does today. This proves nobody added a second
+        # guardian-only function, which is a statement about source rather than
+        # about execution. parameter.md section 8.
+        run: python3 tools/guardian-gate.py
       - name: storage layout is committed and current
         run: |
           ./tools/storage-layout.sh
