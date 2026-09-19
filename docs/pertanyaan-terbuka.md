@@ -1214,6 +1214,41 @@ TSLA dan bisa dikuotasi sampai $358rb. Keputusan §7.4 tetap perlu dinyatakan
 secara eksplisit, tapi bukti yang ada sekarang mengarah ke mempertahankan GOOGL,
 bukan mencoretnya.
 
+**Dan pertanyaan ini melahirkan pertanyaan yang lebih besar, 19 September 2026.**
+Metode yang sama diterapkan ke seluruh kandidat, kueri `8777019`. Jeda sesi `OPEN`
+atas seluruh riwayat feed, akhir pekan dikeluarkan.
+
+| Token | n | p50 | p95 | p99 | Status §7.4 |
+|---|---|---|---|---|---|
+| TSLA | 878 | 783 | 7.153 | 14.885 | Allowlist |
+| NVDA | 642 | 1.107 | 8.686 | 18.785 | Allowlist, jangkar |
+| META | 776 | 750 | 9.291 | 19.868 | Dicoret, volume tipis |
+| MSFT | 454 | 1.366 | 15.638 | 46.724 | Dicoret, volume tipis |
+| GOOGL | 480 | 1.359 | 15.227 | 54.617 | Allowlist |
+| AAPL | 449 | 1.477 | 19.441 | 63.260 | Allowlist |
+| **GME** | 555 | 1.499 | 46.370 | **64.479** | **Ditunda karena feed** |
+| SPY | 76 | 25.748 | 86.425 | 86.428 | Ditunda karena feed |
+
+**GME berada di kelas yang sama dengan AAPL.** p99 64.479 lawan 63.260, dan AAPL ada
+di allowlist. Angka lama yang menundanya, p95 64.297 detik dari jendela Juli, tidak
+tereproduksi. p95 sebenarnya 46.370. Artinya **alasan yang dipakai untuk menunda GME
+tidak berdiri lagi**, dan GME adalah token volume nomor dua.
+
+SPY sebaliknya terbukti memang buruk dan penundaannya benar. Hanya 76 jeda sesi
+`OPEN` dalam 88 hari, p50-nya 25.748 detik, dan p99-nya mentok di 86.428 detik yang
+berarti ia feed harian, bukan feed intraday. Volumenya naik 42 kali lipat tapi
+feednya tidak ikut.
+
+**Yang belum diukur untuk GME, dan harus diukur sebelum apa pun diputuskan.**
+Kedalaman pool Uniswap V3 GME terhadap USDG, dengan metode yang sama seperti
+`PoolDepthFork.t.sol` memakai keempat token allowlist. Dan pemisahan volume GME asli
+dari memecoin penyamarnya, karena `CLAUDE.md` §5 mencatat angka gabungan meleset 30
+persen. Gerbang beacon sudah menangani penyamarnya di jalur kode, tapi tidak di
+jalur angka yang dipakai untuk memutuskan.
+
+Menambah token ke allowlist adalah satu proposal timelock, bukan deploy ulang, jadi
+keputusan ini tidak harus selesai sebelum peluncuran.
+
 ---
 
 ## RONDE 5 — peta venue lengkap (10 September 2026)
