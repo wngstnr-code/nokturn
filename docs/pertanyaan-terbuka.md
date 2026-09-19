@@ -1249,6 +1249,65 @@ jalur angka yang dipakai untuk memutuskan.
 Menambah token ke allowlist adalah satu proposal timelock, bukan deploy ulang, jadi
 keputusan ini tidak harus selesai sebelum peluncuran.
 
+**Kedalaman pool GME, terukur 19 September 2026.** Token aslinya
+`0x1b0E319c6A659F002271B69dB8A7df2F911c153E`, lolos gerbang beacon dan
+`uiMultiplier()` tepat 1e18. Pool utamanya terhadap USDG adalah
+`0xE2b46c905E12Ab8E2f864e4821a4325884C1B126`, fee 500, $145,5jt volume September.
+Diukur dengan `CandidateDepthFork.t.sol`, metode yang sama seperti keempat pool
+allowlist.
+
+| Ukuran | Crossing | GME keluar |
+|---|---|---|
+| $5.000, cap peluncuran | 1 | 221 |
+| $10.000 | 2 | 443 |
+| $50.000, sepuluh kali cap | 14 | 2.203 |
+| $250.000 | ditolak | |
+
+Terbesar yang bisa dikuotasi **$70.650**. Likuiditas dalam rentang 9,12e17.
+
+**GME lolos kedua gerbang yang berlaku, tapi dengan ruang paling sempit.** Gerbang
+pertama menuntut paling banyak empat crossing di cap peluncuran, dan GME satu.
+Gerbang kedua menuntut pool tetap menjawab di sepuluh kali cap, dan GME menjawab.
+Yang tipis adalah jaraknya. $70.650 berbanding $50.000 hanya 1,4 kali, sementara
+NVDA 36 kali, GOOGL 7,2 kali, dan AAPL 4,3 kali.
+
+**Satu kesalahan yang hampir masuk catatan ini, ditulis supaya tidak terulang.**
+Pengukuran pertama memakai dua pool GME sekaligus. `setPool` memetakan pasangan
+token ke satu pool, jadi pendaftaran kedua menimpa yang pertama tanpa error, dan
+angka yang keluar menggambarkan pool 1% yang tipis. Bentuknya persis pelajaran
+kedelapan, yaitu angka yang stabil dan masuk akal tapi mengukur benda yang salah.
+
+### Seberapa lebar pasar stock token sebenarnya, 19 September 2026
+
+Diukur karena keputusan allowlist selama ini berdiri di atas daftar delapan token,
+bukan di atas populasi sesungguhnya. Kueri `8777029` dan `8777040`, tiga puluh hari
+terakhir, hanya token yang lolos sebagai Stock Token asli lewat tabel
+`robinhood_robinhood.stocktoken_evt_transfer`.
+
+**192 token berbeda diperdagangkan**, bukan delapan. Tapi arusnya sangat terpusat.
+
+| Kelompok | Pangsa volume |
+|---|---|
+| 4 teratas | 50,6% |
+| 10 teratas | 70,9% |
+| 20 teratas | 85,1% |
+| **Allowlist v1.0** | **28,2%** |
+
+Sepuluh teratas menurut volume adalah NVDA, SPY, SPCX, AMC, GOOGL, GLD, GME, AAPL,
+DJT, META. Empat nama di situ tidak pernah muncul di dokumen mana pun sebelumnya,
+yaitu AMC, GLD, DJT, dan QQQ tepat di bawahnya. TSLA berada di urutan dua belas.
+
+**Konsekuensinya untuk allowlist.** Allowlist v1.0 memegang 28,2% volume stock
+token, bukan mayoritas. Menambah GME menaikkannya ke 31,9%. Yang menahan tiga nama
+di atas GME tetap sama, yaitu SPY feednya harian, SPCX tidak punya feed, dan AMC
+belum diperiksa sama sekali.
+
+⚠️ **Angka total jangan dibandingkan dengan angka Agustus.** Pengukuran ini memuat
+seluruh 192 token dan seluruh pasangan, sementara angka Agustus di `CLAUDE.md` §6
+memakai cakupan yang lebih sempit. Selisihnya besar dan **belum direkonsiliasi**,
+jadi jangan dipakai sebagai klaim pertumbuhan. Yang sah dipakai dari pengukuran ini
+adalah pangsanya, karena pangsa dihitung di dalam satu pengukuran yang sama.
+
 ---
 
 ## RONDE 5 — peta venue lengkap (10 September 2026)
