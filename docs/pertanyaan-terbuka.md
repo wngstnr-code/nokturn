@@ -1081,9 +1081,11 @@ tetap tanpa cache manager.
 berarti Settlement baru. Itu bukan perubahan allowlist lewat time-lock seperti
 adapter V4 di baris yang sama.
 
-Kueri Dune 18 September 2026, masih sementara dan belum dipermanenkan: `8768270`
-(aktivasi) · `8768280` (pemakaian per program) · `8768291` (pemanggil program
-teraktif) · `8768299` (cache).
+Kueri Dune 18 September 2026, **permanen dan publik sejak 19 September 2026**:
+[`8768270`](https://dune.com/queries/8768270) (aktivasi) ·
+[`8768280`](https://dune.com/queries/8768280) (pemakaian per program) ·
+[`8768291`](https://dune.com/queries/8768291) (pemanggil program teraktif) ·
+[`8768299`](https://dune.com/queries/8768299) (cache).
 
 ---
 

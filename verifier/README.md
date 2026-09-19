@@ -35,9 +35,10 @@ Section 3 asks for forty percent random, thirty percent boundary, twenty percent
 real mainnet cases and ten percent adversarial, and that is what the harness builds.
 
 The mainnet slice is real. It is three thousand settled trade legs between the four
-allowlist v1.0 stock tokens and USDG on chain 4663, pulled from Dune query 8768375
-with the raw amounts intact, so the six decimal side and the eighteen decimal side
-arrive exactly as they did onchain. The harness refuses to start without that file
+allowlist v1.0 stock tokens and USDG on chain 4663, pulled from Dune query
+[8768375](https://dune.com/queries/8768375), which is permanent and public, with the
+raw amounts intact, so the six decimal side and the eighteen decimal side arrive
+exactly as they did onchain. The harness refuses to start without that file
 rather than filling the slice with generated numbers, because a gate that reports a
 mix it did not use is worse than a gate that stops.
 
