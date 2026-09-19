@@ -37,6 +37,34 @@ library Addresses {
     /// script/testnet/DeployTestnetFixtures.s.sol before the deploy runs. They are
     /// constants here for the same reason the mainnet ones are, which is that an
     /// address read from a dotenv file differs between three laptops.
+    /// The Chainlink proxies, parameter.md section 7.1. Proxies rather than the
+    /// aggregators behind them, so an aggregator swap does not cut the consumer off.
+    /// Verified against the chain on 19 September 2026, all four eight decimals and
+    /// describing the Robinhood token rather than the ordinary share.
+    address internal constant FEED_NVDA = 0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15;
+    address internal constant FEED_AAPL = 0x6B22A786bAa607d76728168703a39Ea9C99f2cD0;
+    address internal constant FEED_TSLA = 0x4A1166a659A55625345e9515b32adECea5547C38;
+    address internal constant FEED_GOOGL = 0xF6f373a037c30F0e5010d854385cA89185AE638b;
+
+    /// Staleness per feed, parameter.md section 7.1. These are the p99 gap between
+    /// updates over the whole eighty eight days of feed history, rounded up to the
+    /// nearest thousand, not the p95 over one short window. p95 would drop one batch
+    /// in twenty into PROTECTIVE during the busiest session with nothing broken, and
+    /// staleness is not what holds losses down. The exposure cap and the price band
+    /// are.
+    uint32 internal constant STALENESS_OPEN_NVDA = 19_000;
+    uint32 internal constant STALENESS_OPEN_AAPL = 64_000;
+    uint32 internal constant STALENESS_OPEN_TSLA = 15_000;
+    uint32 internal constant STALENESS_OPEN_GOOGL = 55_000;
+
+    uint32 internal constant STALENESS_CLOSED_NVDA = 61_000;
+    uint32 internal constant STALENESS_CLOSED_AAPL = 67_000;
+    uint32 internal constant STALENESS_CLOSED_TSLA = 60_000;
+    uint32 internal constant STALENESS_CLOSED_GOOGL = 65_000;
+
+    /// parameter.md section 7.1.
+    uint32 internal constant TWAP_WINDOW = 1800;
+
     address internal constant TESTNET_QUOTE = 0xDC2b135b0406B07B46876653825D7933B5A44B7A;
 
     address internal constant TESTNET_NVDA = 0x4696687FDf6f2DDB8007E869c5c04505aa33663a;
@@ -69,6 +97,34 @@ library Addresses {
         tokens[1] = AAPL;
         tokens[2] = TSLA;
         tokens[3] = GOOGL;
+    }
+
+    /// @dev Same order as allowlist, because a feed table that drifts out of step
+    /// with the token table configures the wrong token against the wrong price and
+    /// nothing reverts. Chain 46630 carries no Chainlink feed at all, so this
+    /// answers only for mainnet and the rehearsal sets its own.
+    function feeds() internal pure returns (address[] memory addrs) {
+        addrs = new address[](4);
+        addrs[0] = FEED_NVDA;
+        addrs[1] = FEED_AAPL;
+        addrs[2] = FEED_TSLA;
+        addrs[3] = FEED_GOOGL;
+    }
+
+    function stalenessOpen() internal pure returns (uint32[] memory limits) {
+        limits = new uint32[](4);
+        limits[0] = STALENESS_OPEN_NVDA;
+        limits[1] = STALENESS_OPEN_AAPL;
+        limits[2] = STALENESS_OPEN_TSLA;
+        limits[3] = STALENESS_OPEN_GOOGL;
+    }
+
+    function stalenessClosed() internal pure returns (uint32[] memory limits) {
+        limits = new uint32[](4);
+        limits[0] = STALENESS_CLOSED_NVDA;
+        limits[1] = STALENESS_CLOSED_AAPL;
+        limits[2] = STALENESS_CLOSED_TSLA;
+        limits[3] = STALENESS_CLOSED_GOOGL;
     }
 
     function pools() internal view returns (address[] memory addrs) {

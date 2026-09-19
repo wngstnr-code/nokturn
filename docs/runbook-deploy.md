@@ -33,7 +33,7 @@ forge script script/testnet/DeployTestnetFixtures.s.sol:DeployTestnetFixtures \
 
 Script ini menolak jalan di chain selain 46630.
 
-## Tiga langkah
+## Tiga langkah inti
 
 ```bash
 cd contracts
@@ -59,6 +59,31 @@ tanpa dua hari pemberitahuan yang bisa diawasi siapa pun, termasuk delay-nya
 sendiri. Jalankan `deployments/<chain id>.json` melalui langkah ini di hari yang
 sama, jangan ditunda.
 
+## Langkah empat, sumber harga, dua hari setelahnya
+
+```bash
+forge script script/SetFeeds.s.sol:SetFeeds --rpc-url $RPC --account nokturn --broadcast
+```
+
+Feed sengaja tidak ikut `Bootstrap`. Bootstrap berjalan saat delay masih nol, dan
+angka yang jadi dasar harga seluruh protokol tidak pantas bisa disetel dalam satu
+blok oleh siapa pun yang memegang kunci deploy. `parameter.md` §7.1 menahannya
+sampai P6-1 terjawab, dan P6-1 terjawab 19 September 2026 dengan keluarga feed `RH`
+serta ambang p99 per feed.
+
+**Jalankan dua kali.** Panggilan pertama menjadwalkan dan mencetak kapan ia bisa
+dieksekusi. Panggilan kedua, setelah 48 jam lewat, mengeksekusinya. Tidak ada flag
+untuk melewati tunggu itu, karena script yang bisa disuruh melewatinya akan disuruh
+melewatinya.
+
+Satu batch memuat delapan panggilan, yaitu satu feed dan satu sumber TWAP untuk tiap
+token allowlist. Keduanya berangkat bersama. Oracle yang punya feed tanpa TWAP tidak
+punya pendapat kedua di hari kerja dan tidak punya harga sama sekali di akhir pekan,
+dan itu satu-satunya bentuk yang tidak bisa dilewati §7.3.
+
+Script ini menolak jalan di chain selain 4663, karena 46630 tidak punya feed
+Chainlink sama sekali.
+
 ## Verifikasi
 
 ```bash
@@ -81,15 +106,6 @@ dan itu kecocokan yang penting, tapi tidak ada hash metadata untuk dibandingkan.
 Sourcify mencatatnya sebagai `match`, bukan `exact_match`.
 
 ## Yang sengaja belum dikerjakan script ini
-
-**Feed harga.** `parameter.md` §7.1 melarang mengunci `PriceOracle` sebelum keluarga
-feed dan staleness diputuskan, karena cadence September membuat angka Juli melempar
-NVDA ke `PROTECTIVE` di sesi paling ramai. Itu P6-1. Ada test yang memastikan oracle
-masih kosong setelah bootstrap, supaya ia tidak bisa terkonfigurasi tanpa sengaja.
-
-Setelah P6-1 terjawab, feed masuk lewat proposal timelock biasa, dengan delay 48 jam
-yang sudah berlaku. Itu memang jumlah pengawasan yang pantas untuk angka yang jadi
-dasar harga seluruh protokol.
 
 **Closing print feed per token.** Satu kontrak per token, dipasang saat token itu
 benar-benar butuh permukaan Chainlink. Bukan bagian dari deploy inti.
