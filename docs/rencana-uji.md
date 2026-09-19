@@ -265,12 +265,12 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 - [x] 14 invarian hijau di Foundry **dan** Echidna · lima target Echidna, nol falsifikasi, 19 September 2026
 - [x] Differential ≥ 1 juta input, nol perbedaan · laporan `verifier/reports/differential-2026-09-18.md`
 - [ ] Semua properti Halmos terbukti
-- [ ] Skor mutasi ≥ 90% pada kontrak inti
+- [x] Skor mutasi ≥ 90% pada kontrak inti · 100% atas 156 mutan yang dihitung di `Settlement` dan `SessionManager`, 19 September 2026. Seluruh kontrak lain juga sudah diukur dan berada di 100%
 - [ ] Semua fork test lulus terhadap mainnet nyata
 - [ ] 15 skenario adversarial lulus
-- [ ] Kalender diuji habis 2020–2035
-- [ ] Coverage ≥ 95% pada kontrak inti
-- [ ] Slither & Aderyn bersih
+- [x] Kalender diuji habis 2020–2035 · `CivilDate.t.sol` menelusuri 5.844 hari kalender yang ter-commit, dua arah
+- [x] Coverage ≥ 95% pada kontrak inti · gerbang `build-test` di CI, run 35410613213
+- [x] Slither & Aderyn bersih · gerbang `static-analysis` di CI, run 35418852026
 - [ ] Threat model selesai, risiko sisa terdokumentasi
 - [ ] Monitoring jalan, runbook tertulis, kunci guardian teruji
 - [ ] Exposure cap diset ke nilai peluncuran
