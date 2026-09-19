@@ -166,6 +166,7 @@ contract EchidnaAuction {
             ISignatureTransfer(address(permit2)),
             IERC20(address(quote)),
             treasury,
+            address(this),
             address(this)
         );
         house.setAuctionTokenAllowed(address(base), true);

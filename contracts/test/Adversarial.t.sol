@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import {Guarded} from "../src/Guarded.sol";
 import {Settlement} from "../src/Settlement.sol";
 import {ISettlement} from "../src/interfaces/ISettlement.sol";
 import {ISessionManager} from "../src/interfaces/ISessionManager.sol";
@@ -220,6 +221,32 @@ contract AdversarialSettlementTest is SettlementFixture {
         assertEq(usdg.balanceOf(alice), 1000e6, "the buyer keeps everything");
         assertEq(stock.balanceOf(address(settlement)), 0);
         assertEq(usdg.balanceOf(address(settlement)), 0);
+    }
+
+    /// A11. The stop lands between the winning solution and its settlement. The
+    /// batch cannot finalize while paused, so it is retired instead, and nothing
+    /// any user signed was ever collected.
+    ///
+    /// The auction half of this row, where escrow is already inside the contract
+    /// when the protocol stops, is in Guardian.t.sol.
+    function test_A11_guardianPausesMidSolutionWindow() public {
+        Solution memory s = _submit(_nettedSolution());
+
+        vm.prank(guardian);
+        settlement.pause();
+
+        vm.warp(BATCH_ID + 20);
+        vm.expectRevert(abi.encodeWithSelector(Guarded.ProtocolPaused.selector, settlement.pausedUntil()));
+        settlement.finalize(BATCH_ID, s);
+
+        vm.warp(BATCH_ID + settlement.SOLUTION_WINDOW() + settlement.FINALIZE_DEADLINE() + 1);
+        settlement.expireBatch(BATCH_ID);
+
+        assertTrue(settlement.finalized(BATCH_ID), "the paused batch could not be retired");
+        assertEq(usdg.balanceOf(alice), 1000e6, "an intent was collected while paused");
+        assertEq(nvda.balanceOf(bob), 10e18);
+        assertEq(usdg.balanceOf(address(settlement)), 0, "the contract kept something");
+        assertTrue(settlement.isPaused(), "the pause lapsed and the test proved nothing");
     }
 
     /// A12. The cap is a number the timelock owns, and a batch above it cannot

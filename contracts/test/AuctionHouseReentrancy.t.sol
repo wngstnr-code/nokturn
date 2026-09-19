@@ -80,6 +80,7 @@ contract AuctionHouseReentrancyTest is Test {
 
     address governor = address(0x60174E);
     address treasury = address(0x7EA);
+    address guardian = address(0x6A4D1A4);
     address solver = address(0x501E);
     address relayer = address(0xBE1A4);
 
@@ -130,7 +131,8 @@ contract AuctionHouseReentrancyTest is Test {
             ISignatureTransfer(address(permit2)),
             IERC20(address(usdg)),
             treasury,
-            governor
+            governor,
+            guardian
         );
         vm.prank(governor);
         house.setAuctionTokenAllowed(address(nvda), true);

@@ -120,6 +120,7 @@ contract EchidnaSettlement {
             ISolverRegistry(address(registry)),
             ISignatureTransfer(address(permit2)),
             treasury,
+            address(this),
             address(this)
         );
         settlement.setTokenAllowed(address(quote), true);

@@ -47,6 +47,7 @@ contract SettlementInvariants is Test {
 
     address governor = address(0x60174E);
     address treasury = address(0x7EA);
+    address guardian = address(0x6A4D1A4);
     address solver = address(0x501E);
 
     /// Wednesday 11 March 2026, ten minutes after the bell.
@@ -96,7 +97,8 @@ contract SettlementInvariants is Test {
             ISolverRegistry(address(registry)),
             ISignatureTransfer(address(permit2)),
             treasury,
-            governor
+            governor,
+            guardian
         );
 
         vm.startPrank(governor);

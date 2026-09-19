@@ -44,6 +44,7 @@ abstract contract AuctionFixture is Test {
 
     address governor = address(0x60174E);
     address treasury = address(0x7EA);
+    address guardian = address(0x6A4D1A4);
     address solver = address(0x501E);
 
     /// Owners are keys now, not literals, because a commitment carries a real
@@ -108,7 +109,8 @@ abstract contract AuctionFixture is Test {
             ISignatureTransfer(address(permit2)),
             IERC20(address(usdg)),
             treasury,
-            governor
+            governor,
+            guardian
         );
         vm.prank(governor);
         house.setAuctionTokenAllowed(address(nvda), true);
