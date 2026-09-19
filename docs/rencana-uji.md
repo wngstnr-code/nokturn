@@ -117,10 +117,16 @@ Dua terakhir menurutku paling bernilai: membuktikan **guardian tidak bisa mencur
 dan **fee tidak bisa melampaui batas** adalah klaim yang bisa dinyatakan tanpa
 syarat ke juri.
 
-### 4.1 Status, diukur 19 September 2026
+### 4.1 Status, diukur 19 September 2026 dan diperbarui 20 September 2026
 
-Dijalankan dengan halmos 0.3.3 dan z3, lewat `contracts/tools/halmos.sh`. Tiga file,
-`ClearingMathProofs`, `AuctionMathProofs`, dan `SessionProofs`.
+Dijalankan lewat `contracts/tools/halmos.sh` dengan halmos 0.3.3. Empat file,
+`ClearingMathProofs`, `AuctionMathProofs`, `SessionProofs`, dan `GuardianProofs`.
+
+⚠️ **Koreksi 20 September 2026.** Baris ini sebelumnya menulis solvernya z3.
+`halmos.sh` tidak pernah menyebut solver, dan default halmos 0.3.3 adalah **yices**.
+Jadi angka 2,2 detik dan timeout di bawah ini adalah angka yices. Kesalahannya tidak
+mengubah kesimpulan, tapi ia mengirim orang berikutnya mengulang eksperimen yang
+salah.
 
 **Aturan penamaan.** Fungsi berawalan `testFuzz_` dijalankan simbolis oleh gerbang
 dan merupakan bukti atas seluruh rentang yang dinyatakan. Fungsi berawalan
@@ -134,22 +140,71 @@ properti yang terbaca seperti terbukti padahal tidak.
 | Pemeriksaan limit | Terbukti, uint128 penuh |
 | Ekuivalensi perkalian silang | Terbukti, uint128 penuh |
 | Batas fee | Terbukti, uint128 penuh |
-| Pembulatan pro rata | **Sebagian.** Distributivitas terbukti di uint128. Lema pembulatan terbukti di uint64 saja |
-| Konservasi nilai | **Sebagian.** Tanda dan luapan terbukti di uint128. Bentuk gabungannya fuzz |
+| Pembulatan pro rata | **Sebagian.** Distributivitas terbukti di uint128. Lema pembulatan terbukti di uint64, yaitu sisi tembok pembagian yang bisa ditutup solver |
+| Konservasi nilai | **Sebagian.** Tanda dan luapan terbukti di uint128. Bentuk gabungan terbukti di uint32, naik dari fuzz saja pada 20 September 2026 |
 | `sessionAt()` | **Sebagian.** Tiga properti parameter tuntas lewat enumerasi, tiga properti tanggal terbukti simbolis. Tabelnya tuntas lewat `CivilDate.t.sol` |
 | Kekuasaan guardian | **Terbukti, dua paruh.** Lima properti simbolis atas `Guarded`, plus gerbang sumber di CI |
 
-**Kenapa pembulatan pro rata berhenti di uint64.** Pembagian 256 bit adalah tembok
-z3. Lema `floor(x/W) + floor(y/W) <= floor((x+y)/W)` tertutup dalam 2,2 detik di
-uint64, dan timeout lewat 120 detik di uint96 maupun uint128, tanpa counterexample
-di kedua kasus. Produk nyata protokol ini, yaitu jumlah di batas cap batch dikali
-harga stock token, ada di sekitar 2 pangkat 139,5. Jadi tidak ada lebar yang
-dijangkau solver yang mencakup rentang sebenarnya, dan menyatakan bukti uint64
-seolah mencakup uint128 adalah persis jenis klaim yang repo ini ada untuk hindari.
+**Kenapa pembulatan pro rata berhenti, dan di mana persis.** Diselidiki tuntas
+20 September 2026. Hasilnya bukan "solver kurang kuat" melainkan satu batas yang bisa
+ditunjuk dan dipakai memprediksi.
 
-Bentuk gabungannya tetap diuji forge sebagai fuzz di uint128 penuh, dan dipecah jadi
-dua lema yang masing-masing terbukti. Yang hilang adalah langkah komposisinya, bukan
-propertinya.
+**Temboknya ada di lebar bilangan yang dibagi, bukan di lebar inputnya.** Ia duduk di
+antara 2 pangkat 65 dan 2 pangkat 73.
+
+Tiga arah diuji dan ketiganya mendarat di tempat yang sama.
+
+*Ganti solvernya.* Empat solver, lema yang sama.
+
+| Solver | uint64 | uint96 | uint128 |
+|---|---|---|---|
+| yices, default | lolos 2,2 dtk | timeout 300 dtk | timeout 300 dtk |
+| z3 | lolos 2,1 dtk | timeout 300 dtk | timeout 300 dtk |
+| bitwuzla | lolos 4,4 dtk | timeout 300 dtk | timeout 300 dtk |
+| cvc5 | lolos 19,8 dtk | timeout 300 dtk | timeout 300 dtk |
+
+Bitwuzla adalah solver terkuat yang tersedia untuk pembagian bitvector, dan ia buntu
+di tempat yang sama. Temboknya bukan pilihan alat.
+
+*Kurangi pembagiannya.* Bentuk asli punya tiga pembagian. Bentuk perkalian punya dua,
+yaitu `(qx + qy) · W <= x + y`, yang isinya setara karena `split <= whole` mengikuti
+dari definisi floor. Lolos uint64 dalam 4,5 detik, timeout di uint96. Jumlah pembagian
+bukan yang mengikat.
+
+*Pindahkan pembagiannya keluar.* Rencananya memecah jadi Lema A, yaitu aksioma Euclid
+`(x/W)·W + (x%W) == x` di uint256, dan Lema B, yaitu pertidaksamaannya atas saksi
+segar tanpa pembagian. **Lema A timeout.** Dan begitu Lema B ditulis benar benar tanpa
+pembagian, isinya runtuh jadi pernyataan tentang satu bit carry dan tidak memuat apa
+apa. Seluruh muatannya ada di Lema A.
+
+Jadi yang tidak bisa ditutup solver adalah aksioma pembagian 256 bit itu sendiri.
+
+**Lebar mana yang lolos bisa dihitung di muka.** `floor64` membagi jumlah paling besar
+2 pangkat 65 dan lolos. `floor72`, lebar berikutnya yang dipunyai Solidity, membagi
+2 pangkat 73 dan timeout. Tidak ada tipe di antara keduanya, jadi batas itu sudah
+sehalus yang bisa dinyatakan.
+
+Aturan itu diuji dengan prediksi, bukan cuma dengan katalog kegagalan. Bentuk gabungan
+membentuk hasil kali **sebelum** membagi, jadi input uint64 menaruh 2 pangkat 129 di
+depan pembagian dan seharusnya gagal meski inputnya selebar yang lolos di atas. Ia
+gagal. Input uint32 menaruh 2 pangkat 64 dan seharusnya lolos. **Ia lolos dalam 3,7
+detik.**
+
+Itu menaikkan satu baris. Bentuk gabungan sekarang **terbukti simbolis di uint32**,
+naik dari fuzz saja. Sempit, dan bukan tidak ada. Ia satu satunya bukti simbolis bahwa
+kedua lema menyusun ke arah yang diklaim, dan sampel fuzz tidak bisa memberi itu.
+
+Produk nyata protokol ini, yaitu jumlah di batas cap batch dikali harga stock token,
+ada di sekitar 2 pangkat 139,5. Jadi tetap tidak ada lebar yang dijangkau solver yang
+mencakup rentang sebenarnya, dan menyatakan bukti sempit seolah mencakup yang lebar
+adalah persis jenis klaim yang repo ini ada untuk hindari.
+
+Bentuk gabungan di uint128 penuh tetap diuji forge sebagai fuzz. Yang hilang adalah
+langkah komposisinya di lebar penuh, bukan propertinya.
+
+Probenya disimpan di `contracts/test/halmos/DivisionWall.t.sol` supaya batas ini bisa
+dijalankan ulang. Ia sengaja **tidak** masuk daftar kontrak di `halmos.sh`, karena
+probe yang memang diharapkan timeout akan membuat gerbang merah tiap malam.
 
 **Kenapa kekuasaan guardian bisa dibuktikan padahal pembulatan tidak.** Ia pernyataan
 tentang keterjangkauan, bukan tentang aritmetika 256 bit, jadi ia tidak menyentuh tembok
@@ -397,7 +452,7 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 
 - [x] 14 invarian hijau di Foundry **dan** Echidna · lima target Echidna, nol falsifikasi, 19 September 2026
 - [x] Differential ≥ 1 juta input, nol perbedaan · laporan `verifier/reports/differential-2026-09-18.md`
-- [ ] Semua properti Halmos terbukti · 4 dari 7 penuh, 3 sebagian. Lihat §4.1
+- [ ] Semua properti Halmos terbukti · 4 dari 7 penuh, 3 sebagian, dan batas ketiganya sekarang terukur bukan ditebak. Tembok pembagian dipetakan tuntas 20 September 2026 lewat empat solver, tiga bentuk pernyataan, dan seluruh lebar yang dipunyai Solidity. Bentuk gabungan naik dari fuzz ke terbukti di uint32. Lihat §4.1
 - [x] Skor mutasi ≥ 90% pada kontrak inti · 100% atas 156 mutan yang dihitung di `Settlement` dan `SessionManager`, 19 September 2026. Seluruh kontrak lain juga sudah diukur dan berada di 100%
 - [x] Semua fork test lulus terhadap mainnet nyata · 18 hijau, 19 September 2026. Sebelum hari itu fork-nya membaca state 2 Agustus, lihat `pertanyaan-terbuka.md` pelajaran ketujuh
 - [x] 15 skenario adversarial lulus · enam belas hijau setelah A16 ditambahkan 20 September 2026, peta ke nama test di §7.1
