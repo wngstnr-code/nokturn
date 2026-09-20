@@ -10,11 +10,13 @@
 //   D4  does the fork hold up under the load of the whole stack at once
 //   D5  does the stack survive a live session boundary without a restart
 //   D6  what a restart costs, measured rather than assumed
+//   D7  does packages/shared still agree with contracts/script/Addresses.sol
+//   D8  does every committed abi still match the bytecode on chain
 //
 // It snapshots before moving anything and reverts at the end.
 
 import {readFileSync} from "node:fs";
-import {createPublicClient, getContractAddress, http, parseUnits} from "viem";
+import {createPublicClient, getContractAddress, http, parseUnits, toFunctionSelector} from "viem";
 
 const FORK = process.env.NOKTURN_FORK_RPC ?? "http://127.0.0.1:8545";
 const API = process.env.NOKTURN_API_URL ?? "http://127.0.0.1:3000";
@@ -327,6 +329,85 @@ async function d6RestartCost() {
   note("the demo should not be restarted mid run, because the fork cache goes cold with it");
 }
 
+async function d7SharedPackageDrift() {
+  console.log("\nD7. does packages/shared still agree with the contracts");
+
+  // Addresses.sol is what the deploy runs on, so it is the source. addresses.ts
+  // is a published copy, and a copy with no check is a copy that drifts. This
+  // one already had: four tokens against the contract's five, and a different
+  // GME pool.
+  const sol = readFileSync(new URL("../../contracts/script/Addresses.sol", here), "utf8");
+  const ts = readFileSync(new URL("../../packages/shared/addresses.ts", here), "utf8");
+
+  const constants = new Map();
+  for (const m of sol.matchAll(/constant\s+([A-Z0-9_]+)\s*=\s*(0x[0-9a-fA-F]{40})\s*;/g)) {
+    constants.set(m[1], m[2].toLowerCase());
+  }
+
+  const symbols = ["NVDA", "AAPL", "TSLA", "GOOGL", "GME"];
+  const problems = [];
+
+  for (const symbol of symbols) {
+    for (const [kind, key] of [["token", symbol], ["pool", `POOL_${symbol}`]]) {
+      const want = constants.get(key);
+      if (!want) {
+        problems.push(`Addresses.sol no longer declares ${key}`);
+        continue;
+      }
+      if (!ts.toLowerCase().includes(want)) {
+        problems.push(`addresses.ts is missing the ${symbol} ${kind} ${want}`);
+      }
+    }
+  }
+
+  if (problems.length === 0) {
+    ok("addresses.ts carries every token and pool the contracts declare");
+  } else {
+    for (const problem of problems) console.log(`        ${problem}`);
+    note(`${problems.length} addresses drifted. packages/shared/addresses.ts is Wangsit's file, so raise it at standup`);
+  }
+}
+
+async function d8AbiMatchesBytecode() {
+  console.log("\nD8. does every committed abi still match the bytecode on chain");
+
+  // A stale abi is the failure that produces a bare selector instead of a named
+  // revert, and nothing fails while it happens. Every selector the abi declares
+  // has to appear in the deployed runtime code.
+  const pairs = [
+    ["Settlement", deployment.settlement],
+    ["SessionManager", deployment.sessions],
+    ["PriceOracle", deployment.oracle],
+    ["SolverRegistry", deployment.solvers],
+    ["UniswapV3Adapter", deployment.adapter],
+  ];
+
+  let drifted = 0;
+  for (const [name, address] of pairs) {
+    const abi = JSON.parse(readFileSync(new URL(`../../packages/shared/abi/${name}.json`, here), "utf8"));
+    const code = (await fork.getCode({address})) ?? "0x";
+    const fns = abi.filter((e) => e.type === "function");
+    const canon = (input) =>
+      input.type.startsWith("tuple")
+        ? `(${input.components.map(canon).join(",")})${input.type.slice(5)}`
+        : input.type;
+    const missing = fns.filter((f) => {
+      const sig = `${f.name}(${f.inputs.map(canon).join(",")})`;
+      return !code.includes(toFunctionSelector(sig).slice(2));
+    });
+    if (missing.length === 0) {
+      console.log(`        ${name.padEnd(18)} ${fns.length} selectors, all present`);
+    } else {
+      drifted += 1;
+      console.log(`        ${name.padEnd(18)} ${missing.length} of ${fns.length} selectors absent from the bytecode`);
+      for (const f of missing.slice(0, 4)) console.log(`          ${f.name}`);
+    }
+  }
+
+  if (drifted === 0) ok("every abi matches the contract that is actually deployed");
+  else bad(`${drifted} abi files no longer match the deployed bytecode`, "run contracts/tools/export-abi.sh");
+}
+
 async function main() {
   console.log(`fork      ${FORK}`);
   console.log(`upstream  ${UPSTREAM}`);
@@ -340,6 +421,8 @@ async function main() {
     await d4ConcurrentLoad();
     await d5SessionBoundaryLive();
     await d6RestartCost();
+    await d7SharedPackageDrift();
+    await d8AbiMatchesBytecode();
   } finally {
     await rpc("evm_revert", [snap]);
     console.log(`\nreverted ${snap}`);
