@@ -68,6 +68,16 @@ tidak perlu dipercaya begitu saja.
 Ganti sumbernya dengan alamat pemegang nyata lewat `NOKTURN_FUNDING_SOURCE`
 kalau tim lebih suka begitu.
 
+## Akunnya bukan bawaan anvil, dan itu disengaja
+
+Kesepuluh akun bawaan anvil punya delegasi EIP-7702 di mainnet 4663, karena kunci
+privatnya publik. Akun berkode membuat Permit2 mengambil jalur EIP-1271 dan
+menolak tanda tangan ECDSA yang sempurna, dengan revert kosong tanpa nama error.
+
+Fork memakai mnemonic proyek sendiri, dan `make fund` memeriksa ulang tiap kali
+bahwa keenam akun penanda tangan masih nol byte. Rinciannya di
+`docs/rencana-backend.md` §3C.
+
 ## Reset, dan kenapa bukan lewat snapshot state
 
 ```bash
@@ -117,7 +127,7 @@ allowlist, harga oracle per token dengan umurnya, kuotasi baseline per token, da
 saldo tiap akun demo lengkap dengan status approve Permit2. Ini yang dijalankan
 duluan setiap kali ada yang aneh, dan ini yang ditempel ke standup.
 
-### 2. `make check-batch`
+### 2. `make check-batch` dan `make check-permit2`
 
 Uji diferensial `packages/shared/batch.ts` lawan `batchWindow` di rantai. Empat
 puluh satu pemeriksaan, dua arah, melintasi tujuh sesi dan empat durasi batch.
@@ -125,6 +135,11 @@ Dia menggeser jam fork lalu mengembalikannya sendiri lewat snapshot.
 
 Jalankan ini setiap kali menyentuh logika `batchId`. Helper yang menyimpang dari
 kontrak berarti setiap batch gagal dengan error yang tidak menyebut sebabnya.
+
+`make check-permit2` membuktikan digest witness yang dihitung API adalah yang
+benar benar diverifikasi Permit2, lewat Permit2 yang ter-deploy dan bukan lewat
+pemulihan tanda tangan lokal. Pemulihan lokal selalu sepakat dengan enkoding lokal
+yang menghasilkannya.
 
 ### 3. Postman
 

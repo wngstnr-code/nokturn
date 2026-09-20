@@ -394,6 +394,72 @@ yang dikatakan fork.
 
 ---
 
+## 3C. Akun bawaan anvil tidak bisa dipakai di chain ini
+
+Ditemukan 20 September 2026 saat membuktikan digest witness Permit2, dan ini
+jenis jebakan yang bisa memakan satu hari penuh.
+
+**Kesepuluh akun bawaan anvil punya kode di mainnet 4663.** Dua puluh tiga byte,
+diawali `0xef0100`, yaitu penanda delegasi EIP-7702. Semuanya menunjuk ke kontrak
+yang sama, `0x8a5b10eb2faf57665f63709ec4b3943a3b005df6`.
+
+Ini masuk akal begitu dilihat. Kunci privat akun bawaan anvil dipublikasikan di
+tiap startup, jadi siapa pun bisa memasang delegasi 7702 di atasnya, dan di chain
+yang punya 7702 aktif seseorang memang sudah melakukannya.
+
+**Bukan artefak fork.** Diperiksa langsung ke `robinhood.drpc.org`, bukan cuma ke
+anvil.
+
+### Kenapa ini mematikan
+
+`SignatureVerification.verify` di Permit2 bercabang pada `claimedSigner.code.length`.
+Nol berarti jalur ECDSA. Bukan nol berarti jalur EIP-1271, dan Permit2 memanggil
+`isValidSignature` ke akun itu.
+
+Kontrak delegasi di atas tidak punya fungsi itu, jadi panggilannya revert **tanpa
+data**. Bukan `InvalidSigner`, bukan `InvalidNonce`, bukan pesan apa pun. Cuma
+`0x`.
+
+Gejalanya menyesatkan sempurna. Tanda tangan benar, digest benar, allowance ada,
+saldo ada, selector ada di bytecode, calldata ter-decode balik dengan sempurna.
+Satu satunya cara menemukannya adalah membaca trace eksekusi.
+
+### Yang berubah
+
+Fork sekarang memakai mnemonic proyek sendiri, bukan bawaan anvil, dan
+`infra/accounts.json` mencatat sepuluh alamat turunannya. Ketika dipilih,
+kesepuluhnya diperiksa ke mainnet asli dan semuanya nol byte.
+
+`make fund` memeriksa ulang setiap kali dijalankan dan **gagal** kalau salah satu
+akun demo punya kode, dengan pesan yang menyebut `0xef0100`. Delegasi baru bisa
+muncul kapan saja, jadi ini pemeriksaan berulang, bukan sekali.
+
+### Aturan yang mengikat
+
+Jangan pernah memakai alamat yang kunci privatnya publik sebagai penanda tangan
+di chain ini. Itu termasuk akun bawaan anvil, akun bawaan hardhat, dan alamat
+contoh mana pun yang beredar di internet.
+
+Dan lebih umum, **sebuah akun yang punya kode bukan EOA**. Harness replay nanti
+menyentuh masalah yang sama kalau alamat yang diambil dari arus Agustus ternyata
+sudah terdelegasi, jadi periksa sebelum menandatangani, bukan sesudah revert.
+
+### Cara menjalankan ulang buktinya
+
+```bash
+make check-permit2
+```
+
+Tiga pemeriksaan. Permit2 menerima tanda tangan yang dibangun dari digest kita,
+token benar benar berpindah, dan pemanggil lain tidak bisa memakai tanda tangan
+yang sama karena Permit2 mengikatnya ke `msg.sender`.
+
+Buktinya lewat Permit2 yang ter-deploy, bukan lewat pemulihan tanda tangan lokal.
+Pemulihan lokal selalu sepakat dengan enkoding lokal yang menghasilkannya, jadi
+ia tidak membuktikan apa pun tentang kecocokan dengan rantai.
+
+---
+
 ## 4. Daftar fitur yang harus dibangun
 
 Tiga puluh dua butir, dikelompokkan per direktori. Kolom selesai kalau adalah definisi
