@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 S     := ./scripts
 
-.PHONY: help pin fork deploy fund status prewarm snapshot revert check-batch api postman postman-run postman-resilience postman-api lock clean
+.PHONY: help pin fork deploy fund status prewarm snapshot revert check-batch check-permit2 api postman postman-run postman-resilience postman-api lock clean
 
 help:
 	@echo "pin          measure the head and write infra/pinned-block.json"
@@ -15,6 +15,7 @@ help:
 	@echo "prewarm      pull the state the demo reads into the fork cache"
 	@echo "api          start the coordinator api, foreground"
 	@echo "check-batch  differential check of the batchId helper against the chain"
+	@echo "check-permit2  prove the witness digest is the one Permit2 verifies"
 	@echo "snapshot     take an evm_snapshot, the reset that works on a fork"
 	@echo "revert       roll back to that snapshot and take a fresh one"
 	@echo "postman      regenerate infra/postman from the live deployment"
@@ -47,6 +48,9 @@ api:
 
 check-batch:
 	@$(S)/check-batch.sh
+
+check-permit2:
+	@$(S)/check-permit2.sh
 
 snapshot:
 	@$(S)/snapshot.sh
