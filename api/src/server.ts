@@ -13,6 +13,8 @@ import {chain} from "./chain.ts";
 import {HttpError} from "./errors.ts";
 import {allowlistRoutes} from "./routes/allowlist.ts";
 import {configRoutes} from "./routes/config.ts";
+import {escapeRoutes} from "./routes/escape.ts";
+import {nonceRoutes} from "./routes/nonces.ts";
 import {quoteRoutes} from "./routes/quote.ts";
 import {sessionRoutes} from "./routes/session.ts";
 import {solverRoutes} from "./routes/solvers.ts";
@@ -88,6 +90,8 @@ export function buildServer(): FastifyInstance {
   sessionRoutes(app);
   allowlistRoutes(app);
   quoteRoutes(app);
+  nonceRoutes(app);
+  escapeRoutes(app);
   solverRoutes(app);
   stubRoutes(app);
 

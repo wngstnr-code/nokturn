@@ -93,7 +93,20 @@ export const erc20Abi: Abi = [
 
 export const multiplierAbi: Abi = [view("uiMultiplier", [], ["uint256"])];
 
-export const permit2Abi: Abi = [view("DOMAIN_SEPARATOR", [], ["bytes32"])];
+export const permit2Abi: Abi = [
+  view("DOMAIN_SEPARATOR", [], ["bytes32"]),
+  view("nonceBitmap", ["address", "uint256"], ["uint256"]),
+  {
+    type: "function",
+    name: "invalidateUnorderedNonces",
+    stateMutability: "nonpayable",
+    inputs: [
+      {name: "wordPos", type: "uint256"},
+      {name: "mask", type: "uint256"},
+    ],
+    outputs: [],
+  },
+];
 
 /** IntentLib.INTENT_TYPEHASH, reproduced from the string the contract hashes. */
 export const INTENT_TYPE_STRING =
