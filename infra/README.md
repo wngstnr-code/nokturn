@@ -108,7 +108,7 @@ benar, dan ia adalah kasus pass-through deterministik untuk layar batch gagal di
 
 ## Cara mengujinya
 
-Tiga lapis, dari yang paling cepat.
+Empat lapis, dari yang paling cepat.
 
 ### 1. `make status`
 
@@ -117,7 +117,16 @@ allowlist, harga oracle per token dengan umurnya, kuotasi baseline per token, da
 saldo tiap akun demo lengkap dengan status approve Permit2. Ini yang dijalankan
 duluan setiap kali ada yang aneh, dan ini yang ditempel ke standup.
 
-### 2. Postman
+### 2. `make check-batch`
+
+Uji diferensial `packages/shared/batch.ts` lawan `batchWindow` di rantai. Empat
+puluh satu pemeriksaan, dua arah, melintasi tujuh sesi dan empat durasi batch.
+Dia menggeser jam fork lalu mengembalikannya sendiri lewat snapshot.
+
+Jalankan ini setiap kali menyentuh logika `batchId`. Helper yang menyimpang dari
+kontrak berarti setiap batch gagal dengan error yang tidak menyebut sebabnya.
+
+### 3. Postman
 
 ```bash
 make postman       # regenerate dari deployment yang hidup
@@ -154,7 +163,7 @@ Menyalin keduanya ke konstanta adalah cara paling umum membuat tanda tangan
 berhenti terverifikasi. Koleksi ini menyimpan keduanya ke variabel koleksi supaya
 terlihat nilainya.
 
-### 3. JSON-RPC manual
+### 4. JSON-RPC manual
 
 Postman menembak `http://127.0.0.1:8545` dengan `POST` dan body JSON-RPC biasa.
 Bentuknya selalu sama.

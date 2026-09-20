@@ -246,6 +246,154 @@ Tiga akibat langsung.
 
 ---
 
+## 3B. Uji ketahanan F1, hasil 20 September 2026
+
+Fork yang sudah berdiri diserang dengan skenario terburuk, bukan cuma dipakai.
+Enam temuan, semuanya terukur di fork yang berjalan, dan semuanya bisa
+direproduksi lewat `make postman-resilience`.
+
+Empat di antaranya menyentuh kode yang belum ditulis, yaitu F9 penjadwal batch
+dan F21 siklus hidup solver. Baca ini sebelum menulis keduanya.
+
+### R1. Jam fork tertinggal dari jam laptop, dan selisihnya bertambah
+
+Terukur **11.492 detik**, yaitu 3 jam 11 menit. Sebabnya fork mulai dari
+timestamp blok yang dipatok, dan blok itu sendiri sudah berumur 2 jam 47 menit
+saat dipatok karena marginnya 100.000 blok. Tiap kali anvil direstart, jam chain
+kembali ke timestamp blok itu sementara jam laptop terus jalan, jadi selisihnya
+tumbuh.
+
+```
+drift = (umur patokan saat ini) - (lama anvil hidup)
+```
+
+**Akibatnya.** Kode yang menghitung `batchId` dari `Date.now()` menghasilkan
+batch tiga jam di masa depan. `batchWindow` menerimanya tanpa protes, karena ia
+hanya memeriksa penyejajaran dan guard band, bukan kedekatan dengan sekarang.
+Kegagalannya baru muncul di `submitSolution` sebagai `SolutionWindowClosed`,
+dan tidak ada satu pun bagian dari error itu yang menyebut soal jam.
+
+**Aturan yang mengikat.** Ambil waktu dari `block.timestamp` lewat
+`eth_getBlockByNumber`, tidak pernah dari `Date.now()`. Berlaku di coordinator,
+solver, dan indexer.
+
+### R2. Jendela solusi hanya 10 detik dari tiap 60 detik
+
+Dipetakan detik demi detik. `submitSolution` diterima **hanya** pada offset 1
+sampai 10 setelah batas batch. Pada offset 0 dan 11 ke atas ia menolak dengan
+`SolutionWindowClosed`.
+
+| Sesi | Durasi batch | Jendela | Duty cycle |
+|---|---|---|---|
+| CLOSED_WEEKEND | 60 dtk | 10 dtk | 16,7% |
+| CLOSED_OVERNIGHT | 45 dtk | 10 dtk | 22,2% |
+| PRE_MARKET, POST_MARKET | 30 dtk | 10 dtk | 33,3% |
+| OPEN | 10 dtk | 10 dtk | 100%, dan batch bertumpuk |
+
+**Akibatnya.** Solver tidak punya waktu berpikir setelah batch tutup. Dia harus
+sudah memegang solusi kandidat sebelum batas, lalu di detik penutupan hanya
+menyegarkan harga oracle dan baseline. Kalau perakitan solusi makan lebih dari
+10 detik, solver itu tidak akan pernah menang sekali pun.
+
+### R3. Blok yang lambat membuat jendela itu mustahil dicapai
+
+Dengan interval mining 15 detik, offset yang teramati selama 90 detik adalah
+**11, 12, 27, 42, dan 57**. Jendela 1 sampai 10 tidak pernah kena sekali pun.
+Nol solusi bisa masuk, dan gejalanya terlihat seperti solver rusak.
+
+**Aturannya.** `make fork` memakai `--block-time 1`. Jangan dinaikkan di atas 5
+detik tanpa menghitung ulang jendela ini.
+
+### R4. `inGuardBand(now)` bernilai false tidak berarti batch boleh dibuka
+
+Ini jebakan paling halus dari keenamnya.
+
+| Waktu | `inGuardBand(now)` | `batchWindow(batchId sejajar)` |
+|---|---|---|
+| transisi minus 61 dtk | false | ok |
+| transisi minus 60 dtk | **true** | BatchInGuardBand |
+| transisi | true | BatchInGuardBand |
+| transisi plus 60 dtk | **false** | **BatchInGuardBand** |
+| transisi plus 90 dtk | false | ok |
+
+Baris keempat itu masalahnya. Jam dinding sudah keluar dari band, tapi
+`batchWindow` tetap menolak, karena yang diperiksanya adalah
+`inGuardBand(batchId)`, dan `batchId` yang sejajar jatuh kembali ke dalam band.
+
+**Aturannya.** Uji `inGuardBand(batchId)`, jangan pernah `inGuardBand(now)`.
+
+### R5. Pergantian sesi mengubah durasi batch, dan penyejajaran lama jadi salah
+
+Di batas Senin 04:00 UTC, sesi berpindah dari `CLOSED_WEEKEND` ke
+`CLOSED_OVERNIGHT`, dan durasi batch berubah dari **60 ke 45 detik**.
+
+Kelipatan persekutuan terkecil 60 dan 45 adalah **180**. Artinya `batchId` yang
+sah di kedua sisi transisi hanyalah kelipatan 180, yaitu **satu dari tiga**.
+Coordinator yang menyimpan durasi 60 di memori akan terus mengeluarkan kelipatan
+60, dan dua pertiganya revert dengan `BatchMisaligned` setelah transisi.
+
+**Aturannya.** Baca `batchDuration(sessionAt(batchId))` untuk setiap batch, jangan
+di-cache melewati batas sesi.
+
+### R6. Lubang tanpa batch di transisi lebih lebar dari 120 detik
+
+Guard band 60 detik di kedua sisi, tapi karena yang diuji adalah `batchId` yang
+sejajar, `batchId` pertama yang sah setelah transisi adalah transisi plus 90
+detik pada durasi 45. Jadi lubangnya sekitar **150 detik**, bukan 120.
+
+Ini perilaku yang benar, bukan bug. Yang salah adalah memperlakukannya sebagai
+gangguan. Coordinator menahan intent selama lubang itu dan membukanya lagi di
+batch pertama yang sah.
+
+### Yang diuji dan ternyata tidak rapuh
+
+| Skenario | Hasil |
+|---|---|
+| Fork di head persis, margin nol | Tetap menyala dan menjawab `slot0` |
+| `evm_revert` setelah lompat waktu 17 jam | Mengembalikan jam **dan** sesi dengan benar |
+| Transfer token keluar dari pool | `slot0`, `liquidity`, dan kuotasi tidak bergeser sama sekali |
+| State pool di fork lawan mainnet asli | **Byte-identik** di blok yang sama |
+
+### Penjaga yang dipasang hari ini
+
+Temuan yang cuma ditulis di dokumen tidak menghentikan siapa pun mengulanginya.
+Tiga penjaga dipasang di kode, dan masing-masing menutup temuan tertentu.
+
+| Penjaga | Menutup | Bentuknya |
+|---|---|---|
+| `packages/shared/batch.ts` | R1, R4, R5, dan durasi nol di fase lelang | Satu satunya jalan sah menghitung `batchId`. `nextValidBatchId` untuk coordinator, `solvableBatchId` untuk solver |
+| `make check-batch` | ketiganya, sebagai gerbang | Uji diferensial lawan `batchWindow` di rantai, 41 pemeriksaan, dua arah |
+| `fork.sh` menolak block time di atas 5 detik | R3 | Mati dengan pesan yang menyebut jendela 10 detik |
+| Baris `clock drift` di `make status` | R1, sebagai diagnosis | Menyebut selisihnya dan menyuruh pakai `block.timestamp` |
+
+**Aturan yang mengikat sejak sekarang.** Jangan pernah menghitung `batchId` dengan
+tangan di `api/`, `solver/`, maupun `indexer/`. Panggil helper itu. Kalau ketemu
+jebakan ketujuh, memperbaikinya cukup di satu tempat, bukan tiga.
+
+Uji diferensialnya memeriksa **dua arah**, bukan satu. Tiap `batchId` yang
+diberikan helper wajib diterima kontrak, **dan** tidak boleh ada `batchId` sah di
+antara waktu yang ditanya dan yang diberikan. Tanpa arah kedua, helper yang
+terlalu penakut akan lolos uji sambil melewatkan batch yang sebenarnya bisa
+dipakai.
+
+Cakupannya tujuh sesi dan empat durasi, yaitu `CLOSED_WEEKEND` 60 detik,
+`CLOSED_OVERNIGHT` 45, `PRE_MARKET` dan `POST_MARKET` 30, `OPEN` 10, serta kedua
+fase lelang yang durasinya nol dan dilompati ke transisi berikutnya.
+
+### Cara menjalankan ulang semuanya
+
+```bash
+make check-batch        # 41 pemeriksaan helper lawan rantai
+make postman            # regenerate kedua koleksi
+make postman-resilience # 15 permintaan, 33 assertion
+```
+
+Koleksi itu mengambil snapshot di awal dan mengembalikannya di akhir. Kalau
+jalannya terputus di tengah, jalankan `make revert` sebelum mempercayai apa pun
+yang dikatakan fork.
+
+---
+
 ## 4. Daftar fitur yang harus dibangun
 
 Tiga puluh dua butir, dikelompokkan per direktori. Kolom selesai kalau adalah definisi
