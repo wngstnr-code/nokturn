@@ -1,0 +1,12 @@
+{
+  "name": "nokturn",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --build",
+    "lint": "biome check ."
+  }
+}

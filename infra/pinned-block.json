@@ -1,0 +1,9 @@
+{
+  "chainId": 4663,
+  "block": 67798044,
+  "timestamp": 1789893109,
+  "timestampUtc": "2026-09-20T08:31:49.000Z",
+  "measuredAgainstHead": 67898044,
+  "endpoint": "https://robinhood.drpc.org",
+  "note": "Synchronisation point 6. Moving this block changes every receipt number."
+}

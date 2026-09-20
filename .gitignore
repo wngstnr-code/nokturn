@@ -61,3 +61,12 @@ verifier/report.txt
 
 # Deploy records are committed on purpose, so only the run logs are ignored.
 contracts/broadcast/
+
+# Backend local artefacts. infra/pinned-block.json and infra/accounts.json are
+# committed on purpose, the rest is produced by a run on one laptop.
+infra/fork-deployment.json
+infra/chain.json
+infra/.snapshot-id
+# Regenerated from the live deployment by `make postman`, so the addresses in it
+# are different on every laptop. The generator is committed, its output is not.
+infra/postman/
