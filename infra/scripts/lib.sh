@@ -10,7 +10,9 @@ INFRA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(cd "$INFRA_DIR/.." && pwd)"
 CONTRACTS_DIR="$REPO_ROOT/contracts"
 
-FORK_RPC="${NOKTURN_FORK_RPC:-http://127.0.0.1:8545}"
+# Derived from the port rather than hardcoded, because fork.sh tells you to set
+# NOKTURN_FORK_PORT when 8545 is busy and that advice has to actually work.
+FORK_RPC="${NOKTURN_FORK_RPC:-http://127.0.0.1:${NOKTURN_FORK_PORT:-8545}}"
 PIN_FILE="$INFRA_DIR/pinned-block.json"
 ACCOUNTS_FILE="$INFRA_DIR/accounts.json"
 FORK_RECORD="$INFRA_DIR/fork-deployment.json"
