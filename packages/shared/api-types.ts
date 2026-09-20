@@ -339,6 +339,135 @@ export interface IntentStatusResponse {
 }
 
 // ---------------------------------------------------------------------------
+// GET /v1/batches/:batchId/intents
+// ---------------------------------------------------------------------------
+
+/**
+ * The solver feed. Everything needed to assemble a Solution for one batch.
+ *
+ * It exists because the stream only announces that an intent arrived, carrying
+ * its hash and nothing else. A solver that boots mid batch has missed those
+ * announcements anyway, so the set has to be fetchable rather than only
+ * subscribable, or two solvers never see the same batch.
+ */
+export interface BatchIntentsResponse {
+  batchId: Uint;
+  session: Session;
+  sessionName: SessionName;
+  collectStartsAt: Timestamp;
+  collectEndsAt: Timestamp;
+  solveEndsAt: Timestamp;
+  chainTime: Timestamp;
+  /**
+   * True once collection has closed. Before that the set can still grow, and a
+   * solver that builds on an unfrozen set is racing the coordinator.
+   */
+  frozen: boolean;
+  intents: SignedIntent[];
+  /**
+   * The reference price per token, already in the units Solution.prices uses,
+   * which is USD 18 decimals per smallest unit scaled by 1e18. Served converted
+   * because getting that conversion wrong makes the most common pair on this
+   * chain fail NonUniformPrice. See docs/parameter.md section 4C.
+   */
+  oraclePrices: OraclePriceRow[];
+  /** The band a clearing price has to sit inside for this batch's session. */
+  maxDeviationBps: number;
+  provenance: Provenance;
+}
+
+export interface SignedIntent {
+  intentHash: Hex;
+  intent: IntentPayload;
+  /** The Permit2 witness signature, not a signature over Intent alone. */
+  signature: Hex;
+  signatureKind: "eoa" | "erc1271";
+  receivedAt: Timestamp;
+}
+
+export interface OraclePriceRow {
+  token: Address;
+  symbol: string;
+  decimals: number;
+  /** Per smallest unit, scaled by 1e18. This is what goes in Solution.prices. */
+  price: Uint;
+  /** As PriceOracle reports it, 1e18 per whole token. Published so the
+      conversion above can be checked rather than trusted. */
+  refPrice: Uint;
+  healthy: boolean;
+  updatedAt: Timestamp;
+}
+
+// ---------------------------------------------------------------------------
+// GET /v1/nonces/:owner
+// ---------------------------------------------------------------------------
+
+/**
+ * Which Permit2 nonces this owner can still sign with.
+ *
+ * Permit2 nonces are unordered and tracked in a bitmap, so there is no counter
+ * to read and no way to pick one without asking. Nothing can be signed before
+ * this answer, which is why it is a route rather than something the frontend
+ * works out by calling the chain itself.
+ */
+export interface NonceResponse {
+  owner: Address;
+  /** The lowest nonce Permit2 has not consumed. */
+  next: Uint;
+  /** The bitmap words that were scanned, so the answer can be rechecked. */
+  scannedWords: {word: Uint; bitmap: Uint}[];
+  /**
+   * Present when a specific nonce was asked about. Cancelling consumes the
+   * nonce and moves nothing.
+   *
+   * It targets Permit2 rather than Settlement. Settlement carries no
+   * invalidateNonce, whatever docs/interfaces.md section 3 still says, and
+   * IPermit2 says so in a comment.
+   */
+  cancel?: {
+    nonce: Uint;
+    used: boolean;
+    to: Address;
+    data: Hex;
+    castCommand: string;
+    describes: string;
+  };
+  provenance: Provenance;
+}
+
+// ---------------------------------------------------------------------------
+// POST /v1/intents/escape
+// ---------------------------------------------------------------------------
+
+/**
+ * The censorship escape hatch, available whether or not this coordinator will
+ * relay the intent.
+ *
+ * IntentStatusResponse also carries one, but that is reachable only for an
+ * intent the coordinator already accepted. An escape hatch that works only with
+ * the coordinator's agreement is not an escape hatch, and the single mempool is
+ * an acknowledged point of centralisation. See docs/spek-teknis.md section 9.3.
+ *
+ * It publishes calldata. It signs nothing and sends nothing.
+ */
+export interface EscapeHatchResponse {
+  intentHash: Hex;
+  to: Address;
+  data: Hex;
+  castCommand: string;
+  describes: string;
+  /** Whether the signature checked out. The payload is returned either way,
+      because refusing to hand it over would defeat the purpose. */
+  signatureValid: boolean;
+  provenance: Provenance;
+}
+
+export interface EscapeHatchRequest {
+  intent: IntentPayload;
+  signature: Hex;
+}
+
+// ---------------------------------------------------------------------------
 // GET /v1/quote
 // ---------------------------------------------------------------------------
 
@@ -609,6 +738,9 @@ export const ROUTES = {
   quote: "GET /v1/quote",
   submitIntent: "POST /v1/intents",
   intentStatus: "GET /v1/intents/:intentHash",
+  escapeHatch: "POST /v1/intents/escape",
+  nonces: "GET /v1/nonces/:owner",
+  batchIntents: "GET /v1/batches/:batchId/intents",
   currentBatch: "GET /v1/batches/current",
   listBatches: "GET /v1/batches",
   batchReceipt: "GET /v1/batches/:batchId",
