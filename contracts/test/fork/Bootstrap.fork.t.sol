@@ -30,6 +30,7 @@ contract BootstrapForkTest is Test {
     /// executing a batch at a delay of zero is one person doing two things.
     address internal signer = DEFAULT_SENDER;
     address internal treasury = address(0x7EA);
+    address internal guardian = address(0x6A4D1A4);
 
     Deploy.Deployment internal d;
 
@@ -39,7 +40,11 @@ contract BootstrapForkTest is Test {
         deployScript = new Deploy();
         bootstrapScript = new Bootstrap();
 
+        // Every value Deploy reads is set here rather than left to the environment.
+        // A fork test that borrows a developer dotenv passes on that laptop and
+        // fails in CI, which is how the guardian went missing for a night.
         vm.setEnv("NOKTURN_TREASURY", vm.toString(treasury));
+        vm.setEnv("NOKTURN_GUARDIAN", vm.toString(guardian));
         vm.setEnv("NOKTURN_TIMELOCK_PROPOSERS", vm.toString(signer));
         vm.setEnv("NOKTURN_TIMELOCK_EXECUTORS", vm.toString(signer));
 

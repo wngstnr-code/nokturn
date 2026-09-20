@@ -443,6 +443,35 @@ tapi "kami menguji **setiap batas kalender selama 15 tahun**".
 | Mutation | Skor ≥ 90% inti | Mingguan |
 | Fork test | Lulus | Tiap malam |
 
+### 9.1 Gerbang malam harus dibaca, bukan hanya dijalankan
+
+Ditambahkan 20 September 2026 setelah empat malam berturut-turut merah tanpa ada yang
+tahu.
+
+Yang terlihat saat sebuah commit di-push cuma empat job, yaitu build-test,
+static-analysis, stylus-abi, dan prosa. Enam job terberat jalan pukul 03.00 dan satu
+lagi mingguan, dan kegagalannya tidak menempel di commit mana pun. Jadi `main` terbaca
+hijau sepanjang minggu sementara tiga lapis verifikasi tidak berjalan sama sekali.
+
+| Malam | Yang gagal | Sebab |
+|---|---|---|
+| 17 dan 18 Sep | fork | nomor blok induk diumpankan ke `rollFork`, sudah diperbaiki 19 Sep lewat ArbSys |
+| 19 dan 20 Sep | fork | `NOKTURN_GUARDIAN` tidak ada di runner, test meminjam dotenv pengembang |
+| 19 dan 20 Sep | echidna | dua pin pip saling bertabrakan, jadi job ini belum pernah sekali pun jalan |
+| 19 dan 20 Sep | halmos | batas waktu solver disetel dari kecepatan laptop, bukan kecepatan runner |
+
+Ketiganya lolos di laptop dan gagal di CI, dan itu bentuk kegagalan yang paling mahal
+karena ia tidak muncul saat kamu mengerjakannya.
+
+**Kebiasaan yang dituntut.** Baca hasil run terjadwal tiap pagi, terpisah dari melihat
+centang hijau di commit terakhir.
+
+```bash
+gh run list --workflow contracts.yml --event schedule --limit 3   --json conclusion,createdAt,headSha
+```
+
+Satu perintah, dan ia menjawab pertanyaan yang tidak dijawab oleh tampilan commit.
+
 > **Menambahkan CI di minggu keenam berarti membayar utang teknis di saat paling
 > sibuk.** Gerbang-gerbang ini murah di hari pertama dan mahal di hari keempat puluh.
 

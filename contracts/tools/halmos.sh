@@ -20,10 +20,17 @@
 # new proof file has to be named here to be gated. A glob would let one arrive
 # unproved and unnoticed.
 #
-# --solver-timeout-assertion 300000 is what the limit monotonicity proof needs.
-# It is a product of two unknown 128 bit values and the solver takes about 170
-# seconds on it. At the default of one second it reports a timeout, which reads like
-# a counterexample and is not one.
+# --solver-timeout-assertion 900000 is what the limit monotonicity proof needs.
+# It is a product of two unknown 128 bit values. At the default of one second it
+# reports a timeout, which reads like a counterexample and is not one.
+#
+# The number is a CI figure rather than a laptop one. Measured 20 September 2026,
+# testFuzz_deliveringMoreNeverBreaksALimitThatHeld proves in 75 seconds on this
+# machine and blew past 300 seconds on a GitHub runner two nights running, so the
+# runner is at least four times slower on it and the old 300000 was a limit set
+# from the wrong machine. Fifteen minutes leaves room for a runner slower still.
+# Raising this does not weaken anything. A timeout here is a proof not finished,
+# never a property relaxed.
 #
 # --solver yices is stated rather than left to the default, which is yices today and
 # is not promised to stay that way. It was measured against z3, bitwuzla and cvc5 on
@@ -42,6 +49,6 @@ for contract in ClearingMathProofs AuctionMathProofs SessionProofs GuardianProof
     --function testFuzz \
     --loop 8 \
     --solver yices \
-    --solver-timeout-assertion 300000 \
+    --solver-timeout-assertion 900000 \
     "$@"
 done

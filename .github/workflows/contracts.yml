@@ -270,7 +270,12 @@ jobs:
       - name: install crytic-compile
         # Echidna reads the project through crytic-compile, which shells out to
         # forge. Pinned for the same reason the toolchain is.
-        run: pip install crytic-compile==0.3.7 slither-analyzer==0.11.4
+        #
+        # The two pins have to agree with each other. slither-analyzer 0.11.4
+        # requires crytic-compile at least 0.3.9, so the 0.3.7 pinned here from
+        # 18 September until 20 September could never install beside it and this
+        # job never once ran. Raising either pin means checking the other.
+        run: pip install crytic-compile==0.3.9 slither-analyzer==0.11.4
       - name: install echidna
         # The release binary rather than a container, because the job already has
         # a pinned foundry on the runner and a container would carry its own.
