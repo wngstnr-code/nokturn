@@ -75,6 +75,17 @@ async function main() {
   row("chain id", id);
   row("block", block.number);
   row("chain time", `${new Date(now * 1000).toISOString()} (${now})`);
+
+  // A fork starts at its pinned block's timestamp and runs behind from that
+  // moment on, and the gap widens with every restart. Anything that computes a
+  // batchId from the laptop clock lands in the future and comes back
+  // SolutionWindowClosed, with nothing in that error naming time. Finding R1.
+  const drift = Math.floor(Date.now() / 1000) - now;
+  const shape =
+    drift > 120
+      ? `${drift}s behind the laptop clock. use block.timestamp, never Date.now()`
+      : `${drift}s from the laptop clock`;
+  row("clock drift", shape);
   if (pin) row("pinned at", `${pin.block} ${pin.timestampUtc}`);
 
   if (!deployment) {
