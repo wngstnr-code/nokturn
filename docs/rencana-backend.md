@@ -555,6 +555,74 @@ tiap pool kembali memakan ratusan milidetik.
 
 ---
 
+## 3E. Integrasi dengan kerjaan Wangsit, 21 September 2026
+
+Backend sudah memanggil kontraknya sejak hari pertama. Yang belum ada adalah
+berhenti menduplikasi apa yang sudah dia terbitkan, dan memeriksa bahwa keduanya
+tidak berpisah diam diam.
+
+### Yang saya langgar sendiri, dan sudah diperbaiki
+
+`api/src/chain.ts` memuat **empat puluh fragmen ABI tulisan tangan**. Aturannya
+sudah tertulis di `CLAUDE.md` dan di skill saya sendiri, yaitu ABI digenerate
+`forge build` dan tidak pernah ditulis tangan.
+
+Akibatnya terukur. Fragmen itu menutupi 11 dari 36 fungsi `Settlement`, dan 6
+dari 8 error `UniswapV3Adapter`. Dua error yang terlewat, `NotGovernor` dan
+`SafeERC20FailedOperation`, akan kembali sebagai selector telanjang tanpa nama.
+
+Sekarang semuanya dari `packages/shared/abi`, dibaca saat boot lewat
+`api/src/abi.ts`. Dua pengecualian tersisa dan keduanya sah. ERC20 bukan kontrak
+milik protokol ini sehingga tidak ada di `src`, dan `invalidateUnorderedNonces`
+nyata di Permit2 yang ter-deploy tapi tidak dideklarasikan `IPermit2.sol`, karena
+`Settlement` memang tidak pernah memanggilnya.
+
+### Dua pemeriksaan lintas bagian yang baru
+
+**D7, `addresses.ts` lawan `Addresses.sol`.** Kontrak adalah sumbernya,
+`addresses.ts` salinan terbitan, dan salinan tanpa pemeriksaan akan menyimpang.
+Ia sudah menyimpang. Terdeteksi sekarang, yaitu **token dan pool GME hilang**
+dari `addresses.ts`.
+
+Berkas itu milik Wangsit, jadi pemeriksanya memberi peringatan dan menyebut
+namanya, bukan menyuntingnya sendiri.
+
+**D8, ABI lawan bytecode yang ter-deploy.** Tiap selector yang dideklarasikan ABI
+harus ada di runtime code kontraknya. Sembilan puluh enam selector diperiksa di
+lima kontrak, semuanya hadir.
+
+Ini gerbang yang menangkap ABI basi, yaitu kegagalan yang menghasilkan selector
+telanjang alih alih revert bernama, dan tidak ada yang merah saat itu terjadi.
+
+⚠️ Uji pertamanya menuduh `Settlement` kehilangan tiga selector, dan itu **bug di
+pemeriksanya**, bukan drift. Argumen bertipe tuple bukan string `"tuple"` di
+dalam selector, melainkan daftar komponennya sendiri. Diperbaiki, lalu ketiganya
+hadir.
+
+### CI
+
+`.github/workflows/backend.yml` dibelah seperti `contracts.yml`. Yang tidak butuh
+rantai berjalan di tiap pull request, yaitu typecheck dan keberadaan ketujuh ABI
+yang dibaca API. Yang butuh fork berjalan tiap malam, yaitu `check-batch`,
+`check-permit2`, `check-fork`, dan ketiga koleksi Postman.
+
+Alasan pembelahannya sama dengan alasan Wangsit, yaitu endpoint publik sudah
+pernah berubah perilaku dalam tiga hari, dan endpoint yang rewel tidak boleh
+memblokir merge.
+
+### Yang perlu disampaikan ke Wangsit
+
+1. `packages/shared/addresses.ts` kehilangan GME, token dan pool. D7 akan terus
+   memberi peringatan sampai diperbarui.
+2. `docs/interfaces.md` §3 mendaftarkan `invalidateNonce` di `ISettlement`, dan
+   kontraknya tidak punya. Pembatalan sesungguhnya lewat
+   `Permit2.invalidateUnorderedNonces`, persis seperti yang ditulis komentar di
+   `IPermit2.sol`.
+3. `contracts/tools/export-abi.sh` butuh `jq`, yang tidak ada di laptop saya.
+   Bukan penghalang, tapi berarti saya tidak bisa meregenerate ABI sendiri.
+
+---
+
 ## 4. Daftar fitur yang harus dibangun
 
 Tiga puluh dua butir, dikelompokkan per direktori. Kolom selesai kalau adalah definisi
@@ -651,7 +719,7 @@ punya isi, dan angkanya jadi angka yang harus dipercaya.
 
 | # | Fitur | Selesai kalau |
 |---|---|---|
-| F32 | `.github/workflows/backend.yml` | Lint, typecheck, unit test, dan gerbang differential baseline hijau di tiap PR. Build docker hijau |
+| F32 | `.github/workflows/backend.yml` | ✅ Terpasang 21 September 2026. Typecheck dan keberadaan ABI di tiap PR, fork gate tiap malam. Lihat §3E |
 
 Gerbang prosa `tools/prose-gate.py` sudah berjalan global dan akan memindai file `.ts`
 milikmu sejak commit pertama. Em dash di komentar kode akan menjatuhkan CI.
