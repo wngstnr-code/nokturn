@@ -1,16 +1,18 @@
 {
-  "_note": "Anvil's own default accounts, derived from the mnemonic anvil prints on startup. They exist on no other chain and hold nothing. No private key is written down anywhere in this repo, because every script signs through forge --unlocked against the local node.",
-  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "proposer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-  "executor": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-  "guardian": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-  "treasury": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
-  "solverA": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
-  "solverB": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+  "_note": "Derived from the mnemonic below, which is throwaway and local. Anvil's own default accounts cannot be used here: their keys are public, so somebody has set an EIP-7702 delegation on all ten of them on mainnet 4663, and a forked account with code makes Permit2 take the EIP-1271 path and reject a perfectly good ECDSA signature. Verified 20 September 2026 against the real chain, not only the fork.",
+  "_mnemonic": "spin skill strategy deal rebel image eager original crowd baby inhale calm",
+  "_verified": "every address below held zero code on mainnet 4663 on 20 September 2026. make fund asserts it again on every run.",
+  "deployer": "0x05C5B613582E91d06299b4eFC4576600e96d6d2A",
+  "proposer": "0x5fA26ecD21D06A30eF7d56E4E1BE2477C0359c8a",
+  "executor": "0x5fA26ecD21D06A30eF7d56E4E1BE2477C0359c8a",
+  "guardian": "0x7DfA7f3BD24bB475299A059fc8650F0D638D9C9B",
+  "treasury": "0x4820F1507872c8c4Ab82191cf6c7057Cefb2dBe7",
+  "solverA": "0x86d9065C8Bc1f0fa29d02cA873523C19C7859F95",
+  "solverB": "0xA153D1d2912c3db3e749CCBDef0C165Dd7b728BE",
   "users": [
-    "0x976EA74026E726554dB657fA54763abd0C3a0aa9",
-    "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955",
-    "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f",
-    "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720"
+    "0xC3E87ba4132708838243A717C4B90112271ceeE3",
+    "0x14e9Ef9fd45e6B1e8dBc229DDc3212dB1d21a0ab",
+    "0x5CD0828CB3D7f01793418a359e399a9190D37004",
+    "0xc869d6bC1DF7452B8c40AC2F14C06B75c3cA5D61"
   ]
 }

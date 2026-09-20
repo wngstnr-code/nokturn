@@ -32,8 +32,17 @@ if fork_is_up; then
   die "something already answers at $FORK_RPC. stop it first, or set NOKTURN_FORK_PORT"
 fi
 
+# Anvil's default accounts are unusable on this chain. Their private keys are
+# published, so somebody has set an EIP-7702 delegation on all ten of them on
+# mainnet 4663, and an account with code sends Permit2 down the EIP-1271 path
+# where a valid ECDSA signature is rejected with an empty revert. Measured
+# 20 September 2026 against the real chain. infra/accounts.json carries the
+# addresses this mnemonic derives, and make fund re-checks they are still bare.
+MNEMONIC="${NOKTURN_FORK_MNEMONIC:-spin skill strategy deal rebel image eager original crowd baby inhale calm}"
+
 ARGS=(
   --host 127.0.0.1
+  --mnemonic "$MNEMONIC"
   --port "$PORT"
   --chain-id 4663
   --block-time "$BLOCK_TIME"

@@ -93,6 +93,24 @@ async function main() {
   const id = await publicClient.getChainId();
   if (id !== chain.chainId) throw new Error(`fork says chain ${id}, expected ${chain.chainId}`);
 
+  // An account with code is not an EOA, and Permit2 sends those down the
+  // EIP-1271 path where a valid ECDSA signature comes back as an empty revert
+  // with nothing naming the cause. Anvil's own defaults are all delegated on
+  // this chain, which is why the mnemonic moved. Checked every run so a new
+  // delegation cannot reintroduce it quietly.
+  console.log("checking the demo accounts are still bare EOAs");
+  for (const who of [...users, ...solvers]) {
+    const code = await publicClient.getCode({address: who});
+    const size = code ? (code.length - 2) / 2 : 0;
+    if (size > 0) {
+      throw new Error(
+        `${who} carries ${size} bytes of code, so Permit2 will not accept an ECDSA signature from it. ` +
+          `If it starts 0xef0100 it is an EIP-7702 delegation. Move NOKTURN_FORK_MNEMONIC to unused keys.`,
+      );
+    }
+  }
+  console.log(`  ${users.length + solvers.length} accounts, no code`);
+
   console.log("funding gas");
   for (const a of [...everyone, ...Object.values(chain.tokens).map((t) => t.pool)]) {
     await rpc("anvil_setBalance", [a, `0x${ETH_EACH.toString(16)}`]);
