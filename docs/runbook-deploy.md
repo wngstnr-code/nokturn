@@ -75,13 +75,48 @@ persis bentuk kesalahan yang tidak akan revert di mana pun.
 cd contracts
 export RPC=$NOKTURN_RPC_MAINNET   # atau NOKTURN_RPC_TESTNET
 
-forge script script/Deploy.s.sol:Deploy --rpc-url $RPC --account nokturn --broadcast
-forge script script/Bootstrap.s.sol:Bootstrap --rpc-url $RPC --account nokturn --broadcast
-forge script script/Lock.s.sol:Lock --rpc-url $RPC --account nokturn --broadcast
+forge script script/Deploy.s.sol:Deploy --rpc-url $RPC --account <deployer> --broadcast
+forge script script/Bootstrap.s.sol:Bootstrap --rpc-url $RPC --account <proposer> --broadcast
+forge script script/Lock.s.sol:Lock --rpc-url $RPC --account <proposer> --broadcast
 ```
 
 Kunci gladi resik testnet terpisah dari kunci mainnet, karena yang pertama diketik ke
-faucet dan dipakai di rantai publik. Ganti `--account` sesuai keystore yang dipakai.
+faucet dan dipakai di rantai publik.
+
+### Dua kunci, bukan satu, dan mana yang menandatangani apa
+
+Ditemukan 20 September 2026 pada gladi resik ketiga, saat deployer dan proposer
+dipisah untuk pertama kalinya. Sebelum itu keduanya alamat yang sama dan pembagian
+ini tidak pernah terlihat.
+
+| Langkah | Ditandatangani | Kenapa |
+|---|---|---|
+| `Deploy` | deployer | hanya mengirim `CREATE`, tidak menyentuh timelock |
+| `Bootstrap` | **proposer** | `scheduleBatch` lalu `executeBatch` di timelock |
+| `Lock` | **proposer** | menaikkan `minDelay` hanya bisa lewat timelock sendiri |
+| `SetFeeds` | **proposer** | sama |
+
+Menjalankan `Bootstrap` dengan kunci deployer gagal dengan
+`AccessControlUnauthorizedAccount`, dan gagalnya setelah `Deploy` sudah membakar gas.
+Konsekuensi anggarannya berlawanan dengan dugaan. **Proposer yang butuh gas paling
+banyak**, bukan deployer, karena tiga dari empat langkah adalah miliknya.
+
+Isi kedua alamat sebelum mulai. Kalau proposer lupa diisi, kirim dari deployer dengan
+`cast send <proposer> --value <jumlah> --account <deployer> --rpc-url $RPC`.
+
+### Simulasikan keempat langkah, bukan hanya yang pertama
+
+Aturan yang lahir dari kegagalan di atas. `Deploy` lolos simulasi dan tiga langkah
+sisanya tidak pernah disimulasikan, jadi masalah perannya baru muncul saat broadcast.
+Jalankan tiap langkah tanpa `--broadcast` lebih dulu, dengan `--sender` disetel ke
+alamat yang akan benar-benar menandatanganinya.
+
+```bash
+forge script script/Bootstrap.s.sol:Bootstrap --rpc-url $RPC --sender <alamat proposer>
+```
+
+Simulasi tidak menyentuh `deployments/<chain id>.json` sejak 20 September 2026, jadi
+menjalankannya terhadap rantai yang sudah berisi deployment aman.
 
 **Langkah satu** menaruh kontrak di rantai dan menulis alamatnya ke
 `deployments/<chain id>.json`. Timelock lahir dengan delay nol.
@@ -176,7 +211,50 @@ tidak seharusnya muncul.
 **Closing print feed per token.** Satu kontrak per token, dipasang saat token itu
 benar-benar butuh permukaan Chainlink. Bukan bagian dari deploy inti.
 
-## Gladi resik testnet 46630, diulang 20 September 2026
+## Gladi resik testnet 46630, ketiga, 20 September 2026 sore
+
+Diulang lagi di hari yang sama karena `MIN_BOND` berubah dari konstanta jadi parameter
+bergubernur, dan kontrak angkatan pagi tidak lagi mencerminkan kode. Umpan testnet
+tidak ikut diganti, kesebelas alamatnya masih berdiri dan dipakai ulang, jadi yang
+digelar ulang hanya sembilan kontrak inti.
+
+| Kontrak | Alamat |
+|---|---|
+| `TimelockController` | `0x2776885121811fC24bc9Eb274a6288e6bB7E6A95` |
+| `SessionManager` | `0xB8f8e67463d0eCC5B44b2299f9393308fB5D3438` |
+| `ClearingVerifier` | `0x0c83Cc4Fe29c1977Cc78af8F4b9B3accbF7d3aeC` |
+| `PriceOracle` | `0xcDCdcDF159D47d647838E357a38B4EE797cf6a93` |
+| `SolverRegistry` | `0x5B7Fce2bAe5079F6BC7B4AdAfD865025D1460b67` |
+| `Settlement` | `0x3A98a18C4526118bA5430B80e191C6ea4AD7BFEF` |
+| `AuctionHouse` | `0x3A6329d2379509056597fA0c28C6D9c302c9415B` |
+| `AgentMandate` | `0xf09089Cb0b3F527E1305A9CE6B64c2086423C998` |
+| `UniswapV3Adapter` | `0x6aa2372f4a81b78353BaECA73F1975bFDe632d43` |
+
+| Langkah | Gas | Biaya | Perkiraan script |
+|---|---|---|---|
+| `Deploy`, 9 kontrak | 20.930.000 | 0,0002093 ETH | 26.819.796 |
+| `Bootstrap`, 21 panggilan | 4.188.501 | 0,0000419 ETH | 6.006.872 |
+| `Lock` | 130.749 | 0,0000013 ETH | 168.820 |
+
+Rasio 75% terhadap perkiraan bertahan di angkatan ketiga, jadi ia aturan dan bukan
+kebetulan satu kali.
+
+**Yang dibuktikan dengan membaca rantai.** `minDelay` 172.800. `minBond` 500000000,
+yaitu 500 USDG, dengan lantai 500 dan plafon 50.000 terbaca di kontrak. Kelima token
+`true` di `tokenAllowed` Settlement dan di `auctionTokenAllowed` AuctionHouse. Adapter
+dan token kuota ikut ter-allowlist. `SolverRegistry.settlement` menunjuk Settlement.
+Governor `SessionManager` adalah timelock. Sourcify mencatat kesembilannya `match`,
+dikonfirmasi lewat API per alamat.
+
+Pemantau melaporkan `M1` sampai `M3` bersih dan `M4` menyala di kelima token, sama
+seperti angkatan pagi, karena 46630 tidak punya Chainlink.
+
+**Satu kegagalan, dan ia menemukan lubang di runbook ini.** `Bootstrap` ditolak dengan
+`AccessControlUnauthorizedAccount` karena ditandatangani deployer, sementara proposer
+sudah dipindah ke kunci terpisah. Baca bagian dua kunci di atas. `Deploy` sudah membakar
+gas saat itu terjadi, jadi biayanya nyata meski kecil.
+
+## Gladi resik testnet 46630, kedua, 20 September 2026 pagi
 
 Diulang karena kontrak angkatan 19 September tidak lagi mencerminkan kode. Guardian,
 lantai baseline, dan token kelima semuanya lahir setelahnya. Umpannya ikut diganti
