@@ -1,0 +1,132 @@
+name: backend
+
+# Feature F32 in docs/rencana-backend.md. Owned by Dharu.
+#
+# Split the same way contracts.yml is. What needs no chain runs on every pull
+# request, and what needs a live fork runs nightly, because a flaky endpoint
+# must not be able to block a merge.
+
+on:
+  push:
+    branches: [main, develop]
+  schedule:
+    - cron: "0 4 * * *"
+  pull_request:
+    paths:
+      - "api/**"
+      - "solver/**"
+      - "indexer/**"
+      - "analytics/**"
+      - "infra/**"
+      - "packages/shared/**"
+      - ".github/workflows/backend.yml"
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --dir packages/shared
+      - run: pnpm install --dir api
+      - name: shared types compile
+        working-directory: packages/shared
+        run: npx tsc --noEmit
+      - name: api compiles against them
+        working-directory: api
+        run: npx tsc --noEmit
+
+      # The api reads its abis out of packages/shared/abi at boot. A missing one
+      # is a five hundred on every request that touches that contract, and it
+      # would otherwise only show up when somebody ran the server.
+      - name: every abi the api loads is present
+        run: |
+          missing=0
+          for name in Settlement SessionManager PriceOracle UniswapV3Adapter \
+                      SolverRegistry ISignatureTransfer IUiMultiplier; do
+            if [ ! -f "packages/shared/abi/$name.json" ]; then
+              echo "missing packages/shared/abi/$name.json"
+              missing=1
+            fi
+          done
+          [ "$missing" = "0" ] || { echo "run contracts/tools/export-abi.sh"; exit 1; }
+          echo "all seven abis present"
+
+  fork:
+    runs-on: ubuntu-latest
+    # Nightly only. These need mainnet 4663 through a public endpoint, and that
+    # endpoint has already changed behaviour once inside three days.
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --dir infra
+      - run: pnpm install --dir api
+
+      # Re-pinned rather than reusing the committed block, because the endpoint
+      # keeps a finite window and a nightly job outlives it. The committed pin is
+      # the team's shared block, this one only has to be recent.
+      - name: pin a fresh block and start the fork
+        run: |
+          ./infra/scripts/pin-block.sh
+          ./infra/scripts/fork.sh > /tmp/anvil.log 2>&1 &
+          for _ in $(seq 1 60); do
+            cast chain-id --rpc-url http://127.0.0.1:8545 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          cast chain-id --rpc-url http://127.0.0.1:8545
+
+      - name: deploy and fund
+        run: |
+          ./infra/scripts/deploy.sh
+          ./infra/scripts/fund.sh
+
+      - name: the batchId helper agrees with the contract, both directions
+        run: ./infra/scripts/check-batch.sh
+
+      - name: the witness digest is the one permit2 verifies
+        run: ./infra/scripts/check-permit2.sh
+
+      # Carries D7 and D8, which are the cross team checks. D7 catches
+      # packages/shared/addresses.ts drifting from Addresses.sol, D8 catches a
+      # committed abi no longer matching the bytecode it claims to describe.
+      - name: the fork durability suite
+        run: ./infra/scripts/check-fork.sh
+
+      - name: the api answers on every route it claims
+        run: |
+          ./infra/scripts/prewarm.sh
+          (cd api && node src/index.ts > /tmp/api.log 2>&1 &)
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3000/v1/health >/dev/null 2>&1 && break
+            sleep 1
+          done
+          ./infra/scripts/postman.sh
+          pnpm dlx newman run infra/postman/nokturn-fork.postman_collection.json \
+            -e infra/postman/nokturn-local.postman_environment.json \
+            --reporters cli --reporter-cli-no-banner
+          pnpm dlx newman run infra/postman/nokturn-api.postman_collection.json \
+            --reporters cli --reporter-cli-no-banner
+          pnpm dlx newman run infra/postman/nokturn-resilience.postman_collection.json \
+            --reporters cli --reporter-cli-no-banner
+
+      - name: what the node said, when something above failed
+        if: failure()
+        run: |
+          tail -50 /tmp/anvil.log || true
+          tail -50 /tmp/api.log || true
