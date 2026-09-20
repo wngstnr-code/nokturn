@@ -14,6 +14,12 @@ contract MockSolverRegistry is ISolverRegistry {
         return active[solver];
     }
 
+    uint256 public minBond = 500e6;
+
+    function setMinBond(uint256 value) external {
+        minBond = value;
+    }
+
     address public lastWinner;
     uint256 public lastSavings;
     uint256 public failedFinalizes;

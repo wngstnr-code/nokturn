@@ -319,6 +319,7 @@ tentang serangan nyata.
 | A14 | Warp waktu tepat ke batas sesi | Guard band aktif; parameter konservatif dipakai |
 | A15 | Intent agent melanggar mandat | Revert `MandateRuleBroken` di `AgentMandate.authorize`, dan Permit2 menolak penarikannya. `MandateViolated` dihapus, lihat `parameter.md` §5B |
 | A16 | Solver mengecilkan baseline untuk menggelembungkan savings | Revert `BaselineBelowVenue`. Ditambahkan 20 September 2026 setelah P7-1, lihat `parameter.md` §4C |
+| A17 | Governance menyetel syarat bond ke nol | Revert `MinBondOutOfRange`. Tanpa lantai, `isActive` membaca setiap alamat yang tidak pernah bond sebagai solver aktif. Ditambahkan 20 September 2026 saat bond jadi parameter, lihat `parameter.md` §5A |
 
 ### 7.1 Peta ke nama test
 
@@ -344,6 +345,7 @@ sudah hijau.
 | A14 | `test_A14_batchLandsExactlyOnASessionBoundary` | `test/Adversarial.t.sol` |
 | A15 | `test_A15_agentIntentBreachingTheMandate` | `test/AgentMandate.t.sol` |
 | A16 | `test_A16_solverUnderstatesTheBaselineToInflateSavings` | `test/Adversarial.t.sol` |
+| A17 | `test_A17_governanceSetsTheEntryPriceToZero` | `test/SolverRegistry.t.sol` |
 
 **A11 sudah punya subjek, 19 September 2026.** Ternyata bukan keputusan yang menunggu.
 `parameter.md` §8 dan `threat-model.md` sudah menentukan guardian sejak awal, dan yang

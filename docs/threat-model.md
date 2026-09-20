@@ -325,8 +325,14 @@ kejadian sepanjang waktu tidak pernah memanggil pause.
 |---|---|---|
 | **P0** | Dana berisiko, invarian dilanggar | Guardian pause **segera**; umumkan dalam 1 jam |
 | **P1** | Print salah terbit; oracle tidak dapat dipercaya | `PROTECTIVE`; beri tahu konsumen print |
-| **P2** | Solver berulang kali grief | Slash; naikkan syarat bond |
+| **P2** | Solver berulang kali grief | Slash; naikkan syarat bond lewat `setMinBond`, plafon 50.000 USDG |
 | **P3** | Anomali tanpa dana berisiko | Selidiki dalam 24 jam |
+
+Baris P2 sempat menjanjikan sesuatu yang tidak bisa dilakukan. Sampai 20 September
+2026 `MIN_BOND` adalah `constant`, jadi satu-satunya cara menaikkan syarat bond
+adalah deploy ulang kontrak inti yang immutable. Sejak bond jadi parameter
+bergubernur, respons itu benar-benar tersedia, lewat time-lock 48 jam seperti
+perubahan parameter lain. Rincian kalibrasinya di `parameter.md` §5A.
 
 ### 6.3 Runbook
 

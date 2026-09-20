@@ -28,8 +28,14 @@ contract SolverRegistry is ISolverRegistry {
 
     uint16 internal constant BPS = 10_000;
 
-    /// parameter.md section 5.
-    uint256 public constant MIN_BOND = 5000e6; // USDG has 6 decimals
+    /// parameter.md section 5A. The floor is enforced rather than merely written
+    /// down, because isActive reads bonded >= minBond and a zero minimum would
+    /// make every address that never bonded at all read as an active solver. That
+    /// is not a loosened parameter, it is the gate switched off. The floor also
+    /// means the bond can never fall below the calibration it launched with, which
+    /// is the same direction the exposure caps move in.
+    uint256 public constant MIN_BOND_FLOOR = 500e6; // USDG has 6 decimals
+    uint256 public constant MIN_BOND_CEILING = 50_000e6;
     uint64 public constant UNBOND_COOLDOWN = 7 days;
     uint16 public constant SLASH_FAILED_FINALIZE_BPS = 1000; // 10 percent
     uint16 public constant SLASH_INVALID_SURPLUS_BPS = 2500; // 25 percent
@@ -42,6 +48,12 @@ contract SolverRegistry is ISolverRegistry {
     /// after deployment, because the two contracts reference each other.
     address public settlement;
 
+    /// Governed rather than constant, because the exposure caps this bond backs
+    /// are governed too. A constant bond sized for the protocol at scale is an
+    /// entry price of a hundred and eleven days of the whole solver revenue pool
+    /// in the months when third party solvers are most needed. parameter.md 5A.
+    uint256 public minBond;
+
     mapping(address => Solver) internal solvers;
 
     error NotGovernor();
@@ -51,6 +63,7 @@ contract SolverRegistry is ISolverRegistry {
     error UnbondNotRequested(address solver);
     error UnbondStillCooling(uint64 availableAt);
     error SlashExceedsBond(uint256 amount, uint256 bonded);
+    error MinBondOutOfRange(uint256 value);
 
     event SettlementSet(address indexed settlement);
 
@@ -58,6 +71,19 @@ contract SolverRegistry is ISolverRegistry {
         bondToken = bondToken_;
         treasury = treasury_;
         governor = governor_;
+        minBond = MIN_BOND_FLOOR;
+        emit MinBondUpdated(MIN_BOND_FLOOR);
+    }
+
+    /// @notice Raising this deactivates every solver already below the new value
+    /// until it tops up. There is no grandfathering, the same way a tightened
+    /// exposure cap applies to everyone at once, and the timelock gives two full
+    /// days of warning. parameter.md 5A.
+    function setMinBond(uint256 value) external {
+        if (msg.sender != governor) revert NotGovernor();
+        if (value < MIN_BOND_FLOOR || value > MIN_BOND_CEILING) revert MinBondOutOfRange(value);
+        minBond = value;
+        emit MinBondUpdated(value);
     }
 
     modifier onlySettlement() {
@@ -146,7 +172,7 @@ contract SolverRegistry is ISolverRegistry {
     /// @inheritdoc ISolverRegistry
     function isActive(address solver) external view returns (bool) {
         Solver storage s = solvers[solver];
-        return s.bonded >= MIN_BOND && s.unbondAvailableAt == 0;
+        return s.bonded >= minBond && s.unbondAvailableAt == 0;
     }
 
     /// @inheritdoc ISolverRegistry

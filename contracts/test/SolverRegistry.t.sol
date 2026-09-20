@@ -26,13 +26,78 @@ contract SolverRegistryTest is Test {
         usdg.approve(address(registry), type(uint256).max);
     }
 
-    function test_bondingIsPermissionlessAndGatesOnTheMinimum() public {
+    function test_theEntryPriceStartsAtTheFloorAndOnlyTheGovernorMovesIt() public {
+        assertEq(registry.minBond(), registry.MIN_BOND_FLOOR(), "launch value is the floor");
+
+        vm.expectRevert(SolverRegistry.NotGovernor.selector);
+        registry.setMinBond(1000e6);
+
+        vm.prank(governor);
+        registry.setMinBond(1000e6);
+        assertEq(registry.minBond(), 1000e6);
+    }
+
+    /// A zero minimum would read every address that never bonded as active, so the
+    /// floor is a gate rather than a preference. parameter.md 5A.
+    function test_A17_governanceSetsTheEntryPriceToZero() public {
+        uint256 floor_ = registry.MIN_BOND_FLOOR();
+        uint256 ceiling = registry.MIN_BOND_CEILING();
+
+        vm.startPrank(governor);
+        vm.expectRevert(abi.encodeWithSelector(SolverRegistry.MinBondOutOfRange.selector, 0));
+        registry.setMinBond(0);
+
+        vm.expectRevert(abi.encodeWithSelector(SolverRegistry.MinBondOutOfRange.selector, floor_ - 1));
+        registry.setMinBond(floor_ - 1);
+
+        vm.expectRevert(abi.encodeWithSelector(SolverRegistry.MinBondOutOfRange.selector, ceiling + 1));
+        registry.setMinBond(ceiling + 1);
+
+        registry.setMinBond(ceiling);
+        assertEq(registry.minBond(), ceiling, "the ceiling itself is allowed");
+        vm.stopPrank();
+    }
+
+    /// No grandfathering, the same way a tightened exposure cap applies to everyone
+    /// at once. The timelock is what turns this into two days of warning.
+    function test_raisingTheEntryPriceDeactivatesWhoeverIsNowBelowIt() public {
+        uint256 entry = registry.minBond();
+        vm.prank(solver);
+        registry.bond(entry);
+        assertTrue(registry.isActive(solver), "active at the old price");
+
+        vm.prank(governor);
+        registry.setMinBond(entry * 2);
+        assertFalse(registry.isActive(solver), "the same bond no longer reaches");
+
+        vm.prank(solver);
+        registry.bond(entry);
+        assertTrue(registry.isActive(solver), "topping up reaches the new price");
+    }
+
+    /// Lowering it must not resurrect a solver on its way out. The cooldown is the
+    /// only thing keeping slashing reachable after the behaviour is noticed.
+    function test_loweringTheEntryPriceDoesNotUndoAPendingExit() public {
+        uint256 entry = registry.minBond();
         vm.startPrank(solver);
-        registry.bond(4999e6);
+        registry.bond(entry * 4);
+        registry.requestUnbond();
+        vm.stopPrank();
+        assertFalse(registry.isActive(solver));
+
+        vm.prank(governor);
+        registry.setMinBond(entry);
+        assertFalse(registry.isActive(solver), "leaving still means leaving");
+    }
+
+    function test_bondingIsPermissionlessAndGatesOnTheMinimum() public {
+        uint256 entry = registry.minBond();
+        vm.startPrank(solver);
+        registry.bond(entry - 1);
         assertFalse(registry.isActive(solver), "below the minimum is not active");
 
-        registry.bond(1e6);
-        assertTrue(registry.isActive(solver), "5000 USDG is the entry price");
+        registry.bond(1);
+        assertTrue(registry.isActive(solver), "the minimum itself is the entry price");
         vm.stopPrank();
     }
 
@@ -98,8 +163,12 @@ contract SolverRegistryTest is Test {
     }
 
     function test_slashingDeactivatesASolverThatFallsBelowTheMinimum() public {
+        // Ten percent above the entry price, so one failed finalize at ten percent
+        // of the bond drops it under. Written against minBond rather than against a
+        // literal, because the entry price is governed now.
+        uint256 thin = (registry.minBond() * 102) / 100;
         vm.prank(solver);
-        registry.bond(5100e6);
+        registry.bond(thin);
         assertTrue(registry.isActive(solver));
 
         vm.prank(settlement);

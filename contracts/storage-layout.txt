@@ -143,7 +143,9 @@
 +===============================================================================================================================+
 | settlement | address                                          | 0    | 0      | 20    | src/SolverRegistry.sol:SolverRegistry |
 |------------+--------------------------------------------------+------+--------+-------+---------------------------------------|
-| solvers    | mapping(address => struct SolverRegistry.Solver) | 1    | 0      | 32    | src/SolverRegistry.sol:SolverRegistry |
+| minBond    | uint256                                          | 1    | 0      | 32    | src/SolverRegistry.sol:SolverRegistry |
+|------------+--------------------------------------------------+------+--------+-------+---------------------------------------|
+| solvers    | mapping(address => struct SolverRegistry.Solver) | 2    | 0      | 32    | src/SolverRegistry.sol:SolverRegistry |
 ╰------------+--------------------------------------------------+------+--------+-------+---------------------------------------╯
 
 === UniswapV3Adapter (src/adapters/UniswapV3Adapter.sol)

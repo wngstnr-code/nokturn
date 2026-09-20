@@ -555,12 +555,67 @@ tetap `pure`.
 
 | Konstanta | Nilai | Alasan |
 |---|---|---|
-| `MIN_BOND` | **5.000 USDG** | Cukup untuk membuat grief menyakitkan; cukup rendah untuk masuk tanpa izin |
+| `minBond` | **500 USDG** awal, plafon **50.000 USDG** | Parameter bergubernur, bukan konstanta. Lihat §5A |
 | `UNBOND_COOLDOWN` | **7 hari** | Slashing masih bisa dijangkau setelah perilaku buruk terdeteksi |
 | `SLASH_FAILED_FINALIZE` | **10%** bond | Grief; merugikan tapi tidak fatal |
 | `SLASH_INVALID_SURPLUS` | **25%** bond | Lebih berat — ini upaya menipu, bukan kelalaian |
 | `SOLUTION_WINDOW` | **10 detik** | Cukup untuk mengirim; cukup pendek untuk mempersempit penyalinan solusi |
 | `MAX_SOLUTIONS_PER_SOLVER` | **3** per batch | Cegah spam mempool |
+
+### 5A. Kenapa bond jadi parameter, dan kenapa 500 bukan 5.000
+
+Ditulis 20 September 2026, mengganti nilai konstan 5.000 USDG yang berlaku sebelumnya.
+
+Nilai lama disetel untuk protokol yang sudah besar, sementara exposure cap disetel
+untuk protokol yang baru mulai. Satu sisi bisa naik lewat governance dan satu sisi
+beku sebagai `constant`, jadi keduanya berpisah justru di bulan-bulan saat solver
+pihak ketiga paling dibutuhkan datang.
+
+**Aritmetika yang menunjukkannya.** Fee dibatasi `min(surplus x 20%, notional x 3 bps)`
+dan solver menerima 75% darinya.
+
+| | Peluncuran | Plafon governance |
+|---|---|---|
+| `CAP_GLOBAL_DAILY` | $200.000 | $20.000.000 |
+| Fee maksimum seluruh protokol per hari | $60 | $6.000 |
+| Kolam pendapatan solver per hari, semua solver digabung | **$45** | **$4.500** |
+| Bond lama, konstan | $5.000 | $5.000 |
+| Balik modal kalau satu solver menang setiap batch | **111 hari** | 1,1 hari |
+
+Di peluncuran, seorang solver mengunci $5.000 untuk memperebutkan $45 sehari bersama
+solver lain. Sementara keuntungan maksimum dari mencurangi satu batch adalah plafon
+fee-nya sendiri, yaitu $5.000 x 3 bps = $1,50, dan `SLASH_INVALID_SURPLUS` 25% dari
+bond lama berarti $1.250. Pencegahannya delapan ratus kali lipat dari yang bisa
+didapat, dan itu bukan kalibrasi.
+
+**Nilai baru diturunkan dari kolam itu, bukan ditebak.** Bond disetel setara sekitar
+sebelas hari pendapatan solver seluruh protokol pada cap yang sedang berlaku.
+
+```
+minBond = CAP_GLOBAL_DAILY / 400
+```
+
+Di peluncuran $200.000 / 400 = **500 USDG**. Di plafon $20.000.000 / 400 =
+**50.000 USDG**. Rasionya bertahan karena keduanya naik seratus kali lipat.
+
+Pencegahannya tetap tebal. `SLASH_INVALID_SURPLUS` 25% dari 500 adalah $125, yaitu
+delapan puluh tiga kali keuntungan maksimum satu batch, dan `SLASH_FAILED_FINALIZE`
+10% adalah $50, masih tiga puluh tiga kali.
+
+**Aturan kenaikan sama dengan exposure cap.** Boleh digandakan setelah tujuh hari
+berturut-turut tanpa insiden, lewat time-lock, seperti perubahan parameter lain. Kalau
+cap naik tanpa bond ikut naik, rasio sebelas hari itu yang jadi pengingat bahwa
+keduanya bergerak bersama.
+
+**Lantai 500 USDG ditegakkan di kode, bukan cuma ditulis di sini.** `isActive` berbunyi
+`bonded >= minBond`, jadi nilai nol akan membuat setiap alamat yang tidak pernah bond
+sama sekali terbaca sebagai solver aktif. Itu bukan pelonggaran parameter, itu
+mematikan gerbangnya. Lantai juga berarti bond tidak pernah bisa turun di bawah
+kalibrasi yang diluncurkan, searah dengan cap yang hanya boleh naik.
+
+**Solver yang sudah bond saat nilai naik menjadi tidak aktif sampai menambah.** Tidak
+ada grandfathering, sama seperti cap yang mengetat berlaku untuk semua orang sekaligus.
+Perubahannya lewat time-lock 48 jam, jadi peringatannya dua hari penuh.
 
 ---
 
