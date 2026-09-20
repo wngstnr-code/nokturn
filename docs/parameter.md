@@ -1173,7 +1173,7 @@ terlihat, bukan kegagalan yang sunyi.
 | Beacon Stock Token (semua token berbagi) | `0xe10b6f6b275de231345c20d14ab812db62151b00` |
 | Permit2 | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
 | Pool NVDA-USDG UniV3 (fee 500) — memegang **$3,86jt** sisi Stock Token (§10.3) | `0xD4EB21209C4D6093F80B5B84F5C45CC093EA14A3` |
-| Pool GME-USDG UniV3 (fee 10000) — ✅ berisi GME **asli** | `0xE9713F453ADB9245B19559790C96F470A18F2FDF` |
+| Pool GME-USDG UniV3 (fee 10000) — ✅ berisi GME **asli**. **Bukan** pool yang dipakai adapter, lihat blok GME di §10 | `0xE9713F453ADB9245B19559790C96F470A18F2FDF` |
 | Uniswap V4 PoolManager — memegang **$31,3jt** sisi Stock Token (§10.3) | `0x8366A39CC670B4001A1121B8F6A443A643E40951` |
 | ArcusSettlement | `0x006102B16A04C20306A28B652745D3973D7D24FA` |
 | **Uniswap V3 factory yang benar-benar dipakai** | `0x1f7d7550B1b028f7571E69A784071F0205FD2EfA` |
@@ -1213,6 +1213,38 @@ terlihat, bukan kegagalan yang sunyi.
 >    `desain-baseline.md` §3.1 memperingatkan.
 > 3. **Cardinality pool selain NVDA adalah 1.801, bukan 1.500** seperti tercatat
 >    sebelumnya. `TWAP_WINDOW` 1.800 detik tetap aman.
+
+> ### Pool GME, ditambahkan 20 September 2026
+>
+> GME masuk allowlist setelah tabel di atas ditulis, jadi barisnya menyusul di sini
+> dan tidak disisipkan ke catatan tanggal 16.
+>
+> | Token | Fee | Pool | `token0` | `liquidity` | `tickSpacing` | Cardinality |
+> |---|---|---|---|---|---|---|
+> | **GME** | 500 | `0xE2b46c905E12Ab8E2f864e4821a4325884C1B126` | **GME** | 9,55e17 | 10 | 1.860 |
+>
+> Ini alamat yang dipegang `Addresses.POOL_GME`. Dibaca ulang dari chain pada
+> 20 September 2026, `factory()` menjawab `0x1f7d7550…`, sama dengan keempat pool
+> lainnya, dan `token0` adalah GME sehingga `zeroForOne` mengikuti pola TSLA dan
+> GOOGL, bukan pola NVDA dan AAPL.
+>
+> **Ada pool GME kedua, dan pilihannya perlu ditulis karena angka mentahnya
+> menyesatkan.** Pool `0xE9713F453ADB9245B19559790C96F470A18F2FDF` fee 10000 membawa
+> `liquidity` 2,42e18, yaitu 2,5 kali lipat pool yang dipilih. Yang menentukan bukan
+> angka itu. `tickSpacing` di sana 200 lawan 10, jadi likuiditas yang sama tersebar
+> di rentang harga dua puluh kali lebih lebar, dan fee-nya 100 bps lawan 5 bps. Arus
+> nyata juga ada di pool fee 500, yaitu $145,5jt volume September. Kedalaman pool
+> fee 500 diukur dengan `CandidateDepthFork.t.sol` dan tercatat di
+> `pertanyaan-terbuka.md`, satu crossing di cap peluncuran dan masih menjawab di
+> sepuluh kali cap.
+>
+> **Yang belum diukur, dan ditulis supaya tidak terbaca sebagai kelalaian.**
+> Kedalaman pool fee 10000 tidak pernah dijalankan lewat `CandidateDepthFork`.
+> Keputusan ini berdiri di atas volume dan biaya fee, bukan di atas perbandingan
+> kedalaman langsung. Preseden TSLA di tabel atas berjalan ke arah sebaliknya, yaitu
+> fee 3000 menang atas fee 500, dan di sana yang memutuskan memang kedalaman
+> terukur. Kalau pool GME pernah jadi titik keberatan, ini pengukuran yang harus
+> dijalankan lebih dulu.
 
 ### 10.1 Alamat Stock Token — terverifikasi lewat beacon
 

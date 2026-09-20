@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Script} from "forge-std/Script.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 import {console2} from "forge-std/console2.sol";
 
 import {Addresses} from "../Addresses.sol";
@@ -93,6 +94,13 @@ contract DeployTestnetFixtures is Script {
         vm.serializeAddress(key, "quote", quote);
         vm.serializeAddress(key, "tokens", tokens);
         string memory out = vm.serializeAddress(key, "pools", pools);
-        vm.writeJson(out, string.concat("deployments/", vm.toString(block.chainid), "-fixtures.json"));
+        string memory path = string.concat("deployments/", vm.toString(block.chainid), "-fixtures.json");
+        // Same reason as Deploy. A simulation writes addresses no chain holds, and
+        // this file is the committed record the constants in Addresses came from.
+        if (vm.isContext(VmSafe.ForgeContext.ScriptDryRun)) {
+            console2.log("dry run, left", path, "alone");
+            return;
+        }
+        vm.writeJson(out, path);
     }
 }

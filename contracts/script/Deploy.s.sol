@@ -148,6 +148,14 @@ contract Deploy is Script {
         string memory out = vm.serializeAddress(key, "adapter", d.adapter);
 
         string memory path = string.concat("deployments/", vm.toString(block.chainid), ".json");
+        // A dry run produces addresses that no chain will ever hold, and the file
+        // it would land in is the committed record the monitor and the docs read.
+        // Simulating against a chain that has already been deployed to would
+        // replace that record with fiction, and nothing would report it.
+        if (vm.isContext(VmSafe.ForgeContext.ScriptDryRun)) {
+            console2.log("dry run, left", path, "alone");
+            return;
+        }
         vm.writeJson(out, path);
         console2.log("wrote", path);
     }
