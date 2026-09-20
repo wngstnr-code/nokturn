@@ -272,7 +272,7 @@ Dua set kriteria tidak identik — HackQuest 4 butir, T&C 6 butir. Gabungannya:
 | Potential impact | 🟢 Kuat | Kurva netting **21,4% → 50,1%**; pasar tumbuh 3,6× volume dan 2,3× dompet dalam sebulan |
 | Product-Market Fit | 🟢 **Kuat** ⬆️ | **Dinaikkan 10 September 2026** dari 🟡. Ketiga angka usang sudah diukur ulang: pemegang > $1k **477 → 804** (+69%), nilai dipegang **$27,2jt → $75,62jt** (2,8×), di atas **139.093 dompet aktif**/bulan. Butir ini dulu lemah karena angkanya kedaluwarsa, bukan karena pasarnya kecil |
 | **Presentation quality** | 🔴 **Terlemah** | Belum ada permukaan produk |
-| Use of Arbitrum technology | 🟡 Belum diputuskan | Stylus menunggu benchmark |
+| Use of Arbitrum technology | ✅ Diputuskan dengan angka | Benchmark selesai 20 September 2026. Stylus **ditahan**, karena titik impasnya 12 intent per batch dan batch kita memuat 2,5 sampai 3,3. Ini jawaban yang lebih kuat daripada memakainya, karena ia menunjukkan keputusan yang diambil dari pengukuran dan bukan dari daftar teknologi |
 
 **Empat butir merah menuntut kode yang berjalan.** Aturan *original work* di T&C
 justru melarang implementasi dimulai sebelum Buildathon (14 September); brainstorming,
@@ -398,7 +398,7 @@ Allowlist v1.0 = **1,43%** dari volume DEX chain. **804 EOA** pegang > $1k. Cuma
 | **Audit & mainnet** | Nov–Des 2026 | Audit keamanan eksternal · deploy mainnet dengan allowlist minimal · operasi tiap malam | Laporan audit publik; alamat kontrak; batch bisa ditelusuri |
 | **Bukti, bukan janji** | Des 2026 – Jan 2027 | **Laporan mingguan: price improvement vs baseline, rasio netting, batch berhasil dan gagal** | Diterbitkan terbuka, termasuk minggu yang jelek |
 | **v1.1** | Q1 2027 | Adapter Uniswap V4 lewat allowlist time-lock, tanpa deploy ulang · ring trade multi-aset | Perubahan allowlist punya time-lock 48 jam yang bisa diawasi |
-| **Port Stylus** | Q1 2027, bila benchmark mendukung | `ClearingVerifier` versi Rust. **Menuntut Settlement baru, bukan proposal time-lock** | Alamat kontrak baru, diumumkan sebagai migrasi dan bukan sebagai pembaruan |
+| **Port Stylus** | Ditahan, benchmark belum mendukung | `ClearingVerifier` versi Rust. Titik impasnya 12 intent per batch, dan batch peluncuran memuat 2,5 sampai 3,3. **Menuntut Settlement baru, bukan proposal time-lock** | Tabel gas di `spek-teknis.md` §6, diukur di chain dan bisa dijalankan ulang |
 | **Perluasan** | Setelah price improvement konsisten 2 minggu | Allowlist keluar dari ekuitas — mesin yang sama melayani sisa volume chain | Satu transaksi time-lock, bukan protokol baru |
 
 ### Empat kalimat yang membuat roadmap ini berbeda

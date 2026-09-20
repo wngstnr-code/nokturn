@@ -97,7 +97,7 @@ operasional nyata.
 | # | Pertanyaan | Kalau jawabannya buruk |
 |---|---|---|
 | P1-1 | Alamat kontrak Uniswap/Arcus/Rialto di chain 4663, dan apakah ada fungsi kuotasi yang bisa di-`staticcall` | Baseline tidak bisa diverifikasi onchain → model fee harus dirombak |
-| P1-2 | Berapa gas nyata `verify()` di Stylus untuk N = 10/50/100/200/500 | Menentukan ukuran batch maksimum yang ekonomis |
+| P1-2 | ✅ **TERJAWAB 20 September 2026.** Titik impas **12 intent per batch**, dan batch peluncuran memuat 2,5 sampai 3,3. Lihat di bawah | Menentukan ukuran batch maksimum yang ekonomis |
 | P1-3 | Apakah Stylus benar-benar aktif di mainnet 4663 (bukan hanya testnet) | Verifier harus turun ke Solidity; ukuran batch mengecil drastis |
 | P1-4 | Perilaku sequencer: apakah ada mempool privat atau urutan yang bisa diprediksi | Memengaruhi keparahan penyalinan solusi |
 | P1-5 | Likuiditas nyata per stock token di tiap venue | Menentukan token allowlist awal dan exposure cap |
@@ -1600,6 +1600,37 @@ menangkap kasus seperti META.
 
 Bentuknya sama dengan pelajaran kedelapan, yaitu angka yang stabil, bisa diulang,
 dan menjawab pertanyaan yang salah.
+
+### ✅ P1-2 · TERJAWAB 20 September 2026 — Stylus belum menguntungkan di ukuran batch kita
+
+Kedua implementasi didirikan di chain 46630 dan diukur lewat `eth_estimateGas` dengan
+calldata yang sama persis. Bukan harness, bukan simulator. Tabel penuh dan modelnya ada
+di `spek-teknis.md` §6, dan `verifier/tools/gas-table.py` menjalankannya ulang.
+
+Ringkasnya, Stylus membayar **36.794 gas lebih mahal di muka** dan menghemat **3.124
+gas per intent**. Titik impasnya **12 intent per batch**.
+
+**Yang membuat jawabannya berbalik dari yang diharapkan** adalah membandingkannya
+dengan ukuran batch yang benar benar akan terjadi. Batch 45 detik pada pangsa awal
+realistis memuat **2,5 sampai 3,3 intent**, dan bahkan kalau seluruh arus chain lewat
+Nokturn ia cuma **7,47**. Keduanya di bawah 12.
+
+Jadi pada ukuran batch peluncuran, port Stylus membuat verifier **lebih mahal**.
+
+Untuk sampai ke sisi yang menguntungkan dibutuhkan batch 90 detik dengan seluruh arus
+chain, dan batch 90 detik sudah ditolak lebih dulu atas dasar netting karena lututnya
+ada di antara 20 dan 30 detik. Dua keputusan yang diambil terpisah ternyata saling
+mengunci, dan itu baru terlihat setelah keduanya diukur.
+
+**Ini menunda port Stylus, bukan menggugurkannya**, dan syarat baliknya terukur. Kalau
+chain ini mendapat cache manager, denda aktivasi turun 7,8 kali dan titik impasnya
+pindah ke sekitar 1,5 intent. Atau kalau pangsa Nokturn tumbuh sampai batch rutin
+memuat belasan intent.
+
+Satu hal kecil yang ikut terbukti tanpa direncanakan. Ukuran batch ganjil membuat buku
+tidak seimbang, dan **kedua implementasi revert dengan payload yang sama persis**. Itu
+properti differential yang biasanya dikejar lewat jutaan input, muncul sendiri di dua
+kontrak yang berdiri di rantai yang sama.
 
 ### Pelajaran metodologi kesepuluh, 20 September 2026. Pesan error yang menyebut angka yang salah
 

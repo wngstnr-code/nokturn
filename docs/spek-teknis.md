@@ -271,8 +271,68 @@ Di Stylus, memori dan compute jauh lebih murah, sehingga **ukuran batch yang
 ekonomis naik berkali lipat** — dan ukuran batch adalah yang menentukan seberapa
 sering intent saling bertemu.
 
-**Yang harus diukur dan masuk pitch:** tabel gas `verify()` untuk N = 10, 50, 100,
-200, 500 intent, Solidity versus Stylus. Ini bukti keras untuk kriteria juri.
+**Terukur 20 September 2026, dan jawabannya bukan yang diharapkan.**
+
+Kedua implementasi berdiri di chain 46630 dan diukur lewat `eth_estimateGas` dengan
+calldata yang sama persis, terbukti sama per selector lewat `verifier/tools/abi-match.sh`.
+Bukan di harness, bukan di simulator. `verifier/tools/gas-table.py` menjalankannya ulang.
+
+| N intent | Calldata | Solidity | Stylus | Rasio |
+|---|---|---|---|---|
+| 10 | 2.564 B | 97.967 | 102.867 | **0,95** |
+| 12 | 2.884 B | 107.800 | 106.482 | **1,01** |
+| 50 | 9.604 B | 295.110 | 175.345 | 1,68 |
+| 100 | 18.372 B | 542.214 | 268.251 | 2,02 |
+| 200 | 35.972 B | 1.045.919 | 462.732 | 2,26 |
+| 500 | 88.772 B | 2.537.592 | 1.010.507 | 2,51 |
+
+Keduanya linear dan modelnya cocok sampai tiga angka.
+
+| | Biaya tetap | Per intent |
+|---|---|---|
+| Solidity | 47.769 | 4.980 |
+| Stylus | 84.563 | 1.856 |
+| Selisih | **+36.794** | **−3.124** |
+
+Stylus membayar **36.794 gas lebih mahal di muka** dan menghemat **3.124 gas per
+intent**. Titik impasnya `36.794 / 3.124` = **11,8 intent**, dan pengukuran langsung
+menempatkannya di **N=12** dengan rasio 1,01.
+
+Biaya tetap itu bukan misteri. Chain ini tidak punya cache manager, jadi tiap panggilan
+membayar aktivasi penuh, dan 36.794 duduk persis di rentang 46.440 sampai 49.203 yang
+diukur 1 Agustus untuk program 17 halaman. Program kita 17,2 KB, lebih ramping.
+
+> ### 🔴 Konsekuensinya, port Stylus TIDAK didukung benchmark untuk peluncuran
+>
+> Titik impas 12 intent per batch harus dibandingkan dengan ukuran batch yang benar
+> benar akan terjadi, dan `parameter.md` §1B sudah mengukurnya.
+>
+> | Keadaan | Intent per batch | Lawan titik impas 12 |
+> |---|---|---|
+> | Batch 45 dtk, pangsa awal realistis 10 sampai 20% | **2,5 sampai 3,3** | Jauh di bawah |
+> | Batch 45 dtk, 100% arus chain | **7,47** | Masih di bawah |
+> | Batch 90 dtk, 100% arus chain | 11,48 | Baru mendekati |
+> | Batch 300 dtk, 100% arus chain | 26,96 | Di atas |
+>
+> Pada ukuran batch peluncuran, **Stylus membuat verifier lebih mahal, bukan lebih
+> murah**. Untuk sampai ke sisi yang menguntungkan dibutuhkan batch 90 detik dengan
+> seluruh arus chain lewat Nokturn, dan batch 90 detik sudah ditolak lebih dulu atas
+> dasar netting, karena lututnya ada di antara 20 dan 30 detik.
+>
+> **Ini tidak menggugurkan port Stylus, ia menunda dan memberinya syarat yang terukur.**
+> Dua hal bisa membalikkannya, dan keduanya bisa diamati.
+>
+> Kalau chain ini mendapat **cache manager**, denda aktivasi turun 7,8 kali menurut
+> pengukuran 1 Agustus, biaya tetapnya jatuh ke sekitar 4.700, dan titik impasnya
+> pindah ke sekitar **1,5 intent**. Port Stylus jadi menguntungkan untuk hampir semua
+> batch.
+>
+> Atau kalau pangsa Nokturn tumbuh sampai batch rutin memuat belasan intent.
+>
+> ⚠️ **Jangan menyebut rasio 2,51 kali tanpa menyebut N=500 di kalimat yang sama.**
+> Itu angka yang benar untuk batch lima ratus intent dan menyesatkan untuk batch yang
+> akan dijalankan protokol ini. Bentuk kesalahannya sama dengan mengutip 63,8% netting
+> sebagai kalau kalau seluruh arus lewat sini.
 
 > ### ⚠️ Verifikasi 1 Agustus 2026 — Stylus aktif, TAPI tanpa cache manager
 > `ArbWasm.stylusVersion()` = **3** di mainnet dan testnet (identik), ArbOS 116,

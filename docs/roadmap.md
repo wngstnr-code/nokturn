@@ -135,7 +135,7 @@ Isi v1.1 sudah ditetapkan, bukan dikarang sekarang:
 |---|---|
 | **Adapter Uniswap V4** | Masuk lewat **allowlist time-lock**, bukan deploy ulang. Menunggu perilaku hook fee dinamis `0x800000` dipahami |
 | **Ring trade multi-aset** | Di luar scope v1.0 sejak awal |
-| **Port Stylus** | Kalau benchmark Fase 1 mendukung. **Menuntut Settlement baru**, karena `verifier` immutable dan tidak ada jalur time-lock yang bisa menukarnya. Bedanya dengan baris adapter di atas harus disebut tiap kali keduanya disebut bersama |
+| **Port Stylus** | 🔴 **Ditahan, benchmark 20 September 2026 tidak mendukung.** Titik impas 12 intent per batch lawan 2,5 sampai 3,3 yang akan terjadi. Ditinjau ulang kalau chain ini dapat cache manager, atau kalau pangsa kita tumbuh. **Menuntut Settlement baru**, karena `verifier` immutable dan tidak ada jalur time-lock yang bisa menukarnya |
 | **Perluasan allowlist** | Lihat di bawah — ini keputusan strategis, bukan teknis |
 
 ### 6.1 Keputusan strategis terbesar: kapan keluar dari ekuitas

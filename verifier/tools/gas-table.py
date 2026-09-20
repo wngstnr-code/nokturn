@@ -65,10 +65,12 @@ def main():
     p.add_argument("--rpc", required=True)
     p.add_argument("--solidity", required=True, help="deployed ClearingVerifier.sol address")
     p.add_argument("--stylus", help="deployed stylus program address, omit to measure one side")
+    p.add_argument("--sizes", help="comma separated batch sizes, defaults to the five in the spec")
     args = p.parse_args()
 
+    sizes = [int(s) for s in args.sizes.split(",")] if args.sizes else SIZES
     print(f"{'N':>5} {'calldata':>9} {'solidity':>10} {'stylus':>10} {'ratio':>7}")
-    for n in SIZES:
+    for n in sizes:
         call = args_for(n)
         sol, sol_err = estimate(args.rpc, args.solidity, call)
         sty, sty_err = (None, None) if not args.stylus else estimate(args.rpc, args.stylus, call)
