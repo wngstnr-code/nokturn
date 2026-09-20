@@ -460,6 +460,101 @@ ia tidak membuktikan apa pun tentang kecocokan dengan rantai.
 
 ---
 
+## 3D. Uji ketahanan fork, hasil 21 September 2026
+
+§3B menguji jam dan kalender. Bagian ini menguji infrastruktur di bawahnya,
+karena fork adalah fondasi yang menopang coordinator, solver, indexer, dan
+seluruh layar. Enam pertanyaan, dan semuanya bisa dijalankan ulang lewat
+`make check-fork`.
+
+### D1. Apakah blok patokan masih hidup di hari submission
+
+| | |
+|---|---|
+| Head saat diukur | 68.103.430 |
+| Blok patokan | 67.798.044 |
+| Kedalaman | 305.386 blok |
+| Laju blok **terukur** | 10,00 blok per detik, yaitu 100 ms |
+| Kedalaman di tenggat 1 Oktober | sekitar 9,77 juta blok |
+| Lantai arsip terukur | 30 juta blok |
+| **Margin** | **3,1 kali** |
+
+Patokan itu tetap terlayani sehari setelah dipasang, dan proyeksinya bertahan
+melewati tenggat dengan margin tiga kali. Laju blok diukur langsung, bukan
+diambil dari angka 100 ms di dokumen, karena seluruh proyeksi itu adalah
+pembagian terhadapnya.
+
+Kalau margin ini turun di bawah dua, `check-fork` memberi peringatan dan
+patokan perlu digeser lebih dekat ke hari H.
+
+### D2. Apakah tiga laptop dan tiap restart mendapat alamat yang sama
+
+**Ya, secara konstruksi.** Kesembilan alamat kontrak adalah keluaran
+`CREATE(deployer, nonce)` persis, dari nonce 0 sampai 8.
+
+Satu satunya hal yang bisa merusaknya adalah deployer yang pernah mengirim
+transaksi di mainnet asli, karena nonce awalnya tidak lagi nol. Ketujuh akun
+demo diperiksa dan **semuanya nonce 0**.
+
+Artinya koleksi Postman, konfigurasi Nabil, dan alamat di catatan mana pun tetap
+sah setelah restart. Ini properti yang dulu saya kira perlu dipercaya, ternyata
+bisa dibuktikan.
+
+### D3. Seberapa banyak yang sudah dijawab tanpa menyentuh upstream
+
+Setelah `make prewarm`, **keenam bacaan demo dijawab dari memori**, 2 sampai 6
+milidetik. Tanpa prewarm, tiga di antaranya masih keluar ke drpc dan memakan 80
+sampai 95 milidetik.
+
+🔴 **Klaim yang saya cabut.** Saya sempat menyimpulkan ini membuktikan demo
+selamat kalau drpc mati. **Tidak terbukti.** Upaya mensimulasikan outage lewat
+`anvil_setRpcUrl` ke port mati **tidak bekerja**. Anvil menerima panggilannya,
+tapi tetap mengembalikan bytecode lengkap dan benar untuk dua kontrak yang belum
+pernah dibaca sama sekali, yaitu ArcusSettlement dan RobinHoodSettler. Jadi
+backend fork menyimpan koneksinya sendiri dan panggilan itu tidak memutus apa
+pun.
+
+Yang terukur adalah kehangatan cache, dan itu **proksi**, bukan bukti. Uji
+jujurnya adalah mencabut jaringan mesin lalu menjalankan `make check-fork` lagi.
+
+### D4. Apakah fork tahan beban seluruh tumpukan sekaligus
+
+120 bacaan paralel selesai dalam 77 milidetik, yaitu sekitar **1.565 bacaan per
+detik**, nol yang jatuh. Empat puluh permintaan API bersamaan, nol yang gagal.
+
+Coordinator, solver, indexer, dan frontend bersama sama tidak akan mendekati
+angka itu, jadi beban bukan risiko.
+
+### D5. Apakah tumpukan selamat melewati batas sesi tanpa restart
+
+Diuji hidup, dengan API berjalan, melintasi batas Senin 04:00 UTC di lima titik.
+Durasi batch benar benar berubah dari **60 ke 45 detik**, dan API tetap menjawab
+`batchId` yang sejajar di kedua sisi tanpa disentuh.
+
+Ini yang membuktikan helper di `packages/shared/batch.ts` bekerja di jalur hidup,
+bukan cuma di uji diferensial.
+
+### D6. Berapa ongkos sebuah restart
+
+Yang **bertahan** adalah alamat, karena D2. Yang **hilang** adalah saldo token,
+approve Permit2, bond solver, dan seluruh id snapshot.
+
+Pemulihannya tiga perintah, yaitu `make deploy`, `make fund`, `make postman`.
+
+⚠️ Tapi jangan restart di tengah demo. Cache fork ikut dingin, dan bacaan pertama
+tiap pool kembali memakan ratusan milidetik.
+
+### Aturan yang lahir dari enam uji ini
+
+1. **Jalankan `make prewarm` sebelum demo.** Tanpa itu tiga dari enam bacaan
+   masih keluar ke jaringan.
+2. **Jangan matikan anvil selama demo.** Alamat memang kembali, tapi cache tidak.
+3. **Jalankan `make check-fork` sebelum submission.** D1 akan memberi tahu kalau
+   patokan sudah terlalu dalam.
+4. **Jangan percaya klaim selamat dari outage sampai diuji tanpa jaringan.**
+
+---
+
 ## 4. Daftar fitur yang harus dibangun
 
 Tiga puluh dua butir, dikelompokkan per direktori. Kolom selesai kalau adalah definisi
