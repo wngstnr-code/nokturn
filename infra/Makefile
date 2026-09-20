@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 S     := ./scripts
 
-.PHONY: help pin fork deploy fund status prewarm snapshot revert check-batch postman postman-run postman-resilience lock clean
+.PHONY: help pin fork deploy fund status prewarm snapshot revert check-batch api postman postman-run postman-resilience postman-api lock clean
 
 help:
 	@echo "pin          measure the head and write infra/pinned-block.json"
@@ -13,12 +13,14 @@ help:
 	@echo "fund         move tokens from real holders to the demo accounts"
 	@echo "status       one screen of what the fork currently says"
 	@echo "prewarm      pull the state the demo reads into the fork cache"
+	@echo "api          start the coordinator api, foreground"
 	@echo "check-batch  differential check of the batchId helper against the chain"
 	@echo "snapshot     take an evm_snapshot, the reset that works on a fork"
 	@echo "revert       roll back to that snapshot and take a fresh one"
 	@echo "postman      regenerate infra/postman from the live deployment"
 	@echo "postman-run  run the chain checks headless with newman"
 	@echo "postman-resilience  run the clock and session break tests"
+	@echo "postman-api  run the api surface tests"
 	@echo "lock         raise the timelock delay to 48h, opt in, freezes parameters"
 	@echo "clean        remove the fork deployment record and the snapshot id"
 
@@ -40,6 +42,9 @@ fund:
 status:
 	@$(S)/status.sh
 
+api:
+	@$(S)/api.sh
+
 check-batch:
 	@$(S)/check-batch.sh
 
@@ -54,6 +59,9 @@ postman:
 
 postman-resilience:
 	@pnpm dlx newman run postman/nokturn-resilience.postman_collection.json \n		--reporters cli --reporter-cli-no-banner
+
+postman-api:
+	@pnpm dlx newman run postman/nokturn-api.postman_collection.json \n		--reporters cli --reporter-cli-no-banner
 
 postman-run:
 	@pnpm dlx newman run postman/nokturn-fork.postman_collection.json \

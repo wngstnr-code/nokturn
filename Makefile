@@ -2,7 +2,7 @@
 # docs/pembagian-tugas.md section 3 promises. The real targets live in
 # infra/Makefile and are owned by Dharu.
 
-.PHONY: help pin fork deploy fund status prewarm snapshot revert check-batch postman postman-run postman-resilience lock clean
+.PHONY: help pin fork deploy fund status prewarm snapshot revert check-batch api postman postman-run postman-resilience postman-api lock clean
 
-help pin fork deploy fund status prewarm snapshot revert check-batch postman postman-run postman-resilience lock clean:
+help pin fork deploy fund status prewarm snapshot revert check-batch api postman postman-run postman-resilience postman-api lock clean:
 	@$(MAKE) -C infra $@
