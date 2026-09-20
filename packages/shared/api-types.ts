@@ -45,7 +45,10 @@ export type Timestamp = number;
  */
 export interface Provenance {
   chainId: number;
-  /** This chain's block number, from ArbSys. Never the parent chain's. */
+  /**
+   * This chain's own block number, from eth_blockNumber. Never the parent
+   * chain's, which is what block.number answers inside a contract here.
+   */
   blockNumber: Uint;
   blockTimestamp: Timestamp;
   transactionHash?: Hex;
@@ -114,8 +117,17 @@ export type ApiErrorCode =
   | "SolutionWindowClosed"
   | "OracleUnhealthy"
   | "ProtocolPaused"
+  // mirrors IVenueAdapter, docs/interfaces.md section 8B. A baseline that
+  // cannot be computed is a real answer, and it carries the venue's own reason
+  | "PoolNotSet"
+  | "PoolNotInitialized"
+  | "TokenNotInPool"
+  | "LiquidityExhausted"
+  | "TooManyTickCrossings"
+  | "DynamicFeeUnsupported"
   // the coordinator's own
   | "COORDINATOR_BAD_SIGNATURE"
+  | "COORDINATOR_INVALID_REQUEST"
   | "COORDINATOR_UNKNOWN_OWNER"
   | "COORDINATOR_INSUFFICIENT_BALANCE"
   | "COORDINATOR_PERMIT2_NOT_APPROVED"
