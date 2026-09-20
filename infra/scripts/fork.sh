@@ -18,6 +18,16 @@ load_env
 PORT="${NOKTURN_FORK_PORT:-8545}"
 BLOCK_TIME="${NOKTURN_FORK_BLOCK_TIME:-1}"
 
+# Settlement.SOLUTION_WINDOW is ten seconds, and a solution is only accepted by a
+# block whose timestamp lands inside it. Measured 20 September 2026 at a fifteen
+# second block time, the offsets that occurred were 11, 12, 27, 42 and 57, so the
+# window was never once reached and no solution could be submitted at all. The
+# symptom looks exactly like a broken solver, so it is refused here instead.
+# docs/rencana-backend.md section 3B, finding R3.
+if [ "$BLOCK_TIME" -gt 5 ] 2>/dev/null; then
+  die "block time ${BLOCK_TIME}s leaves the 10s solution window unreachable. keep it at 5 or below"
+fi
+
 if fork_is_up; then
   die "something already answers at $FORK_RPC. stop it first, or set NOKTURN_FORK_PORT"
 fi
