@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 S     := ./scripts
 
-.PHONY: help pin fork deploy fund status prewarm snapshot revert postman postman-run lock clean
+.PHONY: help pin fork deploy fund status prewarm snapshot revert postman postman-run postman-resilience lock clean
 
 help:
 	@echo "pin          measure the head and write infra/pinned-block.json"
@@ -16,7 +16,8 @@ help:
 	@echo "snapshot     take an evm_snapshot, the reset that works on a fork"
 	@echo "revert       roll back to that snapshot and take a fresh one"
 	@echo "postman      regenerate infra/postman from the live deployment"
-	@echo "postman-run  run that collection headless with newman"
+	@echo "postman-run  run the chain checks headless with newman"
+	@echo "postman-resilience  run the clock and session break tests"
 	@echo "lock         raise the timelock delay to 48h, opt in, freezes parameters"
 	@echo "clean        remove the fork deployment record and the snapshot id"
 
@@ -46,6 +47,9 @@ revert:
 
 postman:
 	@$(S)/postman.sh
+
+postman-resilience:
+	@pnpm dlx newman run postman/nokturn-resilience.postman_collection.json \n		--reporters cli --reporter-cli-no-banner
 
 postman-run:
 	@pnpm dlx newman run postman/nokturn-fork.postman_collection.json \
