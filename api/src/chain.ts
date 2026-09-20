@@ -6,6 +6,7 @@
 // receipt that cites a block it did not read.
 
 import {createPublicClient, http, type Abi, type Address, type PublicClient} from "viem";
+import {erc20Abi, invalidateNoncesAbi, loadAbi} from "./abi.ts";
 import {
   CHAIN_ID_TESTNET,
   env,
@@ -19,94 +20,21 @@ import {
   type TokenEntry,
 } from "./config.ts";
 
-const view = (name: string, inputs: string[], outputs: string[]) => ({
-  type: "function" as const,
-  name,
-  stateMutability: "view" as const,
-  inputs: inputs.map((type, i) => ({name: `a${i}`, type})),
-  outputs: outputs.map((type) => ({type})),
-});
+export const settlementAbi: Abi = loadAbi("Settlement");
+export const sessionAbi: Abi = loadAbi("SessionManager");
+export const oracleAbi: Abi = loadAbi("PriceOracle");
+export const adapterAbi: Abi = loadAbi("UniswapV3Adapter");
+export const registryAbi: Abi = loadAbi("SolverRegistry");
+export const multiplierAbi: Abi = loadAbi("IUiMultiplier");
 
-export const settlementAbi: Abi = [
-  view("batchWindow", ["uint64"], ["uint64", "uint64", "uint64"]),
-  view("tokenAllowed", ["address"], ["bool"]),
-  view("adapterAllowed", ["address"], ["bool"]),
-  view("baselineAdapter", [], ["address"]),
-  view("capPerBatchUsd", [], ["uint256"]),
-  view("capPerTokenDailyUsd", [], ["uint256"]),
-  view("capGlobalDailyUsd", [], ["uint256"]),
-  view("isPaused", [], ["bool"]),
-  view("WITNESS_TYPE_STRING", [], ["string"]),
-  view("SOLUTION_WINDOW", [], ["uint32"]),
-  view("FINALIZE_DEADLINE", [], ["uint32"]),
-];
+export {erc20Abi, invalidateNoncesAbi};
 
-export const sessionAbi: Abi = [
-  view("currentSession", [], ["uint8"]),
-  view("sessionAt", ["uint64"], ["uint8"]),
-  view("batchDuration", ["uint8"], ["uint32"]),
-  view("maxDeviationBps", ["uint8"], ["uint16"]),
-  view("inGuardBand", ["uint64"], ["bool"]),
-  view("nextTransition", ["uint64"], ["uint64"]),
-  view("tokenSession", ["address"], ["uint8"]),
-];
-
-export const oracleAbi: Abi = [
-  view("refPrice", ["address"], ["uint256", "uint64", "bool"]),
-  view("dualCheck", ["address"], ["uint256", "uint256", "bool"]),
-  view("stalenessLimit", ["address"], ["uint32"]),
-];
-
-const error = (name: string, inputs: string[]) => ({
-  type: "error" as const,
-  name,
-  inputs: inputs.map((type, i) => ({name: `a${i}`, type})),
-});
-
-export const adapterAbi: Abi = [
-  view("quoteFromState", ["address", "address", "uint256"], ["uint256"]),
-  view("quoteWithStats", ["address", "address", "uint256"], ["uint256", "uint16", "uint16"]),
-  view("isQuotable", [], ["bool"]),
-  // Without these the revert comes back as a bare selector and the reason a
-  // baseline is unavailable is lost, which is the one thing the caller needs.
-  // IVenueAdapter and UniswapV3Adapter.
-  error("PoolNotSet", ["address", "address"]),
-  error("PoolNotInitialized", ["address"]),
-  error("TokenNotInPool", ["address", "address"]),
-  error("LiquidityExhausted", ["address", "uint256"]),
-  error("TooManyTickCrossings", ["address", "uint16"]),
-  error("DynamicFeeUnsupported", ["address"]),
-];
-
-export const registryAbi: Abi = [
-  view("isActive", ["address"], ["bool"]),
-  view("bondOf", ["address"], ["uint256", "uint64"]),
-  view("stats", ["address"], ["uint256", "uint256", "uint256", "uint256"]),
-  view("minBond", [], ["uint256"]),
-];
-
-export const erc20Abi: Abi = [
-  view("decimals", [], ["uint8"]),
-  view("totalSupply", [], ["uint256"]),
-  view("symbol", [], ["string"]),
-];
-
-export const multiplierAbi: Abi = [view("uiMultiplier", [], ["uint256"])];
-
-export const permit2Abi: Abi = [
-  view("DOMAIN_SEPARATOR", [], ["bytes32"]),
-  view("nonceBitmap", ["address", "uint256"], ["uint256"]),
-  {
-    type: "function",
-    name: "invalidateUnorderedNonces",
-    stateMutability: "nonpayable",
-    inputs: [
-      {name: "wordPos", type: "uint256"},
-      {name: "mask", type: "uint256"},
-    ],
-    outputs: [],
-  },
-];
+/**
+ * The deployed Permit2 plus the one function IPermit2.sol does not declare.
+ * Cancelling is a user action rather than a protocol one, so Settlement never
+ * calls invalidateUnorderedNonces and the interface has no reason to carry it.
+ */
+export const permit2Abi: Abi = [...loadAbi("ISignatureTransfer"), ...invalidateNoncesAbi];
 
 /** IntentLib.INTENT_TYPEHASH, reproduced from the string the contract hashes. */
 export const INTENT_TYPE_STRING =
