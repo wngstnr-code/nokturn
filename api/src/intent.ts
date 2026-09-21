@@ -5,7 +5,8 @@
 // copies of this check would mean a signature that passes one and fails the
 // other, and nobody would know which one was right.
 
-import {encodeFunctionData, isAddress, type Abi, type Address, type Hex} from "viem";
+import {encodeFunctionData, getAddress, isAddress, type Abi, type Address, type Hex} from "viem";
+import type {IntentPayload} from "../../packages/shared/api-types.ts";
 import {chain, permit2Abi, read, settlementAbi} from "./chain.ts";
 import {badRequest} from "./errors.ts";
 import {env} from "./config.ts";
@@ -103,6 +104,32 @@ export function validateIntentPayload(payload: unknown): DecodedIntent {
     allowedSessions: Number(n("allowedSessions")),
     batchSpan: Number(n("batchSpan")),
     nonce: n("nonce"),
+  };
+}
+
+/**
+ * The intent as the mempool keeps it and every route serves it. Built from the
+ * decoded values, never copied from the request body, which used to reach the
+ * solver feed with unknown fields and numbers in whatever spelling the client
+ * chose. The shape is IntentPayload's, uint256 as decimal strings and the
+ * narrow fields as numbers. D2.
+ */
+export function canonicalPayload(i: DecodedIntent): IntentPayload {
+  return {
+    owner: getAddress(i.owner),
+    receiver: getAddress(i.receiver),
+    sellToken: getAddress(i.sellToken),
+    buyToken: getAddress(i.buyToken),
+    sellAmount: String(i.sellAmount),
+    minBuyAmount: String(i.minBuyAmount),
+    validAfter: i.validAfter,
+    validUntil: i.validUntil,
+    flags: i.flags,
+    kind: i.kind,
+    maxDevFromRefBps: i.maxDevFromRefBps,
+    allowedSessions: i.allowedSessions,
+    batchSpan: i.batchSpan,
+    nonce: String(i.nonce),
   };
 }
 

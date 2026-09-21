@@ -24,7 +24,7 @@ import {isBatch, isValidBatchId} from "../../../packages/shared/batch.ts";
 import {createChainReader} from "../../../packages/shared/batch-viem.ts";
 import {chain, erc20Abi, mandateAbi, oracleAbi, permit2Abi, read, sessionAbi, settlementAbi} from "../chain.ts";
 import {badRequest, fail, notFound} from "../errors.ts";
-import {escapeHatchFor, validateIntentPayload, witnessDigestNow} from "../intent.ts";
+import {canonicalPayload, escapeHatchFor, validateIntentPayload, witnessDigestNow} from "../intent.ts";
 import {admit, currentWindow, getByBatch, getByHash} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp} from "../provenance.ts";
@@ -159,7 +159,7 @@ export function intentRoutes(app: FastifyInstance) {
     // and the solver feed read from, so they cannot disagree about who is in.
     const signed: SignedIntent = {
       intentHash: hash,
-      intent: body.intent as SignedIntent["intent"],
+      intent: canonicalPayload(intent),
       signature: body.signature,
       signatureKind,
       receivedAt: Number(at.timestamp),

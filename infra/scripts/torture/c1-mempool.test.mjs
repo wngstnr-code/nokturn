@@ -59,20 +59,23 @@ describe("C1 mempool", () => {
     assert.ok(ok, JSON.stringify(answers));
   });
 
-  test("C1-3 the solver feed serves the canonical intent", {todo: "D2"}, async () => {
+  test("C1-3 the solver feed serves the canonical intent", async () => {
+    // A hex nonce was the original probe here. Since D3 it is a 400 before the
+    // mempool sees it, so the non canonical input is a narrow field sent as a
+    // string, which IntentPayload says is a number.
     const n = nextNonce();
-    const s = await signFor(users[1], {nonce: `0x${n.toString(16)}`});
+    const s = await signFor(users[1], {nonce: String(n), flags: "1"});
     const res = await submit(g.api, {...s, intent: {...s.intent, evil: "x".repeat(500_000)}});
     assert.equal(res.status, 200, res.text);
     const feed = await get(g.api, `/v1/batches/${res.body.batchId}/intents`);
     assert.equal(feed.status, 200, feed.text);
     const served = feed.body.intents.find((i) => i.intentHash === res.body.intentHash)?.intent;
-    const ok = served && !("evil" in served) && served.nonce === String(n);
+    const ok = served && !("evil" in served) && served.nonce === String(n) && served.flags === 1;
     g.record("C1-3", {
       outcome: ok ? "pass" : "finding",
       suspect: "D2",
       summary: ok ? "feed kanonik" : "feed menyajikan payload mentah dari klien",
-      evidence: {servedKeys: served ? Object.keys(served) : null, servedNonce: served?.nonce, feedBytes: feed.text.length},
+      evidence: {servedKeys: served ? Object.keys(served) : null, servedNonce: served?.nonce, servedFlags: served?.flags, feedBytes: feed.text.length},
     });
     assert.ok(ok);
   });
