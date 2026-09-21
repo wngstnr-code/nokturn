@@ -2,7 +2,6 @@
 pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
 
 import {Settlement} from "../../src/Settlement.sol";
@@ -16,6 +15,7 @@ import {Permit2Witness} from "../../src/libraries/Permit2Witness.sol";
 import {Execution, Intent, Session, SessionMask, Solution, VenueCall} from "../../src/types/Types.sol";
 
 import {Addresses} from "../Addresses.sol";
+import {DemoBase} from "./DemoBase.sol";
 import {IntentHasher} from "./IntentHasher.sol";
 
 /// @notice Drives a whole batch, end to end, on an anvil fork of mainnet 4663.
@@ -40,18 +40,7 @@ import {IntentHasher} from "./IntentHasher.sol";
 /// to, and the accounts are the ones make fund hands tokens to. Two harnesses on two
 /// forks would each be right about a different chain state, and the receipt the demo
 /// shows would not be the receipt the coordinator produced.
-contract ForkDemo is Script {
-    string internal constant PIN_FILE = "../infra/pinned-block.json";
-    string internal constant ACCOUNTS_FILE = "../infra/accounts.json";
-    string internal constant DEPLOYMENT_FILE = "../infra/fork-deployment.json";
-
-    /// Written by prepare and read by every later stage, because a script contract is
-    /// ephemeral and cannot hash a solution it is holding in memory.
-    string internal constant HASHER_PATH = "deployments/demo-hasher.txt";
-
-    uint256 internal constant WAD = 1e18;
-    uint256 internal constant BPS = 10_000;
-
+contract ForkDemo is DemoBase {
     /// The fee is taken as a share of the surplus rather than as a fixed number of
     /// basis points, because Settlement caps it at twenty percent of the surplus
     /// and a fixed withholding reverts the whole batch the moment the pool happens
@@ -72,67 +61,6 @@ contract ForkDemo is Script {
     /// different fills at one price rather than two numbers that look copied.
     uint256 internal constant ALICE_SHARE_OF_ROUTED_BPS = 6000;
 
-    struct Deployed {
-        address timelock;
-        address sessions;
-        address oracle;
-        address settlement;
-        address auctionHouse;
-        address solvers;
-        address adapter;
-    }
-
-    struct Actors {
-        uint256 aliceKey;
-        uint256 bobKey;
-        uint256 solverKey;
-        address alice;
-        address bob;
-        address solver;
-    }
-
-    function _deployed() internal view returns (Deployed memory d) {
-        string memory record = vm.readFile(DEPLOYMENT_FILE);
-        d.timelock = vm.parseJsonAddress(record, ".timelock");
-        d.sessions = vm.parseJsonAddress(record, ".sessions");
-        d.oracle = vm.parseJsonAddress(record, ".oracle");
-        d.settlement = vm.parseJsonAddress(record, ".settlement");
-        d.auctionHouse = vm.parseJsonAddress(record, ".auctionHouse");
-        d.solvers = vm.parseJsonAddress(record, ".solvers");
-        d.adapter = vm.parseJsonAddress(record, ".adapter");
-    }
-
-    /// @dev The two traders and the solver are the accounts the backend already
-    /// funds, read from the file that names them rather than derived from labels
-    /// here. Anvil's own defaults cannot be used on this chain at all, because their
-    /// keys are public and somebody has left an EIP-7702 delegation on every one of
-    /// them on mainnet 4663. Permit2 sees the code, takes the EIP-1271 path instead
-    /// of ecrecover, and rejects a perfectly good signature with an empty revert.
-    function _actors() internal view returns (Actors memory a) {
-        string memory accounts = vm.readFile(ACCOUNTS_FILE);
-        string memory mnemonic = vm.parseJsonString(accounts, "._mnemonic");
-
-        a.alice = vm.parseJsonAddress(accounts, ".users[0]");
-        a.bob = vm.parseJsonAddress(accounts, ".users[1]");
-        a.solver = vm.parseJsonAddress(accounts, ".solverA");
-
-        // Transactions go through auto impersonation and need no key, but a Permit2
-        // witness is signed rather than sent, so these three do. The index is found
-        // rather than written down, because the order of the accounts in that file
-        // belongs to whoever maintains it.
-        a.aliceKey = _keyFor(mnemonic, a.alice);
-        a.bobKey = _keyFor(mnemonic, a.bob);
-        a.solverKey = _keyFor(mnemonic, a.solver);
-    }
-
-    function _keyFor(string memory mnemonic, address who) internal pure returns (uint256) {
-        for (uint32 index = 0; index < 20; ++index) {
-            uint256 key = vm.deriveKey(mnemonic, index);
-            if (vm.addr(key) == who) return key;
-        }
-        revert("no derivation index in infra/accounts.json produces this address");
-    }
-
     /// @notice Checks the fork is actually ready for a batch, then deploys the one
     /// helper the signing needs.
     ///
@@ -148,24 +76,27 @@ contract ForkDemo is Script {
         address usdg = Addresses.quote();
         address nvda = Addresses.NVDA;
 
-        require(a.alice.code.length == 0, "alice carries code, so permit2 will take the eip-1271 path");
-        require(a.bob.code.length == 0, "bob carries code, so permit2 will take the eip-1271 path");
-        require(a.solver.code.length == 0, "solver carries code");
+        require(a.users[0].code.length == 0, "alice carries code, so permit2 will take the eip-1271 path");
+        require(a.users[1].code.length == 0, "bob carries code, so permit2 will take the eip-1271 path");
+        require(a.solvers[0].code.length == 0, "solver carries code");
 
-        require(IERC20(usdg).balanceOf(a.alice) >= MIN_ALICE_USDG, "alice is short of usdg. run make fund");
-        require(IERC20(nvda).balanceOf(a.bob) > 0, "bob holds no nvda. run make fund");
-        require(IERC20(usdg).balanceOf(a.bob) >= MIN_ALICE_USDG, "bob is short of usdg. run make fund");
-        require(IERC20(usdg).allowance(a.alice, Addresses.PERMIT2) >= MIN_ALICE_USDG, "alice has not approved permit2");
-        require(IERC20(nvda).allowance(a.bob, Addresses.PERMIT2) > 0, "bob has not approved permit2");
-        require(SolverRegistry(d.solvers).isActive(a.solver), "the solver is not bonded. run make fund");
+        require(IERC20(usdg).balanceOf(a.users[0]) >= MIN_ALICE_USDG, "alice is short of usdg. run make fund");
+        require(IERC20(nvda).balanceOf(a.users[1]) > 0, "bob holds no nvda. run make fund");
+        require(IERC20(usdg).balanceOf(a.users[1]) >= MIN_ALICE_USDG, "bob is short of usdg. run make fund");
+        require(
+            IERC20(usdg).allowance(a.users[0], Addresses.PERMIT2) >= MIN_ALICE_USDG,
+            "alice has not approved permit2"
+        );
+        require(IERC20(nvda).allowance(a.users[1], Addresses.PERMIT2) > 0, "bob has not approved permit2");
+        require(SolverRegistry(d.solvers).isActive(a.solvers[0]), "the solver is not bonded. run make fund");
 
-        vm.startBroadcast(a.solver);
+        vm.startBroadcast(a.solvers[0]);
         IntentHasher hasher = new IntentHasher();
         vm.stopBroadcast();
         vm.writeFile(HASHER_PATH, vm.toString(address(hasher)));
 
-        console2.log("alice usdg", IERC20(usdg).balanceOf(a.alice));
-        console2.log("bob nvda", IERC20(nvda).balanceOf(a.bob));
+        console2.log("alice usdg", IERC20(usdg).balanceOf(a.users[0]));
+        console2.log("bob nvda", IERC20(nvda).balanceOf(a.users[1]));
         console2.log("hasher", address(hasher));
     }
 
@@ -181,7 +112,7 @@ contract ForkDemo is Script {
         Actors memory a = _actors();
         Solution memory s = _build(d, a, batchId, routed);
 
-        vm.startBroadcast(a.solverKey);
+        vm.startBroadcast(a.solverKeys[0]);
         Settlement(d.settlement).submitSolution(s);
         vm.stopBroadcast();
 
@@ -202,13 +133,13 @@ contract ForkDemo is Script {
         (bytes32 stored,,) = Settlement(d.settlement).bestSolution(batchId);
         require(stored == keccak256(abi.encode(s)), "pool moved between submit and finalize");
 
-        vm.startBroadcast(a.solverKey);
+        vm.startBroadcast(a.solverKeys[0]);
         Settlement(d.settlement).finalize(batchId, s);
         vm.stopBroadcast();
 
         console2.log("finalized", batchId);
-        console2.log("alice nvda", IERC20(Addresses.NVDA).balanceOf(a.alice));
-        console2.log("bob usdg", IERC20(Addresses.quote()).balanceOf(a.bob));
+        console2.log("alice nvda", IERC20(Addresses.NVDA).balanceOf(a.users[0]));
+        console2.log("bob usdg", IERC20(Addresses.quote()).balanceOf(a.users[1]));
     }
 
     /// @notice Writes what the screens need to read, including the fork block. The
@@ -232,9 +163,9 @@ contract ForkDemo is Script {
         vm.serializeAddress(out, "pool", Addresses.POOL_NVDA);
         vm.serializeAddress(out, "usdg", Addresses.quote());
         vm.serializeAddress(out, "nvda", Addresses.NVDA);
-        vm.serializeAddress(out, "alice", a.alice);
-        vm.serializeAddress(out, "bob", a.bob);
-        string memory json = vm.serializeAddress(out, "solver", a.solver);
+        vm.serializeAddress(out, "alice", a.users[0]);
+        vm.serializeAddress(out, "bob", a.users[1]);
+        string memory json = vm.serializeAddress(out, "solver", a.solvers[0]);
 
         vm.writeJson(json, "deployments/demo.json");
         console2.log("wrote deployments/demo.json at fork block", forkBlock);
@@ -305,8 +236,8 @@ contract ForkDemo is Script {
         uint256 venueOutNvda = askOut;
         uint256 venueOutUsdg = IVenueAdapter(d.adapter).quoteFromState(nvda, usdg, buyNvda);
 
-        uint256 surplusUsd = ((buyNvda - venueOutNvda) * s.prices[1]) / WAD
-            + ((sellUsdg - venueOutUsdg) * s.prices[0]) / WAD;
+        uint256 surplusUsd =
+            ((buyNvda - venueOutNvda) * s.prices[1]) / WAD + ((sellUsdg - venueOutUsdg) * s.prices[0]) / WAD;
         uint256 feeUsdg = (surplusUsd * WAD) / (s.prices[0] * WITHHOLD_SHARE_OF_SURPLUS);
         require(sellUsdg > feeUsdg, "the fee is larger than the leg it came from");
         uint256 buyUsdg = sellUsdg - feeUsdg;
@@ -314,12 +245,12 @@ contract ForkDemo is Script {
         require(buyUsdg <= sellUsdg, "usdg is not conserved");
 
         s.intents = new Intent[](2);
-        s.intents[0] = _intent(a.alice, usdg, nvda, sellUsdg, buyNvda, batchId, _nonce(batchId, 0));
-        s.intents[1] = _intent(a.bob, nvda, usdg, buyNvda, buyUsdg, batchId, _nonce(batchId, 1));
+        s.intents[0] = _intent(a.users[0], usdg, nvda, sellUsdg, buyNvda, batchId, _nonce(batchId, 0));
+        s.intents[1] = _intent(a.users[1], nvda, usdg, buyNvda, buyUsdg, batchId, _nonce(batchId, 1));
 
         s.signatures = new bytes[](2);
-        s.signatures[0] = _sign(a.aliceKey, d.settlement, s.intents[0]);
-        s.signatures[1] = _sign(a.bobKey, d.settlement, s.intents[1]);
+        s.signatures[0] = _sign(a.userKeys[0], d.settlement, s.intents[0]);
+        s.signatures[1] = _sign(a.userKeys[1], d.settlement, s.intents[1]);
 
         s.executions = new Execution[](2);
         s.executions[0] = Execution({intentIndex: 0, executedSell: sellUsdg, executedBuy: buyNvda});
@@ -331,7 +262,7 @@ contract ForkDemo is Script {
         s.baselineQuotes[0] = venueOutNvda;
         s.baselineQuotes[1] = venueOutUsdg;
 
-        s.solver = a.solver;
+        s.solver = a.solvers[0];
         s.batchId = batchId;
         s.claimedSavings =
             ((buyNvda - venueOutNvda) * s.prices[1]) / WAD + ((buyUsdg - venueOutUsdg) * s.prices[0]) / WAD;
@@ -394,12 +325,12 @@ contract ForkDemo is Script {
         _requireWithinBand(d, session, nvda, s.prices[1]);
 
         s.intents = new Intent[](2);
-        s.intents[0] = _intent(a.alice, usdg, nvda, sellAlice, buyAlice, batchId, _nonce(batchId, 0));
-        s.intents[1] = _intent(a.bob, usdg, nvda, sellBob, buyBob, batchId, _nonce(batchId, 1));
+        s.intents[0] = _intent(a.users[0], usdg, nvda, sellAlice, buyAlice, batchId, _nonce(batchId, 0));
+        s.intents[1] = _intent(a.users[1], usdg, nvda, sellBob, buyBob, batchId, _nonce(batchId, 1));
 
         s.signatures = new bytes[](2);
-        s.signatures[0] = _sign(a.aliceKey, d.settlement, s.intents[0]);
-        s.signatures[1] = _sign(a.bobKey, d.settlement, s.intents[1]);
+        s.signatures[0] = _sign(a.userKeys[0], d.settlement, s.intents[0]);
+        s.signatures[1] = _sign(a.userKeys[1], d.settlement, s.intents[1]);
 
         s.executions = new Execution[](2);
         s.executions[0] = Execution({intentIndex: 0, executedSell: sellAlice, executedBuy: buyAlice});
@@ -418,7 +349,7 @@ contract ForkDemo is Script {
         s.baselineQuotes[0] = buyAlice;
         s.baselineQuotes[1] = buyBob;
 
-        s.solver = a.solver;
+        s.solver = a.solvers[0];
         s.batchId = batchId;
         s.claimedSavings = 0;
     }
@@ -450,9 +381,15 @@ contract ForkDemo is Script {
     /// on a weekday overnight is therefore refused on a Saturday with
     /// ExposureCapExceeded, which is a fine thing for the protocol to do and a poor
     /// thing for a demo to discover on stage. Settlement 538.
-    function _sellSize(Deployed memory d, Session session, uint256 quotePrice) internal view returns (uint256) {
-        uint256 scale =
-            session == Session.CLOSED_WEEKEND || session == Session.HOLIDAY || session == Session.PROTECTIVE ? 1 : 2;
+    function _sellSize(Deployed memory d, Session session, uint256 quotePrice)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 scale = session == Session.CLOSED_WEEKEND || session == Session.HOLIDAY
+            || session == Session.PROTECTIVE
+            ? 1
+            : 2;
         uint256 capUsd = (Settlement(d.settlement).capPerBatchUsd() * scale) / 2;
         uint256 legUsd = (capUsd * SELL_SHARE_OF_CAP_NUM) / SELL_SHARE_OF_CAP_DEN;
 
@@ -460,15 +397,6 @@ contract ForkDemo is Script {
         uint256 sell = ((legUsd * WAD) / quotePrice / 1e6) * 1e6;
         require(sell >= MIN_ALICE_USDG, "the session cap leaves nothing to trade");
         return sell;
-    }
-
-    /// @dev USD with eighteen decimals per smallest unit, which is the convention
-    /// the verifier works in. A price per whole token is off by twelve orders of
-    /// magnitude the moment USDG is on one side of the pair.
-    function _unitPrice(address oracle, address token, uint8 decimals) internal view returns (uint256) {
-        (uint256 price,, bool healthy) = IPriceOracle(oracle).refPrice(token);
-        require(healthy, "oracle is not healthy for this token");
-        return (price * WAD) / (10 ** decimals);
     }
 
     function _intent(
@@ -499,20 +427,7 @@ contract ForkDemo is Script {
         });
     }
 
-    /// @dev Permit2 binds the signature to whoever will call it, so the spender is
-    /// Settlement and nothing else can spend this.
     function _sign(uint256 key, address settlement, Intent memory i) internal view returns (bytes memory) {
-        bytes32 digest = Permit2Witness.digest(
-            ISignatureTransfer(Addresses.PERMIT2).DOMAIN_SEPARATOR(),
-            Permit2Witness.typeHash(Settlement(settlement).WITNESS_TYPE_STRING()),
-            i.sellToken,
-            i.sellAmount,
-            settlement,
-            i.nonce,
-            i.validUntil,
-            IntentHasher(vm.parseAddress(vm.readFile(HASHER_PATH))).hashOf(i)
-        );
-        (uint8 v, bytes32 r, bytes32 sig) = vm.sign(key, digest);
-        return abi.encodePacked(r, sig, v);
+        return _signFor(key, settlement, _settlementTypeHash(settlement), i);
     }
 }

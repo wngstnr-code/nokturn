@@ -145,6 +145,8 @@ contract SetFeedsForkTest is Test {
         // quote asset. USDG gets no twap source because it has no pool against
         // itself, which is the whole reason the frozen branch checks for one.
         // parameter.md section 7.1.
-        assertEq(targets.length, Addresses.allowlist().length * 2 + 1, "one feed and one twap per token, plus usdg");
+        assertEq(
+            targets.length, Addresses.allowlist().length * 2 + 1, "one feed and one twap per token, plus usdg"
+        );
     }
 }
