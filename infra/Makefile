@@ -72,10 +72,12 @@ postman:
 	@$(S)/postman.sh
 
 postman-resilience:
-	@pnpm dlx newman run postman/nokturn-resilience.postman_collection.json \n		--reporters cli --reporter-cli-no-banner
+	@pnpm dlx newman run postman/nokturn-resilience.postman_collection.json \
+		--reporters cli --reporter-cli-no-banner
 
 postman-api:
-	@pnpm dlx newman run postman/nokturn-api.postman_collection.json \n		--reporters cli --reporter-cli-no-banner
+	@pnpm dlx newman run postman/nokturn-api.postman_collection.json \
+		--reporters cli --reporter-cli-no-banner
 
 postman-run:
 	@pnpm dlx newman run postman/nokturn-fork.postman_collection.json \
