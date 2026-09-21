@@ -40,7 +40,7 @@ describe("C1 mempool", () => {
     assert.deepEqual(bad, []);
   });
 
-  test("C1-2 one nonce written three ways", {todo: "D1"}, async () => {
+  test("C1-2 one nonce written three ways", async () => {
     const n = nextNonce();
     const spellings = [String(n), `0${n}`, `0x${n.toString(16)}`];
     const answers = [];

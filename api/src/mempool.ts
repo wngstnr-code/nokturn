@@ -28,8 +28,10 @@ const byBatch = new Map<bigint, SignedIntent[]>();
 const byHash = new Map<string, StoredIntent>();
 const byOwnerNonce = new Map<string, string>();
 
+// Keyed on the nonce's value rather than on how the client spelled it. "7",
+// "07" and "0x7" are one Permit2 nonce, and only one of them can ever settle.
 function ownerNonceKey(owner: string, nonce: string): string {
-  return `${owner.toLowerCase()}:${nonce}`;
+  return `${owner.toLowerCase()}:${BigInt(nonce)}`;
 }
 
 /**
