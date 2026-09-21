@@ -92,16 +92,16 @@ export function loadPinnedBlock(): PinnedBlock | null {
  * because on a fork the chain id is 4663 and that is the same path a real
  * mainnet deploy would take.
  */
+export function deploymentPath(chainId: number, isFork: boolean): string {
+  return isFork
+    ? join(REPO_ROOT, "infra", "fork-deployment.json")
+    : join(REPO_ROOT, "contracts", "deployments", `${chainId}.json`);
+}
+
 export function loadDeployment(chainId: number, isFork: boolean): Deployment {
-  if (isFork) {
-    return readJson<Deployment>(
-      join(REPO_ROOT, "infra", "fork-deployment.json"),
-      "run make deploy against the fork first",
-    );
-  }
   return readJson<Deployment>(
-    join(REPO_ROOT, "contracts", "deployments", `${chainId}.json`),
-    `no deployment recorded for chain ${chainId}`,
+    deploymentPath(chainId, isFork),
+    isFork ? "run make deploy against the fork first" : `no deployment recorded for chain ${chainId}`,
   );
 }
 

@@ -129,6 +129,23 @@ export function chain(): ChainContext {
   return context;
 }
 
+/**
+ * Whether the deployment record on disk still names the contracts this process
+ * booted with. A redeploy under a running API left it holding the old
+ * Settlement, so a signature that was valid for the new one came back
+ * COORDINATOR_BAD_SIGNATURE and the caller was told their key was wrong. D12.
+ */
+export function deploymentMoved(): boolean {
+  const c = chain();
+  let onDisk: string;
+  try {
+    onDisk = JSON.stringify(loadDeployment(c.chainId, c.isFork));
+  } catch {
+    return true;
+  }
+  return onDisk !== JSON.stringify(c.deployment);
+}
+
 /** One typed read, so routes do not each repeat the address and abi. */
 export async function read<T>(address: Address, abi: Abi, functionName: string, args: readonly unknown[] = []) {
   return chain().client.readContract({address, abi, functionName, args}) as Promise<T>;

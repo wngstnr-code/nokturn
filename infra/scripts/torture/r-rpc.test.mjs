@@ -13,7 +13,7 @@ import {REPO_ROOT, get, percentile, rssOf, submit} from "./lib/api.mjs";
 import {mb} from "./lib/evidence.mjs";
 import {chainNow, killFork, restartFork} from "./lib/fork.mjs";
 import {nonceSource, pool, useGroup} from "./lib/harness.mjs";
-import {accountsFile, digestOf, makeIntent, signRaw, users} from "./lib/sign.mjs";
+import {accountsFile, digestOf, makeIntent, signRaw, users, witnessParts} from "./lib/sign.mjs";
 
 const g = useGroup(import.meta.url, {proxy: true, snap: false});
 const nextNonce = nonceSource(4);
@@ -141,8 +141,11 @@ describe("R reliability against the RPC", () => {
     assert.ok(ok, res.text);
   });
 
-  test("R-7 a redeploy to new addresses under a running API", {timeout: 45 * 60_000, todo: "D12"}, async () => {
+  test("R-7 a redeploy to new addresses under a running API", {timeout: 45 * 60_000}, async () => {
     const canonical = deploymentFile();
+    // Read while the canonical Settlement still has code. After the move the
+    // harness would otherwise ask the old address and get an empty revert.
+    await witnessParts();
     let result;
     try {
       await killFork();

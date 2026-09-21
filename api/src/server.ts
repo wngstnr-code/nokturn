@@ -9,8 +9,8 @@
 import Fastify, {type FastifyInstance} from "fastify";
 import type {ApiError} from "../../packages/shared/api-types.ts";
 import {env} from "./config.ts";
-import {chain} from "./chain.ts";
-import {HttpError} from "./errors.ts";
+import {chain, deploymentMoved} from "./chain.ts";
+import {HttpError, fail} from "./errors.ts";
 import {allowlistRoutes} from "./routes/allowlist.ts";
 import {configRoutes} from "./routes/config.ts";
 import {escapeRoutes} from "./routes/escape.ts";
@@ -44,6 +44,17 @@ export function buildServer(): FastifyInstance {
   });
 
   app.options("/*", async (_request, reply) => reply.code(204).send());
+
+  app.addHook("onRequest", async () => {
+    if (deploymentMoved()) {
+      throw fail(
+        503,
+        "COORDINATOR_UPSTREAM_DOWN",
+        "the deployment record changed under this running API, so every address it holds may name the wrong contract. restart it with make api",
+        {settlement: chain().deployment.settlement},
+      );
+    }
+  });
 
   // A POST carrying the json content type and no body is how every http client
   // probes a route, and Fastify treats that as a parse failure by default. It
