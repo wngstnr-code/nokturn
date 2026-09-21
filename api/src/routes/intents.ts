@@ -22,7 +22,17 @@ import type {
 } from "../../../packages/shared/api-types.ts";
 import {isBatch, isValidBatchId, type BatchWindow} from "../../../packages/shared/batch.ts";
 import {createChainReader} from "../../../packages/shared/batch-viem.ts";
-import {chain, erc20Abi, mandateAbi, oracleAbi, permit2Abi, read, sessionAbi, settlementAbi} from "../chain.ts";
+import {
+  chain,
+  erc20Abi,
+  mandateAbi,
+  oracleAbi,
+  permit2Abi,
+  read,
+  revertReason,
+  sessionAbi,
+  settlementAbi,
+} from "../chain.ts";
 import {badRequest, fail, notFound} from "../errors.ts";
 import {canonicalPayload, escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
 import {admit, currentWindow, getByBatch, getByHash} from "../mempool.ts";
@@ -291,15 +301,23 @@ export function intentRoutes(app: FastifyInstance) {
       const collectStart = batchId - BigInt(duration);
       const solveEnd = batchId + SOLUTION_WINDOW;
 
-      const stockPrices = await Promise.all(
-        c.tokens.map(async (t): Promise<OraclePriceRow> => {
-          const [price, ts, healthy] = await read<[bigint, bigint, boolean]>(
-            c.deployment.oracle,
-            oracleAbi,
-            "refPrice",
-            [t.token],
-            at.number,
-          );
+      // One token whose refPrice reverts, FeedNotSet or TwapSourceNotSet, used to
+      // take the whole feed down with a 502. It is reported by name instead and
+      // the other tokens are still served. A failure that is not a revert is the
+      // node, and still fails the request. D10.
+      const oracleUnavailable: BatchIntentsResponse["oracleUnavailable"] = [];
+      const priced = await Promise.all(
+        c.tokens.map(async (t): Promise<OraclePriceRow | null> => {
+          let answer: [bigint, bigint, boolean];
+          try {
+            answer = await read<[bigint, bigint, boolean]>(c.deployment.oracle, oracleAbi, "refPrice", [t.token], at.number);
+          } catch (error) {
+            const reason = revertReason(error);
+            if (reason === null) throw error;
+            oracleUnavailable.push({token: t.token, symbol: t.symbol, reason});
+            return null;
+          }
+          const [price, ts, healthy] = answer;
           return {
             token: t.token,
             symbol: t.symbol,
@@ -312,6 +330,7 @@ export function intentRoutes(app: FastifyInstance) {
           };
         }),
       );
+      const stockPrices = priced.filter((row): row is OraclePriceRow => row !== null);
 
       // USDG is the numeraire. PriceOracle tracks the stock tokens against it
       // and never USDG itself, so its row is the fixed peg rather than a read.
@@ -344,6 +363,7 @@ export function intentRoutes(app: FastifyInstance) {
         frozen: at.timestamp > collectEnd,
         intents: getByBatch(batchId),
         oraclePrices,
+        oracleUnavailable,
         maxDeviationBps,
         provenance: provenance(at),
       };

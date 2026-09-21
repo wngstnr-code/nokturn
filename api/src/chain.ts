@@ -5,7 +5,15 @@
 // client of their own, because two clients means two block heights and a
 // receipt that cites a block it did not read.
 
-import {createPublicClient, http, type Abi, type Address, type PublicClient} from "viem";
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  createPublicClient,
+  http,
+  type Abi,
+  type Address,
+  type PublicClient,
+} from "viem";
 import {erc20Abi, invalidateNoncesAbi, loadAbi} from "./abi.ts";
 import {
   CHAIN_ID_TESTNET,
@@ -159,6 +167,18 @@ export async function read<T>(
   blockNumber?: bigint,
 ) {
   return chain().client.readContract({address, abi, functionName, args, blockNumber}) as Promise<T>;
+}
+
+/**
+ * The contract's own name for a revert, or null when the failure was not a
+ * revert at all. A revert is an answer from the chain and a route can report
+ * it. Anything else is the node, and belongs in a 502.
+ */
+export function revertReason(error: unknown): string | null {
+  if (!(error instanceof BaseError)) return null;
+  const reverted = error.walk((e) => e instanceof ContractFunctionRevertedError);
+  if (!(reverted instanceof ContractFunctionRevertedError)) return null;
+  return reverted.data?.errorName ?? reverted.reason ?? reverted.signature ?? "reverted";
 }
 
 export function explorerAddress(address: string): string {

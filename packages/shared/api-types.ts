@@ -371,6 +371,12 @@ export interface BatchIntentsResponse {
    * chain fail NonUniformPrice. See docs/parameter.md section 4C.
    */
   oraclePrices: OraclePriceRow[];
+  /**
+   * Tokens whose refPrice reverted at this block, with the revert's name. Such
+   * a token has no row in oraclePrices rather than a row with a made up price,
+   * and Settlement would revert any solution that includes it.
+   */
+  oracleUnavailable: {token: Address; symbol: string; reason: string}[];
   /** The band a clearing price has to sit inside for this batch's session. */
   maxDeviationBps: number;
   provenance: Provenance;

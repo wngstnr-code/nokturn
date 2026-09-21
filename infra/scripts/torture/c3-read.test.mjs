@@ -144,7 +144,7 @@ describe("C3 read routes and the solver feed", () => {
     assert.ok(same, "prices come from a later block than the provenance says");
   });
 
-  test("C3-4 one token with no feed does not take the whole feed down", {todo: "D10"}, async () => {
+  test("C3-4 one token with no feed does not take the whole feed down", async () => {
     await withSnapshot(async () => {
       const gme = ctx.tokens.find((t) => t.symbol === "GME");
       const slot = keccak256(encodeAbiParameters([{type: "address"}, {type: "uint256"}], [gme.token, 0n]));
@@ -158,12 +158,13 @@ describe("C3 read routes and the solver feed", () => {
       const batch = await freshWindow(g.api, 10);
       const feed = await get(g.api, `/v1/batches/${batch.batchId}/intents`);
       const row = feed.body?.oraclePrices?.find((r) => r.symbol === "GME");
-      const ok = feed.status === 200 && (row ? row.healthy === false : true);
+      const named = feed.body?.oracleUnavailable?.find((u) => u.symbol === "GME");
+      const ok = feed.status === 200 && (row ? row.healthy === false : !!named?.reason);
       g.record("C3-4", {
         outcome: ok ? "pass" : "finding",
         suspect: "D10",
         summary: `refPrice(GME) setelah feed dikosongkan: ${reverts ? "revert" : "tidak revert"}. Feed solver ${feed.status} ${feed.body?.code ?? ""}`,
-        evidence: {revert: reverts, message: feed.body?.message?.slice(0, 200)},
+        evidence: {revert: reverts, message: feed.body?.message?.slice(0, 200), unavailable: feed.body?.oracleUnavailable, rows: feed.body?.oraclePrices?.map((r) => r.symbol)},
       });
       assert.ok(ok);
     });
