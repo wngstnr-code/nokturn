@@ -26,6 +26,7 @@ export const oracleAbi: Abi = loadAbi("PriceOracle");
 export const adapterAbi: Abi = loadAbi("UniswapV3Adapter");
 export const registryAbi: Abi = loadAbi("SolverRegistry");
 export const multiplierAbi: Abi = loadAbi("IUiMultiplier");
+export const mandateAbi: Abi = loadAbi("MandateAccount");
 
 export {erc20Abi, invalidateNoncesAbi};
 

@@ -14,6 +14,7 @@ import {HttpError} from "./errors.ts";
 import {allowlistRoutes} from "./routes/allowlist.ts";
 import {configRoutes} from "./routes/config.ts";
 import {escapeRoutes} from "./routes/escape.ts";
+import {intentRoutes} from "./routes/intents.ts";
 import {nonceRoutes} from "./routes/nonces.ts";
 import {quoteRoutes} from "./routes/quote.ts";
 import {sessionRoutes} from "./routes/session.ts";
@@ -92,6 +93,7 @@ export function buildServer(): FastifyInstance {
   quoteRoutes(app);
   nonceRoutes(app);
   escapeRoutes(app);
+  intentRoutes(app);
   solverRoutes(app);
   stubRoutes(app);
 

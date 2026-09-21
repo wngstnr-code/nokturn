@@ -12,7 +12,6 @@ import {notImplemented} from "../errors.ts";
 
 /** What each one is still waiting for, reported to the caller verbatim. */
 const PENDING: {method: "get" | "post"; path: string; needs: string}[] = [
-  {method: "post", path: "/v1/intents", needs: "the intent coordinator and its Permit2 witness verification"},
   {method: "get", path: "/v1/intents/:intentHash", needs: "the intent coordinator"},
   {method: "get", path: "/v1/batches", needs: "the event indexer"},
   {
