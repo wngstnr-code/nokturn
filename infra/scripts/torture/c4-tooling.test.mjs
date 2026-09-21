@@ -149,7 +149,7 @@ describe("C4 signing script and Postman", () => {
     assert.equal(a?.failed, f.failed, "collection fails after chain time moves");
   });
 
-  test("C4-5 sign-intent against an unfunded user and a dead API", {todo: "N5"}, async () => {
+  test("C4-5 sign-intent against an unfunded user and a dead API", async () => {
     const unfunded = await withSnapshot(async () => {
       const u = users[0];
       const bal = await ctx.client.readContract({address: USDG().address, abi: erc20, functionName: "balanceOf", args: [u.address]});

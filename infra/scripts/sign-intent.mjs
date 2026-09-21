@@ -109,10 +109,18 @@ async function fundGas(address) {
 }
 
 async function fetchJson(path, init) {
-  const res = await fetch(`${API}${path}`, init);
+  let res;
+  try {
+    res = await fetch(`${API}${path}`, init);
+  } catch {
+    throw new Error(`no coordinator answering at ${API}. start it with make api`);
+  }
   const body = await res.json();
   return {status: res.status, body};
 }
+
+/** The two rejections that mean the fork was never funded, rather than a bug. */
+const UNFUNDED = new Set(["COORDINATOR_INSUFFICIENT_BALANCE", "COORDINATOR_PERMIT2_NOT_APPROVED"]);
 
 /**
  * Builds and signs one Intent, ready to POST to /v1/intents.
@@ -199,6 +207,7 @@ async function happyPath() {
     console.log(JSON.stringify(body, null, 2));
   } else {
     console.log(`FAIL  ${status} ${body.code}: ${body.message}`);
+    if (UNFUNDED.has(body.code)) console.log(`      ${built.owner} has no balance or approval on this fork. run make fund`);
     process.exitCode = 1;
   }
 }
@@ -267,12 +276,18 @@ if (isMain) {
   const caseIndex = args.indexOf("--case");
   const caseName = caseIndex >= 0 ? args[caseIndex + 1] : null;
 
-  if (caseName === "nonce-used") await caseNonceUsed();
-  else if (caseName === "no-approve") await caseNoApprove();
-  else if (caseName) {
-    bad(`unknown case ${caseName}, expected nonce-used or no-approve`);
-  } else {
-    await happyPath();
+  // A stack trace here is noise. Every failure this script expects already
+  // carries a message that says what to run next.
+  try {
+    if (caseName === "nonce-used") await caseNonceUsed();
+    else if (caseName === "no-approve") await caseNoApprove();
+    else if (caseName) {
+      bad(`unknown case ${caseName}, expected nonce-used or no-approve`);
+    } else {
+      await happyPath();
+    }
+  } catch (error) {
+    bad(error instanceof Error ? error.message : String(error));
   }
 
   if (fail > 0) {
