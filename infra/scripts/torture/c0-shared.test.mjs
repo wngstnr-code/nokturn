@@ -49,7 +49,7 @@ async function validSigned() {
 }
 
 describe("C0 shared validation and escape hatch", () => {
-  test("C0-1 both routes reject malformed payloads identically", {todo: "D3"}, async () => {
+  test("C0-1 both routes reject malformed payloads identically", async () => {
     const base = await validSigned();
     const variants = [];
     for (const f of FIELDS) {
@@ -85,7 +85,7 @@ describe("C0 shared validation and escape hatch", () => {
     assert.deepEqual(notRejected, [], "some variants were not rejected as 4xx");
   });
 
-  test("C0-2 out of range numbers are 400, never 502", {todo: "D3"}, async () => {
+  test("C0-2 out of range numbers are 400, never 502", async () => {
     const base = await validSigned();
     const results = [];
     for (const f of NUMERIC_FIELDS) {

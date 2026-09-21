@@ -9,7 +9,7 @@ import {encodeFunctionData, isAddress, type Abi, type Address, type Hex} from "v
 import {chain, permit2Abi, read, settlementAbi} from "./chain.ts";
 import {badRequest} from "./errors.ts";
 import {env} from "./config.ts";
-import {decodeIntent, witnessDigest, type DecodedIntent} from "./permit2.ts";
+import {witnessDigest, type DecodedIntent} from "./permit2.ts";
 
 const intentTuple = {
   name: "i",
@@ -44,27 +44,66 @@ const submitOnchainAbi: Abi = [
 
 const REQUIRED = intentTuple.components.map((c) => c.name);
 
+const WIDTH = Object.fromEntries(
+  intentTuple.components.filter((c) => c.type.startsWith("uint")).map((c) => [c.name, Number(c.type.slice(4))]),
+) as Record<string, number>;
+
+const CANONICAL_DECIMAL = /^(0|[1-9][0-9]*)$/;
+
+/**
+ * IntentPayload carries the uint256 fields as decimal strings and the narrow
+ * ones as numbers, and sign-intent.mjs sends every field as a string. Both are
+ * accepted, but only in canonical form and only inside the Solidity width.
+ * Anything looser used to pass here and throw inside the ABI encoder, which
+ * the error handler then reported as a dead node. D3 in the torture report.
+ */
+function parseUint(field: string, value: unknown): bigint {
+  let text: string | null = null;
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) text = String(value);
+  else if (typeof value === "string" && CANONICAL_DECIMAL.test(value)) text = value;
+  const width = WIDTH[field]!;
+  if (text === null) {
+    throw badRequest("COORDINATOR_INVALID_REQUEST", `intent.${field} must be a non negative decimal integer`, {field});
+  }
+  const parsed = BigInt(text);
+  if (parsed >= 1n << BigInt(width)) {
+    throw badRequest("COORDINATOR_INVALID_REQUEST", `intent.${field} does not fit in uint${width}`, {field});
+  }
+  return parsed;
+}
+
 export function validateIntentPayload(payload: unknown): DecodedIntent {
-  const p = payload as Record<string, unknown> | undefined;
-  if (!p) throw badRequest("COORDINATOR_INVALID_REQUEST", "intent is missing");
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw badRequest("COORDINATOR_INVALID_REQUEST", "intent is missing");
+  }
+  const p = payload as Record<string, unknown>;
   for (const field of REQUIRED) {
     if (p[field] === undefined || p[field] === null) {
       throw badRequest("COORDINATOR_INVALID_REQUEST", `intent.${field} is missing`);
     }
   }
   for (const field of ["owner", "receiver", "sellToken", "buyToken"]) {
-    if (!isAddress(String(p[field]))) {
+    if (typeof p[field] !== "string" || !isAddress(p[field])) {
       throw badRequest("COORDINATOR_INVALID_REQUEST", `intent.${field} is not an address`);
     }
   }
-  try {
-    return decodeIntent(payload as never);
-  } catch {
-    throw badRequest(
-      "COORDINATOR_INVALID_REQUEST",
-      "sellAmount, minBuyAmount and nonce are decimal strings in the smallest unit",
-    );
-  }
+  const n = (field: string) => parseUint(field, p[field]);
+  return {
+    owner: p.owner as Address,
+    receiver: p.receiver as Address,
+    sellToken: p.sellToken as Address,
+    buyToken: p.buyToken as Address,
+    sellAmount: n("sellAmount"),
+    minBuyAmount: n("minBuyAmount"),
+    validAfter: Number(n("validAfter")),
+    validUntil: Number(n("validUntil")),
+    flags: Number(n("flags")),
+    kind: Number(n("kind")),
+    maxDevFromRefBps: Number(n("maxDevFromRefBps")),
+    allowedSessions: Number(n("allowedSessions")),
+    batchSpan: Number(n("batchSpan")),
+    nonce: n("nonce"),
+  };
 }
 
 let cachedWitness: {domainSeparator: Hex; witnessTypeString: string} | null = null;
