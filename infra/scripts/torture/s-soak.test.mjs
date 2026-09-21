@@ -30,8 +30,15 @@ const result = {};
 describe("S soak", () => {
   before(async () => {
     const t0 = performance.now();
-    const until = t0 + MINUTES * 60_000;
+    let until = t0 + MINUTES * 60_000;
     const samples = [];
+    // Every loop catches its own errors and writes them here, rather than
+    // rejecting the hook and leaving the other three running to the end. A
+    // restart that cannot bring the API back stops all four at once.
+    const errors = [];
+    const noteError = (where, error) => {
+      errors.push({minute: Math.round(elapsedMin(t0)), where, error: String(error?.message ?? error).slice(0, 300)});
+    };
     const restarts = [];
     const hang = {};
     const counts = {accepted: 0, other: {}};
@@ -44,16 +51,20 @@ describe("S soak", () => {
       while (performance.now() < until) {
         const tick = performance.now();
         if (!paused) {
-          const u = users[i++ % users.length];
-          const s = await signRaw(makeIntent({owner: u.address, nonce: nextNonce(), now: await chainNow()}), u);
-          const res = await submit(g.api, s, {timeoutMs: 60_000});
-          if (res.status === 200) {
-            counts.accepted += 1;
-            live.push({s, hash: res.body.intentHash, epoch});
-            if (live.length > 400) live = live.slice(-200);
-          } else {
-            const key = res.status === 0 ? "client timeout" : `${res.status} ${res.body?.code ?? ""}`;
-            counts.other[key] = (counts.other[key] ?? 0) + 1;
+          try {
+            const u = users[i++ % users.length];
+            const s = await signRaw(makeIntent({owner: u.address, nonce: nextNonce(), now: await chainNow()}), u);
+            const res = await submit(g.api, s, {timeoutMs: 60_000});
+            if (res.status === 200) {
+              counts.accepted += 1;
+              live.push({s, hash: res.body.intentHash, epoch});
+              if (live.length > 400) live = live.slice(-200);
+            } else {
+              const key = res.status === 0 ? "client timeout" : `${res.status} ${res.body?.code ?? ""}`;
+              counts.other[key] = (counts.other[key] ?? 0) + 1;
+            }
+          } catch (error) {
+            noteError("sender", error);
           }
         }
         await sleep(Math.max(0, 200 - (performance.now() - tick)));
@@ -67,8 +78,10 @@ describe("S soak", () => {
         try {
           const cur = await currentBatch(g.api);
           await warpTo(BigInt(cur.batchId === null ? cur.chainTime + 60 : cur.collectEndsAt) + 1n);
-        } catch {
-          // the API is restarting or the node is hanging, try again next tick
+        } catch (error) {
+          // The API restarting or the node hanging is expected here, and the
+          // next tick tries again. Still written down, in case it is not that.
+          noteError("mover", error);
         }
       }
     })();
@@ -84,11 +97,22 @@ describe("S soak", () => {
       }
     })();
 
+    let nextRestart = RESTART_EVERY_MIN;
+    let hung = false;
     const chaos = (async () => {
-      let nextRestart = RESTART_EVERY_MIN;
-      let hung = false;
       while (performance.now() < until) {
         await sleep(5_000);
+        try {
+          await chaosTick();
+        } catch (error) {
+          noteError("chaos", error);
+          paused = false;
+        }
+      }
+    })();
+
+    async function chaosTick() {
+      {
         const m = elapsedMin(t0);
         if (!hung && m >= HANG_AT_MIN) {
           hung = true;
@@ -119,7 +143,21 @@ describe("S soak", () => {
           const before = live.slice(-20);
           await g.api.stop("SIGKILL");
           const spawned = performance.now();
-          g.api = await startApi({rpc: g.proxy.url});
+          let booted = null;
+          for (let attempt = 1; attempt <= 3 && !booted; attempt += 1) {
+            try {
+              booted = await startApi({rpc: g.proxy.url});
+            } catch (error) {
+              noteError(`restart attempt ${attempt}`, error);
+            }
+          }
+          if (!booted) {
+            restarts.push({minute: Math.round(m), bootMs: null, failed: true});
+            until = performance.now();
+            paused = false;
+            return;
+          }
+          g.api = booted;
           const bootMs = Math.round(performance.now() - spawned);
           epoch += 1;
           live = [];
@@ -128,16 +166,26 @@ describe("S soak", () => {
           const resubmit = old ? await submit(g.api, old.s) : null;
           let escapesOk = 0;
           for (const b of before) {
-            const esc = await ethCall({from: b.s.intent.owner, to: ctx.deployment.settlement, data: await escapeData(b.s)}).then(() => true, () => false);
+            const esc = await escapeData(b.s)
+              .then((data) => ethCall({from: b.s.intent.owner, to: ctx.deployment.settlement, data}))
+              .then(() => true, () => false);
             if (esc) escapesOk += 1;
           }
           restarts.push({minute: Math.round(m), bootMs, oldLookup: lookup?.status, resubmit: resubmit?.status, escapes: `${escapesOk}/${before.length}`});
           paused = false;
         }
       }
-    })();
+    }
 
     await Promise.all([sender, mover, sampler, chaos]);
+
+    const byWhere = {};
+    for (const e of errors) byWhere[e.where] = (byWhere[e.where] ?? 0) + 1;
+    g.record("S-0", {
+      outcome: errors.length ? "measure" : "pass",
+      summary: `${errors.length} galat tertangkap di loop soak, ${Object.entries(byWhere).map(([k, v]) => `${v} di ${k}`).join(", ") || "tidak ada"}. Selesai di menit ${Math.round(elapsedMin(t0))} dari ${MINUTES}`,
+      evidence: {first: errors.slice(0, 20)},
+    });
 
     // S-1. Memory within each process lifetime, after its warm up. A least
     // squares slope rather than first against last sample, because single
@@ -163,7 +211,7 @@ describe("S soak", () => {
     });
 
     // S-2 and S-3.
-    const slowBoot = restarts.filter((r) => r.bootMs > 5000);
+    const slowBoot = restarts.filter((r) => r.failed || r.bootMs > 5000);
     const lookupWrong = restarts.filter((r) => r.oldLookup !== 404);
     const resubmitWrong = restarts.filter((r) => r.resubmit !== 200);
     const escapeWrong = restarts.filter((r) => !/^(\d+)\/\1$/.test(r.escapes));
