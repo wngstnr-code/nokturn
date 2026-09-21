@@ -117,7 +117,10 @@ export async function mine() {
 export async function warpTo(ts) {
   const target = BigInt(ts);
   const now = await chainNow();
-  if (target <= now) throw new Error(`cannot warp backwards, chain is at ${now}, asked for ${target}`);
+  // Already there is not an error. The interval miner can reach the target
+  // second on its own between a scenario reading the clock and asking to warp.
+  if (target === now) return;
+  if (target < now) throw new Error(`cannot warp backwards, chain is at ${now}, asked for ${target}`);
   await rpc("evm_setNextBlockTimestamp", [`0x${target.toString(16)}`]);
   await mine();
 }
