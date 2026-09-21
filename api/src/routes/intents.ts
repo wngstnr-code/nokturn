@@ -35,7 +35,7 @@ import {
 } from "../chain.ts";
 import {badRequest, fail, notFound} from "../errors.ts";
 import {canonicalPayload, escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
-import {admit, currentWindow, getByBatch, getByHash} from "../mempool.ts";
+import {admit, currentWindow, getByBatch, getByHash, sweep} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp, type BlockStamp} from "../provenance.ts";
 import {SESSION_NAMES} from "./session.ts";
@@ -246,6 +246,7 @@ export function intentRoutes(app: FastifyInstance) {
       if (!HASH_PATTERN.test(raw)) {
         throw notFound("COORDINATOR_INVALID_REQUEST", `not an intent hash: ${raw}`);
       }
+      sweep((await stamp()).timestamp);
       const stored = getByHash(raw.toLowerCase());
       if (!stored) {
         throw notFound("COORDINATOR_INVALID_REQUEST", `no intent known for ${raw}`);

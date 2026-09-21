@@ -144,7 +144,7 @@ describe("C1 mempool", () => {
     assert.ok(ok, `${res.status} ${res.text}`);
   });
 
-  test("C1-7 memory across 20000 intents in 200 batches", {timeout: 60 * 60_000, todo: "D6"}, async () => {
+  test("C1-7 memory across 20000 intents in 200 batches", {timeout: 60 * 60_000, todo: "KEPUTUSAN D6"}, async () => {
     const api = await restartApi(g);
     const total = Number(process.env.NOKTURN_TORTURE_C17_TOTAL ?? 20_000);
     const perBatch = 100;
@@ -189,7 +189,7 @@ describe("C1 mempool", () => {
     assert.ok(flat, `RSS keeps growing at ${Math.round(slope)} bytes per intent after sweeps`);
   });
 
-  test("C1-8 status of an old intent after 30 idle batches", {todo: "D6"}, async () => {
+  test("C1-8 status of an old intent after 30 idle batches", async () => {
     const api = await restartApi(g);
     const batch = await freshWindow(api, 20);
     const res = await submit(api, await signFor(users[2]));

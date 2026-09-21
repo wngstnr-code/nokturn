@@ -38,8 +38,12 @@ function ownerNonceKey(owner: string, nonce: string): string {
  * Forgets batches whose finalize deadline has passed. Intents from a forgotten
  * batch stay in byHash marked expired instead of disappearing, so a status
  * lookup never turns into a 404 for something that really was accepted once.
+ *
+ * Exported because a status lookup has to run it as well. Called only from
+ * currentWindow, a quiet coordinator reported an intent pending for as long
+ * as nobody asked for the current batch. C1-8.
  */
-function sweep(now: bigint): void {
+export function sweep(now: bigint): void {
   for (const [batchId, list] of byBatch) {
     if (now <= batchId + SOLUTION_WINDOW + FINALIZE_DEADLINE) continue;
     byBatch.delete(batchId);
