@@ -1726,6 +1726,56 @@ test, backend, dan demo sekarang berdiri di **satu blok yang sama**, yaitu blok 
 `infra/pinned-block.json`. Sebelumnya masing masing mengambil head sendiri sendiri,
 dan tiga struk untuk intent yang sama bisa berbeda tanpa ada yang keliru.
 
+### Pelajaran metodologi kedua belas, 21 September 2026. Mock yang menerima panggilan dari siapa pun
+
+Ditemukan saat menjalankan cross penutupan pertama di fork. Semua stage lolos,
+buku terisi lima intent, escrow tertarik, harga ketemu, cross masuk. Lalu langkah
+terakhir revert.
+
+```
+Error: script failed: NotSettlement()
+```
+
+`AuctionHouse.executeCross` memanggil `SolverRegistry.recordWin` untuk mencatat
+skor solver. Registry hanya menerima panggilan itu dari `Settlement`, dan alamat
+settlement dipasang sekali lewat `setSettlement`. Jadi **setiap cross penutupan
+dan pembukaan revert di langkah terakhirnya**, di sistem yang ter-deploy dengan
+benar, sejak commit pertama.
+
+Lelang adalah salah satu fitur utama proyek ini, dan ia tidak pernah bisa selesai
+sekali pun.
+
+**Kenapa 422 test hijau tidak menangkapnya.** Semua test lelang memakai
+`MockSolverRegistry`, dan mock itu menerima `recordWin` dari siapa pun. Aturan
+yang dilanggar hidup di kontrak asli, dan kontrak asli tidak pernah bertemu
+`AuctionHouse` di satu test pun. Fork test pun tidak, karena fork test menguji
+deploy dan bootstrap, bukan menjalankan lelang sampai habis.
+
+Bentuknya baru lagi. Sebelas pelajaran sebelumnya adalah salah mengukur atau salah
+membaca sumber. Yang ini adalah **test yang menguji kontrak palsu di tempat
+kontrak aslinya bekerja tanpa masalah**. `rencana-uji.md` §6 sudah menulis
+kalimatnya, yaitu *"Mock berbohong. Protokol eksternal harus diuji apa adanya"*,
+tapi kalimat itu ditujukan ke protokol eksternal. Yang kena justru kontrak kami
+sendiri.
+
+Aturan yang lebih tajam, dan ini yang dipakai mulai sekarang. **Mock hanya untuk
+yang tidak bisa dibuat asli.** Token rusak, token fee on transfer, desimal aneh,
+adapter yang gagal. Kontrak sendiri tidak pernah di-mock, karena kontrak sendiri
+selalu bisa di-deploy di dalam test.
+
+Yang berubah.
+
+| Tempat | Perubahan |
+|---|---|
+| `src/SolverRegistry.sol` | `auctionHouse` sebagai pelapor kedua, dipasang sekali, hanya boleh menambah skor |
+| `script/Bootstrap.s.sol` | `setAuctionHouse` ikut di batch yang sama dengan `setSettlement` |
+| `test/fixtures/AuctionFixture.sol` | registry asli menggantikan mock, dan solver jadi aktif dengan mem-bond |
+| `test/fork/Bootstrap.fork.t.sol` | registry harus tahu auction house, dan menolak diberi tahu dua kali |
+
+Pemisahan pelapornya disengaja. `Settlement` boleh memotong bond. `AuctionHouse`
+hanya boleh menambah angka. Menyatukan keduanya jadi satu alamat tepercaya akan
+memperbaiki bug ini sambil memberi lelang wewenang yang tidak ia butuhkan.
+
 
 ## RONDE 5 — peta venue lengkap (10 September 2026)
 

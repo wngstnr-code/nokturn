@@ -384,6 +384,23 @@ event SolverScoreUpdated(address indexed solver, uint256 batchesWon, uint256 sav
 > dilaporkan sendiri. Sybil tidak berguna: satu-satunya cara menaikkan skor adalah
 > benar-benar menghasilkan penghematan untuk pengguna nyata.
 
+> Ditambahkan 22 September 2026. Ada **dua** pelapor, bukan satu. `Settlement`
+> melaporkan batch, dan `AuctionHouse` melaporkan cross yang sudah dieksekusi lewat
+> `recordWin`. Keduanya dipasang sekali lewat `setSettlement` dan `setAuctionHouse`,
+> dan keduanya dipanggil Bootstrap dalam batch yang sama.
+>
+> Dipisah, bukan disatukan, karena keduanya tidak dipercaya untuk hal yang sama.
+> `Settlement` bisa memotong bond lewat `reportFailedFinalize` dan
+> `reportInvalidSurplus`. `AuctionHouse` hanya bisa menambah angka. Argumen sybil
+> tidak berubah, karena kedua sumbernya sama sama fakta onchain.
+>
+> Ini lahir dari bug. `AuctionHouse.executeCross` sudah memanggil `recordWin` sejak
+> awal, tapi registry hanya menerimanya dari `Settlement`, jadi **setiap cross
+> penutupan dan pembukaan revert di langkah terakhirnya** dengan `NotSettlement`.
+> Semua test lelang memakai `MockSolverRegistry` yang menerima panggilan dari siapa
+> pun, jadi 422 test hijau menutupinya. Ketahuan saat cross pertama dijalankan di
+> fork, 21 September 2026. Fixture lelang sekarang memakai registry asli.
+
 ---
 
 ## 7. `AgentMandate`

@@ -277,6 +277,18 @@ terbukti menangkap kesalahan".
 
 Mock berbohong. Protokol eksternal harus diuji apa adanya.
 
+Dipertajam 22 September 2026, setelah kalimat di atas ternyata tidak cukup.
+**Kontrak sendiri tidak pernah di-mock.** Kalimat ini semula ditujukan ke protokol
+eksternal saja, dan celahnya termakan. Semua test lelang memakai
+`MockSolverRegistry`, yang menerima `recordWin` dari siapa pun, sementara registry
+asli hanya menerimanya dari `Settlement`. Akibatnya setiap cross revert di langkah
+terakhirnya dan 422 test hijau menutupinya sampai cross pertama dijalankan di fork.
+
+Aturannya sekarang. Mock hanya untuk yang tidak bisa dibuat asli, yaitu token
+rusak, token fee on transfer, desimal aneh, adapter yang sengaja gagal. Kontrak
+kita sendiri selalu bisa di-deploy di dalam test, jadi di-deploy. Riwayat lengkap
+di `pertanyaan-terbuka.md`, pelajaran metodologi kedua belas.
+
 | Uji | Terhadap |
 |---|---|
 | `UniswapV3Adapter` melakukan swap benar | Pool **nyata** di chain 4663 — NVDA-USDG `0xD4EB…14A3` (fee 500, tickSpacing 10) |
