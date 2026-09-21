@@ -1,0 +1,18 @@
+{
+  "_note": "Derived from the mnemonic below, which is throwaway and local. Anvil's own default accounts cannot be used here: their keys are public, so somebody has set an EIP-7702 delegation on all ten of them on mainnet 4663, and a forked account with code makes Permit2 take the EIP-1271 path and reject a perfectly good ECDSA signature. Verified 20 September 2026 against the real chain, not only the fork.",
+  "_mnemonic": "spin skill strategy deal rebel image eager original crowd baby inhale calm",
+  "_verified": "every address below held zero code on mainnet 4663 on 20 September 2026. make fund asserts it again on every run.",
+  "deployer": "0x05C5B613582E91d06299b4eFC4576600e96d6d2A",
+  "proposer": "0x5fA26ecD21D06A30eF7d56E4E1BE2477C0359c8a",
+  "executor": "0x5fA26ecD21D06A30eF7d56E4E1BE2477C0359c8a",
+  "guardian": "0x7DfA7f3BD24bB475299A059fc8650F0D638D9C9B",
+  "treasury": "0x4820F1507872c8c4Ab82191cf6c7057Cefb2dBe7",
+  "solverA": "0x86d9065C8Bc1f0fa29d02cA873523C19C7859F95",
+  "solverB": "0xA153D1d2912c3db3e749CCBDef0C165Dd7b728BE",
+  "users": [
+    "0xC3E87ba4132708838243A717C4B90112271ceeE3",
+    "0x14e9Ef9fd45e6B1e8dBc229DDc3212dB1d21a0ab",
+    "0x5CD0828CB3D7f01793418a359e399a9190D37004",
+    "0xc869d6bC1DF7452B8c40AC2F14C06B75c3cA5D61"
+  ]
+}

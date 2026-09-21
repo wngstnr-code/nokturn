@@ -1,0 +1,13 @@
+{
+  "name": "@nokturn/infra",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "fund": "node scripts/fund.mjs",
+    "prewarm": "node scripts/prewarm.mjs",
+    "status": "node scripts/status.mjs"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  }
+}

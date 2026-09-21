@@ -1,0 +1,8 @@
+packages:
+  - "api"
+  - "solver"
+  - "indexer"
+  - "analytics"
+  - "infra"
+  - "app"
+  - "packages/*"
