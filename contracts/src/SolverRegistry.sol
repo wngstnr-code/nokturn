@@ -44,9 +44,14 @@ contract SolverRegistry is ISolverRegistry {
     address public immutable treasury;
     address public immutable governor;
 
-    /// Settlement is the only contract allowed to report facts. It is set once,
-    /// after deployment, because the two contracts reference each other.
+    /// Settlement is the only contract allowed to report facts that move a bond. It
+    /// is set once, after deployment, because the two contracts reference each other.
     address public settlement;
+
+    /// AuctionHouse reports the crosses it executed, and nothing else. It cannot
+    /// slash and it cannot touch a bond, so the scoreboard is the whole of what it
+    /// is trusted with. Set once, for the same reason settlement is.
+    address public auctionHouse;
 
     /// Governed rather than constant, because the exposure caps this bond backs
     /// are governed too. A constant bond sized for the protocol at scale is an
@@ -58,6 +63,8 @@ contract SolverRegistry is ISolverRegistry {
 
     error NotGovernor();
     error NotSettlement();
+    error NotAResultReporter();
+    error AuctionHouseAlreadySet();
     error SettlementAlreadySet();
     error NothingBonded(address solver);
     error UnbondNotRequested(address solver);
@@ -66,6 +73,7 @@ contract SolverRegistry is ISolverRegistry {
     error MinBondOutOfRange(uint256 value);
 
     event SettlementSet(address indexed settlement);
+    event AuctionHouseSet(address indexed auctionHouse);
 
     constructor(IERC20 bondToken_, address treasury_, address governor_) {
         bondToken = bondToken_;
@@ -96,6 +104,17 @@ contract SolverRegistry is ISolverRegistry {
         if (settlement != address(0)) revert SettlementAlreadySet();
         settlement = settlement_;
         emit SettlementSet(settlement_);
+    }
+
+    /// @notice Names the auction house whose executed crosses count towards a score.
+    /// @dev Separate from setSettlement rather than folded into it, because these
+    /// two callers are not trusted with the same things. Settlement can slash a
+    /// bond. This one can only add to a number.
+    function setAuctionHouse(address auctionHouse_) external {
+        if (msg.sender != governor) revert NotGovernor();
+        if (auctionHouse != address(0)) revert AuctionHouseAlreadySet();
+        auctionHouse = auctionHouse_;
+        emit AuctionHouseSet(auctionHouse_);
     }
 
     /// @inheritdoc ISolverRegistry
@@ -162,7 +181,8 @@ contract SolverRegistry is ISolverRegistry {
         _slashShare(solver, SLASH_INVALID_SURPLUS_BPS, "invalid surplus");
     }
 
-    function recordWin(address solver, uint256 savingsUsd) external onlySettlement {
+    function recordWin(address solver, uint256 savingsUsd) external {
+        if (msg.sender != settlement && msg.sender != auctionHouse) revert NotAResultReporter();
         Solver storage s = solvers[solver];
         s.batchesWon += 1;
         s.savingsGeneratedUsd += savingsUsd;

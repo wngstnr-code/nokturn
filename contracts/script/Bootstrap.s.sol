@@ -69,7 +69,7 @@ contract Bootstrap is Script {
         require(timelock.getMinDelay() == 0, "bootstrap window already closed");
 
         _calendar(sessions);
-        _wiring(settlement, solvers);
+        _wiring(settlement, auctionHouse, solvers);
         _allowlist(settlement, auctionHouse, adapter);
         _checkCaps(settlement);
 
@@ -112,11 +112,17 @@ contract Bootstrap is Script {
         console2.log("calendar entries through 2028:", n);
     }
 
-    /// @dev The one call that can only ever be made once. SolverRegistry and
-    /// Settlement reference each other, so the registry learns the address after
-    /// both exist and refuses to learn it twice.
-    function _wiring(address settlement, address solvers) internal {
+    /// @dev The two calls that can only ever be made once. SolverRegistry,
+    /// Settlement and AuctionHouse reference each other, so the registry learns both
+    /// addresses after all three exist and refuses to learn either one twice.
+    ///
+    /// The auction house is named separately because it is trusted with less. It
+    /// reports the crosses it executed and nothing more, while settlement can slash
+    /// a bond. Leaving it out is what made every closing cross revert with
+    /// NotSettlement at the last step, found on the fork 21 September 2026.
+    function _wiring(address settlement, address auctionHouse, address solvers) internal {
         _push(solvers, abi.encodeCall(SolverRegistry.setSettlement, (settlement)));
+        _push(solvers, abi.encodeCall(SolverRegistry.setAuctionHouse, (auctionHouse)));
     }
 
     function _allowlist(address settlement, address auctionHouse, address adapter) internal {
