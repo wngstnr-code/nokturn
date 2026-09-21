@@ -12,10 +12,11 @@ import type {FastifyInstance} from "fastify";
 import type {CurrentBatchResponse, SessionName, SessionResponse} from "../../../packages/shared/api-types.ts";
 import {isBatch} from "../../../packages/shared/batch.ts";
 import {chain, read, sessionAbi} from "../chain.ts";
-import {currentWindow} from "../mempool.ts";
+import {counts, currentWindow} from "../mempool.ts";
 import {provenance, stamp} from "../provenance.ts";
 
-const SESSION_NAMES: SessionName[] = [
+/** Index by the Session enum, contracts/src/types/Types.sol. */
+export const SESSION_NAMES: SessionName[] = [
   "CLOSED_OVERNIGHT",
   "PRE_MARKET",
   "AUCTION_OPEN",
@@ -122,6 +123,7 @@ export function sessionRoutes(app: FastifyInstance) {
       };
     }
 
+    const {intentCount, participantCount} = counts(lookup.batchId);
     return {
       batchId: String(lookup.batchId),
       session: lookup.session,
@@ -130,10 +132,8 @@ export function sessionRoutes(app: FastifyInstance) {
       collectEndsAt: Number(lookup.collectEnd),
       solveEndsAt: Number(lookup.solveEnd),
       chainTime: Number(at.timestamp),
-      // Zero because no coordinator is accepting intents yet, not because the
-      // number is unknown. Wired to mempool.counts once POST /v1/intents lands.
-      intentCount: 0,
-      participantCount: 0,
+      intentCount,
+      participantCount,
       provenance: provenance(at),
     };
   });

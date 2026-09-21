@@ -12,13 +12,7 @@ import {notImplemented} from "../errors.ts";
 
 /** What each one is still waiting for, reported to the caller verbatim. */
 const PENDING: {method: "get" | "post"; path: string; needs: string}[] = [
-  {method: "get", path: "/v1/intents/:intentHash", needs: "the intent coordinator"},
   {method: "get", path: "/v1/batches", needs: "the event indexer"},
-  {
-    method: "get",
-    path: "/v1/batches/:batchId/intents",
-    needs: "the intent coordinator, which is what holds the mempool a solver reads",
-  },
   {method: "get", path: "/v1/batches/:batchId", needs: "the event indexer"},
   {method: "get", path: "/v1/auctions/:auctionId", needs: "an auction that has actually opened"},
 ];

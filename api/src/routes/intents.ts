@@ -13,14 +13,27 @@
 
 import type {FastifyInstance} from "fastify";
 import {isHex, recoverAddress, type Hex} from "viem";
-import type {SignedIntent, SubmitIntentResponse} from "../../../packages/shared/api-types.ts";
-import {isBatch} from "../../../packages/shared/batch.ts";
-import {chain, erc20Abi, mandateAbi, permit2Abi, read, settlementAbi} from "../chain.ts";
-import {badRequest, fail} from "../errors.ts";
-import {validateIntentPayload, witnessDigestNow} from "../intent.ts";
-import {admit, currentWindow} from "../mempool.ts";
+import type {
+  BatchIntentsResponse,
+  IntentStatusResponse,
+  OraclePriceRow,
+  SignedIntent,
+  SubmitIntentResponse,
+} from "../../../packages/shared/api-types.ts";
+import {isBatch, isValidBatchId} from "../../../packages/shared/batch.ts";
+import {createChainReader} from "../../../packages/shared/batch-viem.ts";
+import {chain, erc20Abi, mandateAbi, oracleAbi, permit2Abi, read, sessionAbi, settlementAbi} from "../chain.ts";
+import {badRequest, fail, notFound} from "../errors.ts";
+import {escapeHatchFor, validateIntentPayload, witnessDigestNow} from "../intent.ts";
+import {admit, currentWindow, getByBatch, getByHash} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp} from "../provenance.ts";
+import {SESSION_NAMES} from "./session.ts";
+
+/** Settlement.SOLUTION_WINDOW, parameter.md section 6. Fixed across sessions. */
+const SOLUTION_WINDOW = 10n;
+
+const HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 
 /** EIP-1271, the four bytes a valid contract signature must return. */
 const EIP1271_MAGIC = "0x1626ba7e";
@@ -156,4 +169,121 @@ export function intentRoutes(app: FastifyInstance) {
       indicativeBaseline: null,
     };
   });
+
+  app.get<{Params: {intentHash: string}}>(
+    "/v1/intents/:intentHash",
+    async (request): Promise<IntentStatusResponse> => {
+      const raw = request.params.intentHash;
+      if (!HASH_PATTERN.test(raw)) {
+        throw notFound("COORDINATOR_INVALID_REQUEST", `not an intent hash: ${raw}`);
+      }
+      const stored = getByHash(raw.toLowerCase());
+      if (!stored) {
+        throw notFound("COORDINATOR_INVALID_REQUEST", `no intent known for ${raw}`);
+      }
+
+      const decoded = validateIntentPayload(stored.signed.intent);
+      const hatch = escapeHatchFor(decoded, stored.signed.signature);
+
+      return {
+        intentHash: stored.signed.intentHash,
+        status: stored.status,
+        intent: stored.signed.intent,
+        batchId: String(stored.batchId),
+        // The indexer is what fills these in. Not written yet, and null is the
+        // honest answer rather than a guess dressed up as data.
+        fill: null,
+        rejection: stored.rejection,
+        escapeHatch: {to: hatch.to, data: hatch.data, castCommand: hatch.castCommand},
+      };
+    },
+  );
+
+  app.get<{Params: {batchId: string}}>(
+    "/v1/batches/:batchId/intents",
+    async (request): Promise<BatchIntentsResponse> => {
+      let batchId: bigint;
+      try {
+        batchId = BigInt(request.params.batchId);
+      } catch {
+        throw badRequest("COORDINATOR_INVALID_REQUEST", "batchId is a decimal integer", {
+          batchId: request.params.batchId,
+        });
+      }
+
+      const c = chain();
+      const at = await stamp();
+      const reader = createChainReader(c.client, c.deployment.sessions);
+      if (!(await isValidBatchId(reader, batchId))) {
+        throw badRequest(
+          "COORDINATOR_INVALID_REQUEST",
+          `batchId ${batchId} does not align to its session or sits in a guard band`,
+          {batchId: String(batchId)},
+        );
+      }
+
+      const session = await read<number>(c.deployment.sessions, sessionAbi, "sessionAt", [batchId]);
+      const [duration, maxDeviationBps] = await Promise.all([
+        read<number>(c.deployment.sessions, sessionAbi, "batchDuration", [session]),
+        read<number>(c.deployment.sessions, sessionAbi, "maxDeviationBps", [session]),
+      ]);
+
+      const collectEnd = batchId;
+      const collectStart = batchId - BigInt(duration);
+      const solveEnd = batchId + SOLUTION_WINDOW;
+
+      const stockPrices = await Promise.all(
+        c.tokens.map(async (t): Promise<OraclePriceRow> => {
+          const [price, ts, healthy] = await read<[bigint, bigint, boolean]>(c.deployment.oracle, oracleAbi, "refPrice", [
+            t.token,
+          ]);
+          return {
+            token: t.token,
+            symbol: t.symbol,
+            decimals: t.decimals,
+            // parameter.md section 4C. USD 18 decimals per smallest unit.
+            price: String((price * 10n ** 18n) / 10n ** BigInt(t.decimals)),
+            refPrice: String(price),
+            healthy,
+            updatedAt: Number(ts),
+          };
+        }),
+      );
+
+      // USDG is the numeraire. PriceOracle tracks the stock tokens against it
+      // and never USDG itself, so its row is the fixed peg rather than a read.
+      const quoteRefPrice = 10n ** 18n;
+      const quotePrice = (quoteRefPrice * 10n ** 18n) / 10n ** BigInt(c.quote.decimals);
+      if (c.quote.decimals === 6 && quotePrice !== 10n ** 30n) {
+        throw new Error(`USDG at 6 decimals must price to 1e30, computed ${quotePrice}. parameter.md section 4C`);
+      }
+      const oraclePrices: OraclePriceRow[] = [
+        {
+          token: c.quote.address,
+          symbol: "USDG",
+          decimals: c.quote.decimals,
+          price: String(quotePrice),
+          refPrice: String(quoteRefPrice),
+          healthy: true,
+          updatedAt: Number(at.timestamp),
+        },
+        ...stockPrices,
+      ];
+
+      return {
+        batchId: String(batchId),
+        session,
+        sessionName: SESSION_NAMES[session]!,
+        collectStartsAt: Number(collectStart),
+        collectEndsAt: Number(collectEnd),
+        solveEndsAt: Number(solveEnd),
+        chainTime: Number(at.timestamp),
+        frozen: at.timestamp > collectEnd,
+        intents: getByBatch(batchId),
+        oraclePrices,
+        maxDeviationBps,
+        provenance: provenance(at),
+      };
+    },
+  );
 }
