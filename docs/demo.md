@@ -111,6 +111,25 @@ bisa diaudit. Nokturn menerbitkan event untuk kegagalan juga (`CLAUDE.md` §7).
 Adegan ini harus **direncanakan, bukan ditunggu.** Batch gagal tidak muncul sendiri
 saat demo. Siapkan skenario fork yang memicunya secara deterministik.
 
+> **Koreksi 22 September 2026, setelah layarnya benar benar dibangun.** Gambar di
+> atas menggambarkan solusi yang **ditolak** kontrak. Kontraknya tidak bekerja
+> begitu. Solusi yang lebih buruk dari baseline revert dengan `WorseThanBaseline`
+> dan tidak pernah settle sama sekali, jadi tidak ada struk untuk ditampilkan.
+> Yang settle dan terlihat adalah batch yang **menghemat nol**, dan Settlement
+> menerbitkan `BatchPassthrough` untuknya dengan fee nol.
+>
+> Konstruksinya juga bukan soal harga. Batch ter-netting **tidak bisa** dibuat
+> kalah, karena kedua pihak melewatkan bolak balik yang akan ditagih pool dua kali.
+> Yang menghasilkan pass through adalah **dua intent di sisi yang sama**, tidak ada
+> yang bisa di-netting, dan seluruh volume masuk ke venue lewat satu panggilan.
+> Tiap intent menerima bagiannya dari apa yang venue kembalikan, jadi penghematannya
+> nol karena konstruksinya, bukan karena diberi tahu.
+>
+> Angka yang sebenarnya keluar, batch `1789908720`. Volume ter-netting $0. Dirutekan
+> ke venue $999,922790. Penghematan $0. Bagian solver $0. Bagian protokol $0.
+> `VenueRouted` mencatat 1.000 USDG masuk dan 4,525975205225726 NVDA keluar, angka
+> yang sama persis dengan kuotasi baseline sebelum apa pun terjadi.
+
 ---
 
 ## 3b. Layar tambahan — berurutan menurut nilai per risiko
@@ -168,6 +187,41 @@ berubah**, bukan sekadar dijanjikan di dokumen.
 
 Jalan di fork dengan arus historis. **Haram**: peserta karangan (§11.3).
 
+> **Terbuka, 22 September 2026, dan harus diputuskan sebelum layar ini dipakai.**
+> Cross penutupan sudah berjalan penuh di fork, dari buku sampai cetakan. Tapi lima
+> pesertanya adalah dompet demo yang intent-nya kami tulis sendiri, dan itu persis
+> yang baris di atas larang.
+>
+> Arus historis tidak bisa dipakai apa adanya untuk lelang. Sebuah komitmen lelang
+> butuh tanda tangan Permit2 dari pemiliknya, dan tanda tangan orang lain tidak bisa
+> dibuat. Jadi tidak ada cara membangun buku lelang dari pedagang sungguhan di
+> chain, sekarang maupun nanti sebelum tenggat.
+>
+> Yang nyata di layar itu tetap banyak, yaitu token asli, feed asli, kalender sesi
+> asli, blok asli, harga kliring yang dicari kontraknya sendiri, dan cetakan yang
+> terbit atau ditahan menurut aturannya sendiri. Yang dikarang cuma **siapa** yang
+> mengirim kelima intent itu.
+>
+> Tiga pilihan, dan ini keputusan pemilik proyek, bukan keputusanku.
+>
+> Satu, tidak menampilkannya sama sekali. Mekanismenya tetap terbukti lewat test
+> dan harness, dan demo tinggal dua layar batch yang seluruhnya arus nyata.
+>
+> Dua, menampilkannya dengan pengakuan di depan, sekali, bukan di catatan kaki,
+> persis seperti aturan token uji di §4. Kalimatnya kira kira *"lima peserta ini
+> dompet demo kami, karena tanda tangan orang lain tidak bisa dibuat. Harganya,
+> feed-nya, dan cetakannya dari kontrak."*
+>
+> Tiga, menampilkan hanya bagian yang tidak butuh peserta, yaitu harga indikatif dan
+> imbalance dari buku yang kosong atau nyaris kosong. Ini jujur tapi hampir tidak
+> menunjukkan apa apa.
+>
+> Rekomendasiku pilihan **dua**, dengan syarat pengakuannya diucapkan sebelum
+> layarnya muncul, bukan sesudah. Alasannya, aturan §11.3 lahir untuk mencegah juri
+> mengira arusnya nyata, dan pengakuan di depan mencegah itu sepenuhnya. Kalau ragu
+> sedikit pun, pilihan satu. Proyek ini pernah kehilangan final karena fitur mock,
+> dan satu layar tidak sepadan dengan risiko mengulangnya.
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  LELANG PEMBUKAAN — NVDA            T-12 menit sebelum bel       │
@@ -196,6 +250,55 @@ kecil, dan membesarkannya butuh kebohongan. Kalau kecil, katakan kecil
 
 ---
 
+## 3c. Harness yang sudah ada, 22 September 2026
+
+Dokumen ini ditulis 12 Agustus sebagai rancangan. Sejak 21 September ada skripnya,
+dan bagian ini menjelaskan apa yang sebenarnya berjalan. Kalau bagian lain dokumen
+ini berbeda dari yang di sini, yang di sini yang benar.
+
+Dua skrip, dua fork, tiga layar.
+
+```
+make fork          # terminal sendiri, tetap di foreground
+make deploy
+make fund
+tools/fork-demo.sh      # layar satu dan dua
+```
+
+```
+tools/fork-auction.sh   # layar tiga, fork sendiri, jalankan bergantian
+```
+
+`make fork`, `make deploy`, dan `make fund` milik `infra/`, dikerjakan Dharu.
+Harness tidak membuat fork sendiri dan tidak deploy sendiri, supaya struk yang
+tampil di layar adalah struk yang bisa diproduksi koordinator untuk intent yang
+sama. Deploy memakai `Deploy`, `Bootstrap`, dan `SetFeeds` apa adanya, tanpa satu
+pun cabang khusus demo.
+
+| Layar | Blok fork | Sesi | Yang dibuktikan |
+|---|---|---|---|
+| Batch ter-netting | 67.798.044 | `CLOSED_WEEKEND` | Netting mengalahkan pool, dan fee-nya bagian dari selisih |
+| Batch yang tidak menghemat | 67.798.044 | `CLOSED_WEEKEND` | Nol penghematan, nol fee, `BatchPassthrough` terbit |
+| Cross penutupan | 66.491.729 | `AUCTION_CLOSE` | Cetakan penutupan terbit, distempel di bel |
+
+**Kenapa bloknya dipatok, bukan mengikuti head.** Rancangan lama menulis fork di
+head. Endpoint `robinhood.drpc.org` ternyata melayani state sampai 1 Juli 2026,
+diukur 21 September di delapan kedalaman, jadi blok bisa dipatok dan angkanya bisa
+diulang orang lain kapan saja. Blok batch diambil dari `infra/pinned-block.json`,
+yaitu blok yang sama dengan fork backend.
+
+**Kenapa lelangnya fork terpisah, bukan warp ke bel.** Rancangan lama menulis warp
+dari fork batch ke bel penutupan. Itu tidak bisa. Batas basi feed NVDA di sesi buka
+19.000 detik, umur feed di blok patokan akhir pekan sudah 131.777 detik, dan sesi
+penutupan terdekat dari situ 30 jam ke depan, jadi oracle menjawab tidak sehat dan
+tidak ada yang cross. Blok lelang karena itu dipilih di dalam sesi penutupan, yaitu
+Jumat 18 September 19.56.20 UTC, 48 detik setelah tulisan feed terakhir sebelum bel.
+
+Angka yang keluar, diverifikasi dari saldo dan event, ada di
+`runbook-deploy.md` bagian demo fork dan bagian cross penutupan.
+
+---
+
 ## 4. Pembagian panggung: fork mainnet vs testnet
 
 Sudah ditetapkan `CLAUDE.md` §2 nomor 9 dan dikonfirmasi P2-6: testnet 46630 **tidak
@@ -203,7 +306,8 @@ punya** Stock Token, USDG kanonik, maupun pool Uniswap V3.
 
 | Permukaan | Jalan di mana | Yang ditunjukkan |
 |---|---|---|
-| **Struk batch + batch gagal** | **Fork mainnet**, blok disebut eksplisit | Pool nyata, token nyata, harga nyata |
+| **Struk batch + batch gagal** | **Fork mainnet**, blok **67.798.044** | Pool nyata, token nyata, harga nyata |
+| **Cross penutupan** | **Fork mainnet**, blok **66.491.729** | Sesi penutupan nyata, feed hidup, cetakan terbit. Lihat catatan terbuka di §3b Prioritas 3 soal siapa pesertanya |
 | Alur end-to-end tanda tangan → settlement | Testnet 46630 | UX, gasless, Permit2 |
 | Angka riset (74,1% trade off-hours, p99 ekor 8,5×, netting backtest) | Dune, kueri `8595234`–`8595386`, [dashboard publik](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026) | ✅ **Lolos** — kueri permanen, publik, bervisualisasi, deskripsi metodologi terpasang |
 
@@ -253,11 +357,11 @@ Kerangka `rencana-uji.md` §11.2, dengan baris yang sudah bisa ditentukan hari i
 
 | Permukaan | Item | Sumber | Bisa diverifikasi juri? |
 |---|---|---|---|
-| UI struk | jumlah diterima | event settlement, fork blok X | ✅ Blockscout |
+| UI struk | jumlah diterima | event `BatchSettled` dan `IntentSettled`, fork blok 67.798.044 | ✅ Blockscout |
 | UI struk | **baseline** | `quoteFromState` atas state pool blok yang sama | ✅ panggilan bisa disalin |
 | UI struk | netting batch | event, dihitung dari isi batch | ✅ |
 | UI struk | alamat pool | `0xD4EB…14A3` (NVDA-USDG, terverifikasi) | ✅ Blockscout |
-| UI gagal | baseline saat gagal | event `BatchFailed` | ✅ log onchain |
+| UI gagal | baseline saat gagal | event `BatchPassthrough` plus `VenueRouted`, fork blok 67.798.044 | ✅ log onchain |
 | Deck | 74,1% trade / 65,2% volume off-hours (Agustus 2026) | Dune, kueri baru 8595234–8595386 (lihat `ide-utama.md` §B4) | ✅ kueri permanen & publik sejak 3 September 2026 |
 | Deck | p99 1.779,4 / 209,3 bps (8,5×), p90 3,3× lama **gugur** | Dune, kueri baru — lihat catatan revisi 3 September 2026 `ide-utama.md` §B1 | ✅ [dashboard publik](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026) |
 | Deck | netting 27–33% | **backtest** (Agustus 2026, antar-counterparty) — Dune kueri baru, lihat `ide-utama.md` §B3b–§B4 | ✅ [dashboard publik](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026); label **backtest** tetap wajib |
@@ -267,8 +371,16 @@ Kerangka `rencana-uji.md` §11.2, dengan baris yang sudah bisa ditentukan hari i
 | Testnet | seluruh token | token uji — **sebut eksplisit** | ✅ kalau disebut |
 | *(P1)* Allowlist | NVDA lolos / "GME" ditolak | slot beacon + `uiMultiplier()`, Blockscout | ✅ dua klik |
 | *(P2)* Sesi | durasi batch, band, sumber harga | state kontrak SessionEngine | ✅ |
-| *(P3)* Lelang | imbalance & harga indikatif | fork, blok disebut | ✅ reproducible |
+| *(P3)* Lelang | harga kliring, volume, cetakan penutupan | fork blok 66.491.729, event `CrossExecuted` dan `printRound` | ✅ reproducible |
+| *(P3)* Lelang | **siapa kelima pesertanya** | dompet demo, intent ditulis sendiri | ❌ **belum lolos**, lihat §3b Prioritas 3 |
 | *(P4)* Kurva netting | 21,4% → 50,1% (backtest antar-counterparty, pangsa 5% → 100%, Agustus 2026) | **BACKTEST** — Dune kueri baru, lihat `ide-utama.md` §B3b–§B4 | ✅ [dashboard publik](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026) |
+
+⚠️ **Revisi 22 September 2026.** Baris UI diisi dengan nomor blok dan nama event
+yang sebenarnya, setelah ketiga layar berjalan di fork. Nama event `BatchFailed` di
+versi lama tidak pernah ada di kontrak. Yang terbit untuk batch tanpa penghematan
+adalah `BatchPassthrough`, dan baseline-nya terbaca dari `VenueRouted` di batch yang
+sama. Satu baris baru ditambahkan dan **vonisnya sudah merah sekarang**, yaitu siapa
+peserta lelangnya, supaya ia tidak lolos diam diam sampai audit H-3.
 
 ⚠️ **Revisi 3 September 2026.** Nomor kueri Dune lama (8194489–8194525, kecuali
 8194496 yang tetap sama untuk pemegang token) diganti kueri Agustus baru
