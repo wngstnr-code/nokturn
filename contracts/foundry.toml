@@ -16,6 +16,10 @@ cbor_metadata = false
 gas_reports = ["*"]
 fs_permissions = [
   { access = "read", path = "../data" },
+  # Fork tests and the demo harness read the block the whole team is synchronised
+  # on, and the demo reads the accounts the backend funds. Both files are owned by
+  # infra, so this is read only on purpose.
+  { access = "read", path = "../infra" },
   # The deploy script records what it put on chain, one file per chain id so a
   # mainnet run cannot quietly overwrite a testnet rehearsal.
   { access = "read-write", path = "deployments" },
@@ -27,9 +31,9 @@ remappings = [
 ]
 
 [rpc_endpoints]
-# drpc needs no DNS workaround from Indonesia, unlike the official endpoint. It is
-# a full node rather than an archive one, and keeps state for roughly the last 20
-# to 40 thousand blocks, so a pinned block number stops resolving within the hour.
+# drpc needs no DNS workaround from Indonesia, unlike the official endpoint, and it
+# serves historical state. Measured 21 September 2026 at nine depths from head minus
+# 300 down to block 920,694, which is 1 July 2026, so a pinned block number holds.
 # See pertanyaan-terbuka.md and test/fixtures/ForkFixture.sol.
 mainnet = "https://robinhood.drpc.org"
 

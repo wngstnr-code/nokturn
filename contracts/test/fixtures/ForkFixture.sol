@@ -3,35 +3,43 @@ pragma solidity 0.8.28;
 
 import {Vm} from "forge-std/Vm.sol";
 
-/// @notice Selects a mainnet fork a little behind the head.
+/// @notice Selects the mainnet fork every part of this project is synchronised on.
 ///
-/// Two measurements decide the margin. Blocks here are about 100ms, so the head
-/// moves while a test is still fetching state from it, and the endpoint answers
-/// "Unknown block" for a block it has just served. And the drpc endpoint keeps
-/// state for roughly the last 20 to 40 thousand blocks rather than for all of
-/// history, so a pinned block number committed today stops resolving within the
-/// hour.
+/// The block is not chosen here. It is read from infra/pinned-block.json, which the
+/// backend's own fork is started against, so a receipt produced by a fork test and a
+/// receipt produced by the coordinator describe the same chain state. Two harnesses
+/// on two different blocks would disagree on the baseline and neither would be wrong.
 ///
-/// So fork tests follow the head and step back far enough to be settled, which is
-/// the only pinning this endpoint supports.
+/// Pinning is possible because the endpoint serves historical state. That was denied
+/// in this file until 21 September 2026, on the strength of one block that failed to
+/// resolve. Measured properly at nine depths, eth_call and eth_getStorageAt answer
+/// from head minus 300 all the way down to block 920,694, which is 1 July 2026, and
+/// they answer with different values at each depth rather than echoing the head.
+/// The earlier claim of a twenty to forty thousand block window was wrong.
 ///
-/// The number they step back from has to come from ArbSys. On an Arbitrum chain
-/// block.number is the parent chain's number, not this one's, and the two are
-/// nowhere near each other. Measured 19 September 2026, block.number answered
-/// 26,011,883 while the chain was at 67,121,275, and the gap widens every day.
-/// Feeding the first into rollFork, which takes the second, silently landed every
-/// fork test on 2 August state for six weeks.
+/// The number is an Arbitrum block number, not an Ethereum one. On this chain
+/// block.number answers the parent chain's height, and the two are nowhere near each
+/// other. Measured 19 September 2026, block.number said 26,011,883 while the chain
+/// was at 67,121,275. Feeding the first into a fork selector, which takes the second,
+/// silently landed every fork test on 2 August state for six weeks. ArbSys is below
+/// so a test that needs the live height has somewhere correct to get it.
 library ForkFixture {
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     IArbSys internal constant ARB_SYS = IArbSys(0x0000000000000000000000000000000000000064);
 
-    /// Thirty seconds at 100ms blocks.
-    uint256 internal constant HEAD_MARGIN = 300;
+    uint256 internal constant MAINNET = 4663;
+
+    string internal constant PIN_FILE = "../infra/pinned-block.json";
 
     function selectMainnet() internal {
-        vm.createSelectFork(vm.rpcUrl("mainnet"));
-        vm.rollFork(ARB_SYS.arbBlockNumber() - HEAD_MARGIN);
+        vm.createSelectFork(vm.rpcUrl("mainnet"), pinnedBlock());
+    }
+
+    function pinnedBlock() internal view returns (uint256) {
+        string memory pin = vm.readFile(PIN_FILE);
+        require(vm.parseJsonUint(pin, ".chainId") == MAINNET, "pinned block is not for mainnet 4663");
+        return vm.parseJsonUint(pin, ".block");
     }
 }
 
