@@ -80,7 +80,7 @@ export function intentRoutes(app: FastifyInstance) {
     // Step 3. The path is chosen from the owner's own code, not from anything
     // the client sent, because the client's word is exactly what this check
     // exists to not trust.
-    const code = await c.client.getCode({address: intent.owner, blockNumber: at.number});
+    const code = await c.client.getCode({address: intent.owner});
     const hasCode = !!code && code !== "0x";
     let signatureKind: "eoa" | "erc1271";
 
@@ -113,7 +113,7 @@ export function intentRoutes(app: FastifyInstance) {
       signatureKind = "erc1271";
       let returned: Hex | null = null;
       try {
-        returned = await read<Hex>(intent.owner, mandateAbi, "isValidSignature", [digest, body.signature], at.number);
+        returned = await read<Hex>(intent.owner, mandateAbi, "isValidSignature", [digest, body.signature]);
       } catch {
         returned = null;
       }
@@ -131,12 +131,16 @@ export function intentRoutes(app: FastifyInstance) {
     // caller sees never depends on network timing. Settled rather than awaited
     // together, because a sellToken with no code makes balanceOf throw, and
     // that throw used to win over the TokenNotAllowed that step 4 owes. N2.
+    //
+    // Not pinned to at.number, unlike the feed. This route publishes no block,
+    // and anvil stopped accepting connections under sixteen concurrent pinned
+    // reads while blocks were being mined, measured 21 September 2026.
     const settled = await Promise.allSettled([
-      read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.sellToken], at.number),
-      read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.buyToken], at.number),
-      read<bigint>(c.permit2, permit2Abi, "nonceBitmap", [intent.owner, intent.nonce >> 8n], at.number),
-      read<bigint>(intent.sellToken, erc20Abi, "balanceOf", [intent.owner], at.number),
-      read<bigint>(intent.sellToken, erc20Abi, "allowance", [intent.owner, c.permit2], at.number),
+      read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.sellToken]),
+      read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.buyToken]),
+      read<bigint>(c.permit2, permit2Abi, "nonceBitmap", [intent.owner, intent.nonce >> 8n]),
+      read<bigint>(intent.sellToken, erc20Abi, "balanceOf", [intent.owner]),
+      read<bigint>(intent.sellToken, erc20Abi, "allowance", [intent.owner, c.permit2]),
     ]);
     const step = <T>(index: number): T => {
       const r = settled[index]!;
