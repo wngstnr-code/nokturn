@@ -269,6 +269,16 @@ tools/fork-demo.sh      # layar satu dan dua
 tools/fork-auction.sh   # layar tiga, fork sendiri, jalankan bergantian
 ```
 
+Dua prasyarat di clone baru, dan keduanya menggigit sekali lalu selesai. Jalankan
+`pnpm install` lebih dulu, karena `make fund` memakai viem. Dan skrip di
+`infra/scripts/` ter-commit tanpa bit executable kecuali satu, jadi `make fork`
+berhenti dengan `Permission denied` sampai bitnya dipasang.
+
+```
+pnpm install
+git update-index --chmod=+x infra/scripts/*.sh
+```
+
 `make fork`, `make deploy`, dan `make fund` milik `infra/`, dikerjakan Dharu.
 Harness tidak membuat fork sendiri dan tidak deploy sendiri, supaya struk yang
 tampil di layar adalah struk yang bisa diproduksi koordinator untuk intent yang
