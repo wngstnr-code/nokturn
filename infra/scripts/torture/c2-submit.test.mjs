@@ -403,7 +403,7 @@ describe("C2 POST /v1/intents", () => {
     assert.ok(ok);
   });
 
-  test("C2-18 a slow read carries an intent past collectEnd", {todo: "D7"}, async () => {
+  test("C2-18 a slow read carries an intent past collectEnd", async () => {
     const batch = await freshWindow(g.api, 5);
     await warpTo(BigInt(batch.collectEndsAt) - 2n);
     const s = await signed(users[2]);

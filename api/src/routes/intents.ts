@@ -20,14 +20,14 @@ import type {
   SignedIntent,
   SubmitIntentResponse,
 } from "../../../packages/shared/api-types.ts";
-import {isBatch, isValidBatchId} from "../../../packages/shared/batch.ts";
+import {isBatch, isValidBatchId, type BatchWindow} from "../../../packages/shared/batch.ts";
 import {createChainReader} from "../../../packages/shared/batch-viem.ts";
 import {chain, erc20Abi, mandateAbi, oracleAbi, permit2Abi, read, sessionAbi, settlementAbi} from "../chain.ts";
 import {badRequest, fail, notFound} from "../errors.ts";
 import {canonicalPayload, escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
 import {admit, currentWindow, getByBatch, getByHash} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
-import {provenance, stamp} from "../provenance.ts";
+import {provenance, stamp, type BlockStamp} from "../provenance.ts";
 import {SESSION_NAMES} from "./session.ts";
 
 /** Settlement.SOLUTION_WINDOW, parameter.md section 6. Fixed across sessions. */
@@ -166,25 +166,45 @@ export function intentRoutes(app: FastifyInstance) {
     // Step 8. The window this intent joins, and the same session bit check
     // Settlement._pull makes against collectEnd, contracts/src/Settlement.sol
     // line 387.
-    const lookup = await currentWindow(at);
-    if (!isBatch(lookup)) {
-      throw fail(503, "COORDINATOR_NO_OPEN_BATCH", `no batch open right now: ${lookup.reason}`, {
-        reason: lookup.reason,
-      });
-    }
-    if (intent.validUntil < Number(lookup.collectEnd) || intent.validAfter > Number(lookup.collectEnd)) {
-      throw badRequest("IntentExpired", "intent is not valid at this batch's collectEnd", {
-        validAfter: intent.validAfter,
-        validUntil: intent.validUntil,
-        collectEnd: String(lookup.collectEnd),
-      });
-    }
-    const sessionBit = 1 << lookup.session;
-    if ((intent.allowedSessions & sessionBit) === 0) {
-      throw badRequest("SessionNotAllowed", `session ${lookup.session} is not in allowedSessions`, {
-        session: lookup.session,
-        allowedSessions: intent.allowedSessions,
-      });
+    const windowAt = async (when: BlockStamp): Promise<BatchWindow> => {
+      const lookup = await currentWindow(when);
+      if (!isBatch(lookup)) {
+        throw fail(503, "COORDINATOR_NO_OPEN_BATCH", `no batch open right now: ${lookup.reason}`, {
+          reason: lookup.reason,
+        });
+      }
+      if (intent.validUntil < Number(lookup.collectEnd) || intent.validAfter > Number(lookup.collectEnd)) {
+        throw badRequest("IntentExpired", "intent is not valid at this batch's collectEnd", {
+          validAfter: intent.validAfter,
+          validUntil: intent.validUntil,
+          collectEnd: String(lookup.collectEnd),
+        });
+      }
+      const sessionBit = 1 << lookup.session;
+      if ((intent.allowedSessions & sessionBit) === 0) {
+        throw badRequest("SessionNotAllowed", `session ${lookup.session} is not in allowedSessions`, {
+          session: lookup.session,
+          allowedSessions: intent.allowedSessions,
+        });
+      }
+      return lookup;
+    };
+
+    // Every read above can take seconds, and a window chosen against the chain
+    // time this request started with may have closed by now. An intent admitted
+    // then sat pending in a batch solvers had already frozen. So chain time is
+    // read once more with nothing asynchronous between it and admit, and the
+    // window is chosen again if it has passed. D7.
+    let lookup = await windowAt(at);
+    for (let attempt = 0; ; attempt += 1) {
+      const now = await stamp();
+      if (now.timestamp < lookup.collectEnd) break;
+      if (attempt === 2) {
+        throw fail(503, "COORDINATOR_NO_OPEN_BATCH", "chain time kept passing collectEnd while this intent was checked", {
+          reason: "window_closed",
+        });
+      }
+      lookup = await windowAt(now);
     }
 
     // Step 9. Admitted, and the mempool is the single place both this route
