@@ -10,9 +10,9 @@
 
 import type {FastifyInstance} from "fastify";
 import type {CurrentBatchResponse, SessionName, SessionResponse} from "../../../packages/shared/api-types.ts";
-import {isBatch, nextValidBatchId} from "../../../packages/shared/batch.ts";
-import {createChainReader} from "../../../packages/shared/batch-viem.ts";
+import {isBatch} from "../../../packages/shared/batch.ts";
 import {chain, read, sessionAbi} from "../chain.ts";
+import {currentWindow} from "../mempool.ts";
 import {provenance, stamp} from "../provenance.ts";
 
 const SESSION_NAMES: SessionName[] = [
@@ -102,10 +102,9 @@ export function sessionRoutes(app: FastifyInstance) {
   app.get("/v1/batches/current", async (): Promise<CurrentBatchResponse> => {
     const c = chain();
     const at = await stamp();
-    const reader = createChainReader(c.client, c.deployment.sessions);
 
     const session = await read<number>(c.deployment.sessions, sessionAbi, "currentSession");
-    const lookup = await nextValidBatchId(reader, at.timestamp);
+    const lookup = await currentWindow(at);
 
     if (!isBatch(lookup)) {
       return {
@@ -132,7 +131,7 @@ export function sessionRoutes(app: FastifyInstance) {
       solveEndsAt: Number(lookup.solveEnd),
       chainTime: Number(at.timestamp),
       // Zero because no coordinator is accepting intents yet, not because the
-      // number is unknown. It becomes real the day POST /v1/intents lands.
+      // number is unknown. Wired to mempool.counts once POST /v1/intents lands.
       intentCount: 0,
       participantCount: 0,
       provenance: provenance(at),
