@@ -244,8 +244,51 @@ Diverifikasi dari saldo, bukan dari log script. Alice menukar 1.000 USDG menjadi
 **4,528260915110672293 NVDA**, Bob menukar NVDA yang sama menjadi
 **999,873777 USDG**, dan selisih 0,126223 USDG adalah fee yang ditahan.
 
-Tiga hal yang ditemukan saat menjalankannya, dan ketiganya tercatat di dalam
-skripnya.
+### Batch kedua, yang tidak menghemat apa apa
+
+Layar kedua adalah batch yang gagal menghemat, dan itu harus dibangun, bukan
+ditunggu. Batch ter-netting **tidak bisa** dibuat kalah. Kedua pihak melewatkan
+bolak balik yang akan ditagih pool dua kali, jadi berapa pun harga kliringnya,
+pasangan itu tetap lebih baik daripada berdagang sendiri sendiri. Memberi harga
+buruk pada batch ter-netting tidak menghasilkan pass through, ia menghasilkan
+batch yang gagal di salah satu pemeriksaan.
+
+Yang menghasilkannya adalah dua intent di sisi yang sama. Tidak ada yang bisa
+di-netting, seluruh volume masuk ke venue lewat satu panggilan, dan tiap intent
+menerima bagiannya dari apa yang venue kembalikan.
+
+Batch `1789908720`, dari event.
+
+| | |
+|---|---|
+| Volume ter-netting | $0 |
+| Volume dirutekan ke venue | $999,922790 |
+| Penghematan total | $0 |
+| Bagian solver | $0 |
+| Bagian protokol | $0 |
+| `BatchPassthrough` | `savings below threshold` |
+
+`VenueRouted` mencatat 1.000 USDG masuk dan **4,525975205225726 NVDA** keluar,
+angka yang sama persis dengan kuotasi baseline yang dicetak `make fund` sebelum
+apa pun terjadi. Penghematannya bukan kecil. Ia nol, dan kontraknya yang bilang
+sendiri, bukan diberi tahu.
+
+Dua hal yang baru ketahuan di jalur ini.
+
+**Batch yang tidak menghemat apa apa tidak boleh menahan apa apa.** Plafon fee
+adalah bagian dari surplus, dan bagian dari nol adalah nol, jadi satu wei yang
+tertinggal membatalkan seluruh batch dengan `FeeExceedsCap`. Kedua pengiriman
+karena itu harus berjumlah persis sama dengan yang venue kembalikan.
+
+**Harga seragam diambil dari sisi yang lebih buruk, bukan dari rata rata.** Bob
+memegang sisanya, jadi pada harga rata rata sisinya bernilai sedikit lebih dari
+yang dia jual, dan verifier menolaknya sebagai `NonUniformPrice` sebelum sempat
+melihat seberapa kecil selisihnya. Jarak antara kedua harga itu satu wei NVDA
+untuk seluruh batch.
+
+### Tiga hal lain yang ditemukan saat menjalankannya
+
+Ketiganya tercatat di dalam skripnya.
 
 **Ukuran leg tidak boleh ditulis tetap.** Kedua leg batch dihitung ke plafon yang
 sama, dan plafon itu dibagi dua lagi di sesi akhir pekan, hari libur, dan
