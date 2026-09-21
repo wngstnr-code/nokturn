@@ -63,9 +63,16 @@ export function intentRoutes(app: FastifyInstance) {
 
     if (!hasCode) {
       signatureKind = "eoa";
-      const recovered = await recoverAddress({hash: digest, signature: body.signature});
-      if (recovered.toLowerCase() !== intent.owner.toLowerCase()) {
-        throw fail(401, "COORDINATOR_BAD_SIGNATURE", `recovered ${recovered}, expected owner ${intent.owner}`, {
+      let recovered: Hex | null = null;
+      try {
+        recovered = await recoverAddress({hash: digest, signature: body.signature});
+      } catch {
+        // Malformed r, s or v never reaches recovery math worth naming, so it
+        // is reported the same way a mismatch is rather than as a crash.
+        recovered = null;
+      }
+      if (recovered?.toLowerCase() !== intent.owner.toLowerCase()) {
+        throw fail(401, "COORDINATOR_BAD_SIGNATURE", `recovered ${recovered ?? "nothing"}, expected owner ${intent.owner}`, {
           verifiedDigest: digest,
           path: signatureKind,
         });
