@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 S     := ./scripts
 
-.PHONY: help pin fork deploy fund status prewarm snapshot revert check-fork check-batch check-permit2 api postman postman-run postman-resilience postman-api lock clean
+.PHONY: help pin fork deploy fund status prewarm snapshot revert check-fork check-batch check-permit2 api sign-intent postman postman-run postman-resilience postman-api lock clean
 
 help:
 	@echo "pin          measure the head and write infra/pinned-block.json"
@@ -14,6 +14,7 @@ help:
 	@echo "status       one screen of what the fork currently says"
 	@echo "prewarm      pull the state the demo reads into the fork cache"
 	@echo "api          start the coordinator api, foreground"
+	@echo "sign-intent  sign and submit one intent, or run a negative --case"
 	@echo "check-fork   durability suite for the fork everything stands on"
 	@echo "check-batch  differential check of the batchId helper against the chain"
 	@echo "check-permit2  prove the witness digest is the one Permit2 verifies"
@@ -46,6 +47,9 @@ status:
 
 api:
 	@$(S)/api.sh
+
+sign-intent:
+	@$(S)/sign-intent.sh $(ARGS)
 
 check-fork:
 	@$(S)/check-fork.sh

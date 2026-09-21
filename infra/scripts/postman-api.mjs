@@ -11,6 +11,7 @@
 // collection cannot drift from the deployment the server is actually pointed at.
 
 import {writeFileSync, mkdirSync} from "node:fs";
+import {buildSignedIntent} from "./sign-intent.mjs";
 
 const API = process.env.NOKTURN_API_URL ?? "http://127.0.0.1:3000";
 const here = new URL(".", import.meta.url);
@@ -27,6 +28,20 @@ if (!nvda || !gme) throw new Error("config did not carry NVDA and GME");
 
 /** The memecoin that trades under the GME symbol, CLAUDE.md section 5. */
 const IMPOSTOR = "0xc2362AfF2A2a4CC1f48cF3Dab2C4e2605eb94BA3";
+
+/**
+ * A syntactically well formed signature that recovers to nobody in particular.
+ * r and s are ordinary scalars rather than 0xabab...ab, so the curve math
+ * actually runs and produces a wrong address instead of throwing on a v byte
+ * that recovery rejects outright.
+ */
+const FAKE_SIGNATURE = `0x${"11".repeat(32)}${"22".repeat(32)}1b`;
+
+// Built once, against the batch that is open right now, so the two requests
+// below carry a signature the API can actually verify the shape of rather
+// than a canned body copied from an old run of this script.
+const badSignatureCase = await buildSignedIntent({signature: FAKE_SIGNATURE});
+const notAllowedCase = await buildSignedIntent({fields: {sellToken: IMPOSTOR}});
 
 const provenanceChecks = [
   `const p = body.provenance;`,
@@ -109,9 +124,9 @@ const requests = [
       `  });`,
       `  pm.test("solve window is ten seconds", () => pm.expect(body.solveEndsAt - body.collectEndsAt).to.eql(10));`,
       `}`,
-      `pm.test("counts are zero and not invented", () => pm.expect(body.intentCount).to.eql(0));`,
+      `pm.test("intentCount is a real number, not a hardcoded zero", () => pm.expect(typeof body.intentCount).to.eql("number"));`,
     ],
-    why: "The batchId comes from packages/shared/batch.ts, the same helper make check-batch holds against the contract.",
+    why: "The batchId comes from packages/shared/batch.ts, the same helper make check-batch holds against the contract. The count itself is read from the mempool, so it moves once make sign-intent has run.",
   },
   {
     name: "allowlist passes every real stock token",
@@ -209,11 +224,55 @@ const requests = [
     ],
     why: "The board is derived from SolverRegistry, so there is nothing self reported. Zero wins is the true number today.",
   },
+  {
+    name: "submitting an intent with a field missing is rejected before any chain read",
+    method: "POST",
+    path: "/v1/intents",
+    body: {intent: {owner: badSignatureCase.intent.owner}, signature: FAKE_SIGNATURE},
+    expectStatus: 400,
+    tests: [
+      `pm.test("400", () => pm.response.to.have.status(400));`,
+      `pm.test("names the missing field", () => pm.expect(body.code).to.eql("COORDINATOR_INVALID_REQUEST"));`,
+    ],
+    why: "Shape is checked first, before the digest is even computed, so a malformed body never costs a chain read.",
+  },
+  {
+    name: "a syntactically valid but wrong signature is rejected with the digest that would have matched",
+    method: "POST",
+    path: "/v1/intents",
+    body: {intent: badSignatureCase.intent, signature: FAKE_SIGNATURE},
+    expectStatus: 401,
+    tests: [
+      `pm.test("401", () => pm.response.to.have.status(401));`,
+      `pm.test("code is COORDINATOR_BAD_SIGNATURE", () => pm.expect(body.code).to.eql("COORDINATOR_BAD_SIGNATURE"));`,
+      `pm.test("carries the digest it verified against", () => pm.expect(body.detail.verifiedDigest).to.match(/^0x[0-9a-f]{64}$/));`,
+    ],
+    why: "The path is chosen from the owner's code, not from what the client claims, and a wrong signature never gets to see the mempool. verifiedDigest is what lets a caller diff their own encoding against ours.",
+  },
+  {
+    name: "a validly signed intent for a token outside the allowlist is rejected by name",
+    method: "POST",
+    path: "/v1/intents",
+    body: {intent: notAllowedCase.intent, signature: notAllowedCase.signature},
+    expectStatus: 400,
+    tests: [
+      `pm.test("400", () => pm.response.to.have.status(400));`,
+      `pm.test("code is TokenNotAllowed, the contract's own name", () => pm.expect(body.code).to.eql("TokenNotAllowed"));`,
+      `pm.test("names the token that failed", () => pm.expect(body.detail.token.toLowerCase()).to.eql("${IMPOSTOR.toLowerCase()}"));`,
+    ],
+    why: "The signature is real, so this proves the token check runs independently rather than piggybacking on a signature failure. Settlement.tokenAllowed, contracts/src/Settlement.sol line 391.",
+  },
+  {
+    name: "status for a hash nobody submitted is a 404, not an empty 200",
+    method: "GET",
+    path: "/v1/intents/0x00000000000000000000000000000000000000000000000000000000000000",
+    expectStatus: 404,
+    tests: [`pm.test("404", () => pm.response.to.have.status(404));`],
+    why: "An unknown hash is a real absence, and a 200 with nulls in it would look like a fact rather than a mistake.",
+  },
 ];
 
 const stubs = [
-  {method: "POST", path: "/v1/intents", needs: "the coordinator"},
-  {method: "GET", path: "/v1/intents/0x00", needs: "the coordinator"},
   {method: "GET", path: "/v1/batches", needs: "the indexer"},
   {method: "GET", path: "/v1/batches/1789900000", needs: "the indexer"},
   {method: "GET", path: "/v1/auctions/1", needs: "an auction"},
@@ -260,6 +319,7 @@ const item = (r, index) => ({
     method: r.method,
     header: [{key: "content-type", value: "application/json"}],
     url: {raw: `{{api}}${r.path}`, host: [`{{api}}${r.path}`]},
+    ...(r.body ? {body: {mode: "raw", raw: JSON.stringify(r.body, null, 2)}} : {}),
     description: r.why,
   },
 });
@@ -271,9 +331,15 @@ const collection = {
       "The HTTP surface the frontend codes against. Generated by",
       "infra/scripts/postman-api.mjs against the running server.",
       "",
-      "Seven routes answer with real chain reads. Six answer 503 in the frozen",
-      "error shape because they need the coordinator or the indexer, which are",
-      "not written yet. None of them invent data.",
+      "Chain reads, and the coordinator's own accept and reject paths for",
+      "POST /v1/intents, answer for real. Three routes still answer 503 in the",
+      "frozen error shape because they need the indexer or an open auction.",
+      "None of them invent data.",
+      "",
+      "The happy path for submitting an intent does not live here, because",
+      "running this collection twice against the same batch would hit its own",
+      "duplicate. Run make sign-intent for that, and for the two cases that",
+      "mutate fork state, --case nonce-used and --case no-approve.",
       "",
       `Settlement ${config.contracts.settlement}`,
       `Network ${config.source.kind}`,
