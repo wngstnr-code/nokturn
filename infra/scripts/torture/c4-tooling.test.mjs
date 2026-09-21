@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import {execFile, spawn} from "node:child_process";
+import {readFileSync} from "node:fs";
 import {join} from "node:path";
 import {describe, test} from "node:test";
 import {encodeFunctionData, maxUint256, parseAbi} from "viem";
@@ -138,11 +139,14 @@ describe("C4 signing script and Postman", () => {
       summary: `koleksi baru ${f?.failed ?? "?"} gagal dari ${f?.assertions ?? "?"} assertion, setelah maju 2 jam ${a?.failed ?? "?"} gagal`,
       evidence: {makeTarget: makeSummary ? `make postman-api jalan, ${makeSummary.failed} gagal` : `make postman-api tidak menjalankan newman: ${viaMake.out.split("\n").filter(Boolean).slice(-3).join(" | ")}`},
     });
+    const literalNewline = readFileSync(join(REPO_ROOT, "infra", "Makefile"), "utf8").includes(" \\n\t");
     g.record("C4-4m", {
-      outcome: makeSummary ? "measure" : "finding",
-      summary: makeSummary
-        ? "target make postman-api tetap jalan. Resepnya memuat \\n harfiah (infra/Makefile baris 73 dan 76), bash mengubahnya jadi argumen n yang diabaikan newman. Tidak rusak, tapi bukan yang dimaksud"
-        : "target make postman-api rusak, baris resepnya memuat \\n harfiah sehingga newman menerima argumen n",
+      outcome: makeSummary && !literalNewline ? "pass" : "finding",
+      summary: literalNewline
+        ? "resep newman di infra/Makefile memuat \\n harfiah, bash mengubahnya jadi argumen n yang kebetulan diabaikan newman"
+        : makeSummary
+          ? "target make postman-api menjalankan koleksi, resepnya bersih"
+          : "target make postman-api tidak menjalankan newman",
       evidence: {tail: viaMake.out.split("\n").filter(Boolean).slice(-3).join(" | ")},
     });
     assert.ok(f, `newman did not run: ${fresh.out.slice(-500)}`);
