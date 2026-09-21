@@ -211,6 +211,57 @@ tidak seharusnya muncul.
 **Closing print feed per token.** Satu kontrak per token, dipasang saat token itu
 benar-benar butuh permukaan Chainlink. Bukan bagian dari deploy inti.
 
+## Cross penutupan pertama yang tereksekusi, 22 September 2026
+
+Fork terpisah, dan alasannya terukur. Lelang penutupan cuma ada di setengah jam
+sebelum bel, sementara demo batch berdiri di akhir pekan. Batas basi feed NVDA di
+sesi buka 19.000 detik, umur feed di blok patokan akhir pekan sudah 131.777 detik,
+dan sesi penutupan terdekat dari situ 30 jam ke depan. Memaju-majukan jam fork
+akhir pekan ke sana membuat oracle menjawab tidak sehat dan tidak ada yang cross.
+
+Blok **66.491.729**, Jumat 18 September 2026 pukul 19.56.20 UTC. Itu di dalam sesi
+penutupan yang berjalan 19.30 sampai 20.00 UTC, dan 48 detik setelah tulisan feed
+terakhir sebelum bel. Deploy dan funding tetap skrip infra apa adanya.
+
+```
+tools/fork-auction.sh
+```
+
+Lima peserta, karena cetakan penutupan ditahan di bawah lima dan cetakan itulah
+inti cross penutupan. Dua menjual, tiga membeli, satu solver menyilangkan.
+
+| | |
+|---|---|
+| Harga kliring | 222,447298 USDG per NVDA |
+| Volume tersilang | 9,999999999999999998 NVDA |
+| Volume kuotasi | 2.224,472979 USDG |
+| Peserta | 5 |
+| Cetakan penutupan | 222,447298, terbit, distempel di bel 20.00.00 UTC |
+
+Diverifikasi dari saldo. Tiap penjual melepas 5 NVDA dan menerima 1.112,236490
+USDG. Tiap pembeli menerima 3,333333 NVDA dan membayar 741,490993 USDG, lalu
+menerima kembali 258,509007 USDG yang tidak terisi.
+
+Tiga hal yang ditemukan menjalankannya.
+
+**Setiap cross revert di langkah terakhirnya.** `executeCross` memanggil
+`recordWin` untuk mencatat skor solver, dan registry hanya menerimanya dari
+`Settlement`. Jadi lelang, salah satu fitur utama proyek ini, tidak pernah bisa
+selesai sekali pun di sistem yang ter-deploy benar. Semua test lelang memakai
+`MockSolverRegistry` yang menerima panggilan dari siapa pun, jadi 422 test hijau
+menutupinya. Rinciannya di `pertanyaan-terbuka.md`, pelajaran kedua belas.
+
+**Jam anvil ikut jam laptop.** Deploy dan funding menghabiskan tujuh menit waktu
+chain dan rantainya keluar dari sesi penutupan sebelum satu intent pun masuk buku.
+Skripnya sekarang membekukan interval timestamp ke nol, jadi jam hanya bergerak di
+tempat skripnya menggerakkannya.
+
+**Escrow tidak kembali sendiri.** Escrow ditarik untuk seluruh jumlah komitmen di
+freeze, karena buku yang hanya memuat apa yang ternyata bisa terisi adalah buku
+yang tidak bisa dihargai siapa pun sebelum cross. Sisanya kembali lewat
+`refundEscrow`, satu panggilan per komitmen, dan tanpa itu pembeli tetap terpotong
+penuh setelah cross selesai.
+
 ## Demo fork, batch akhir pekan pertama yang settled, 21 September 2026
 
 Dijalankan di atas fork `infra/Makefile`, bukan fork sendiri. Urutannya empat
