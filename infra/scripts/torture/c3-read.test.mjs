@@ -66,7 +66,7 @@ describe("C3 read routes and the solver feed", () => {
     assert.ok(ok);
   });
 
-  test("C3-2 batchId inputs that are not a valid batchId", {todo: "D11"}, async () => {
+  test("C3-2 batchId inputs that are not a valid batchId", async () => {
     const batch = await freshWindow(g.api, 10);
     const cases = {
       negative: "-1",

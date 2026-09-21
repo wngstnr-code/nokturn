@@ -271,19 +271,27 @@ export function intentRoutes(app: FastifyInstance) {
   app.get<{Params: {batchId: string}}>(
     "/v1/batches/:batchId/intents",
     async (request): Promise<BatchIntentsResponse> => {
-      let batchId: bigint;
-      try {
-        batchId = BigInt(request.params.batchId);
-      } catch {
-        throw badRequest("COORDINATOR_INVALID_REQUEST", "batchId is a decimal integer", {
-          batchId: request.params.batchId,
-        });
+      // batchId is a uint64 in the contract. BigInt took "-1", " 123 " and 2^256
+      // as well, and the first read that had to encode one threw as a 502. And a
+      // timestamp the calendar cannot place, zero among them, reverts in
+      // sessionAt, which is an answer about the id rather than about the node. D11.
+      const raw = request.params.batchId;
+      if (!/^(0|[1-9][0-9]*)$/.test(raw) || BigInt(raw) >= 1n << 64n) {
+        throw badRequest("COORDINATOR_INVALID_REQUEST", "batchId is a decimal uint64", {batchId: raw});
       }
+      const batchId = BigInt(raw);
 
       const c = chain();
       const at = await stamp();
       const reader = createChainReader(c.client, c.deployment.sessions);
-      if (!(await isValidBatchId(reader, batchId))) {
+      let valid: boolean;
+      try {
+        valid = await isValidBatchId(reader, batchId);
+      } catch (error) {
+        if (revertReason(error) === null) throw error;
+        valid = false;
+      }
+      if (!valid) {
         throw badRequest(
           "COORDINATOR_INVALID_REQUEST",
           `batchId ${batchId} does not align to its session or sits in a guard band`,
