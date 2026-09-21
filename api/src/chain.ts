@@ -146,9 +146,19 @@ export function deploymentMoved(): boolean {
   return onDisk !== JSON.stringify(c.deployment);
 }
 
-/** One typed read, so routes do not each repeat the address and abi. */
-export async function read<T>(address: Address, abi: Abi, functionName: string, args: readonly unknown[] = []) {
-  return chain().client.readContract({address, abi, functionName, args}) as Promise<T>;
+/**
+ * One typed read, so routes do not each repeat the address and abi. A route that
+ * publishes a block in its provenance passes that block here, or its reads land
+ * on whatever block is newest when each one arrives. D8.
+ */
+export async function read<T>(
+  address: Address,
+  abi: Abi,
+  functionName: string,
+  args: readonly unknown[] = [],
+  blockNumber?: bigint,
+) {
+  return chain().client.readContract({address, abi, functionName, args, blockNumber}) as Promise<T>;
 }
 
 export function explorerAddress(address: string): string {

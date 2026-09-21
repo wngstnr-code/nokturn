@@ -70,7 +70,7 @@ export function intentRoutes(app: FastifyInstance) {
     // Step 3. The path is chosen from the owner's own code, not from anything
     // the client sent, because the client's word is exactly what this check
     // exists to not trust.
-    const code = await c.client.getCode({address: intent.owner});
+    const code = await c.client.getCode({address: intent.owner, blockNumber: at.number});
     const hasCode = !!code && code !== "0x";
     let signatureKind: "eoa" | "erc1271";
 
@@ -103,7 +103,7 @@ export function intentRoutes(app: FastifyInstance) {
       signatureKind = "erc1271";
       let returned: Hex | null = null;
       try {
-        returned = await read<Hex>(intent.owner, mandateAbi, "isValidSignature", [digest, body.signature]);
+        returned = await read<Hex>(intent.owner, mandateAbi, "isValidSignature", [digest, body.signature], at.number);
       } catch {
         returned = null;
       }
@@ -122,11 +122,11 @@ export function intentRoutes(app: FastifyInstance) {
     // together, because a sellToken with no code makes balanceOf throw, and
     // that throw used to win over the TokenNotAllowed that step 4 owes. N2.
     const settled = await Promise.allSettled([
-      read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.sellToken]),
-      read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.buyToken]),
-      read<bigint>(c.permit2, permit2Abi, "nonceBitmap", [intent.owner, intent.nonce >> 8n]),
-      read<bigint>(intent.sellToken, erc20Abi, "balanceOf", [intent.owner]),
-      read<bigint>(intent.sellToken, erc20Abi, "allowance", [intent.owner, c.permit2]),
+      read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.sellToken], at.number),
+      read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.buyToken], at.number),
+      read<bigint>(c.permit2, permit2Abi, "nonceBitmap", [intent.owner, intent.nonce >> 8n], at.number),
+      read<bigint>(intent.sellToken, erc20Abi, "balanceOf", [intent.owner], at.number),
+      read<bigint>(intent.sellToken, erc20Abi, "allowance", [intent.owner, c.permit2], at.number),
     ]);
     const step = <T>(index: number): T => {
       const r = settled[index]!;
@@ -281,10 +281,10 @@ export function intentRoutes(app: FastifyInstance) {
         );
       }
 
-      const session = await read<number>(c.deployment.sessions, sessionAbi, "sessionAt", [batchId]);
+      const session = await read<number>(c.deployment.sessions, sessionAbi, "sessionAt", [batchId], at.number);
       const [duration, maxDeviationBps] = await Promise.all([
-        read<number>(c.deployment.sessions, sessionAbi, "batchDuration", [session]),
-        read<number>(c.deployment.sessions, sessionAbi, "maxDeviationBps", [session]),
+        read<number>(c.deployment.sessions, sessionAbi, "batchDuration", [session], at.number),
+        read<number>(c.deployment.sessions, sessionAbi, "maxDeviationBps", [session], at.number),
       ]);
 
       const collectEnd = batchId;
@@ -293,9 +293,13 @@ export function intentRoutes(app: FastifyInstance) {
 
       const stockPrices = await Promise.all(
         c.tokens.map(async (t): Promise<OraclePriceRow> => {
-          const [price, ts, healthy] = await read<[bigint, bigint, boolean]>(c.deployment.oracle, oracleAbi, "refPrice", [
-            t.token,
-          ]);
+          const [price, ts, healthy] = await read<[bigint, bigint, boolean]>(
+            c.deployment.oracle,
+            oracleAbi,
+            "refPrice",
+            [t.token],
+            at.number,
+          );
           return {
             token: t.token,
             symbol: t.symbol,

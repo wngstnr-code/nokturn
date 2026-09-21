@@ -123,7 +123,7 @@ describe("C3 read routes and the solver feed", () => {
     });
   });
 
-  test("C3-3b the prices are read at the block provenance names", {todo: "D8"}, async () => {
+  test("C3-3b the prices are read at the block provenance names", async () => {
     const batch = await freshWindow(g.api, 10);
     g.proxy.setRules([{mode: "latency", ms: 2500, selectors: [toFunctionSelector("refPrice(address)")]}]);
     let feed;
