@@ -211,6 +211,57 @@ tidak seharusnya muncul.
 **Closing print feed per token.** Satu kontrak per token, dipasang saat token itu
 benar-benar butuh permukaan Chainlink. Bukan bagian dari deploy inti.
 
+## Demo fork, batch akhir pekan pertama yang settled, 21 September 2026
+
+Dijalankan di atas fork `infra/Makefile`, bukan fork sendiri. Urutannya empat
+perintah.
+
+```
+make fork      # terminal sendiri, tetap di foreground
+make deploy
+make fund
+tools/fork-demo.sh
+```
+
+Fork berdiri di blok **67.798.044**, yaitu blok di `infra/pinned-block.json`, dengan
+jam chain 20 September 2026 pukul 08.31 UTC. Itu hari Minggu, jadi sesi yang
+dijalani harness adalah `CLOSED_WEEKEND`, sesi dengan feed Chainlink beku dan harga
+yang harus datang dari pool.
+
+Yang keluar dari event `BatchSettled`, batch `1789903020`.
+
+| | |
+|---|---|
+| Sesi | 6, `CLOSED_WEEKEND` |
+| Intent | 2 |
+| Volume ter-netting | $1.999,845580 |
+| Volume dirutekan ke venue | $0 |
+| Penghematan total | $0,883497 |
+| Bagian solver | $0,094660 |
+| Bagian protokol | $0,031554 |
+
+Diverifikasi dari saldo, bukan dari log script. Alice menukar 1.000 USDG menjadi
+**4,528260915110672293 NVDA**, Bob menukar NVDA yang sama menjadi
+**999,873777 USDG**, dan selisih 0,126223 USDG adalah fee yang ditahan.
+
+Tiga hal yang ditemukan saat menjalankannya, dan ketiganya tercatat di dalam
+skripnya.
+
+**Ukuran leg tidak boleh ditulis tetap.** Kedua leg batch dihitung ke plafon yang
+sama, dan plafon itu dibagi dua lagi di sesi akhir pekan, hari libur, dan
+protektif. Angka 1.500 USDG yang lolos di sesi `CLOSED_OVERNIGHT` ditolak dengan
+`ExposureCapExceeded` di hari Minggu. Harness sekarang membaca `capPerBatchUsd()`
+dari kontrak dan mengambil dua per lima dari plafon sesi yang berlaku.
+
+**Fork menambang tiap detik, dan jendela solusi cuma sepuluh detik.** `forge script`
+butuh lebih lama dari itu untuk memeriksa artefak, mensimulasikan, lalu mengirim,
+jadi jendelanya tertutup sebelum transaksinya sampai. Harness mematikan timernya
+selama demo dan menyalakannya lagi saat keluar, termasuk saat gagal.
+
+**Urutan dua panggilan anvil itu penting.** `evm_setIntervalMining 0` ikut mematikan
+automine, jadi node yang disuruh automine dulu lalu diberi interval nol berhenti
+menambang sama sekali dan setiap transaksi menggantung, bukan revert.
+
 ## Gladi resik testnet 46630, keempat, 21 September 2026
 
 Digelar ulang karena `PriceOracle` berubah. Aset kuotasi tidak pernah punya feed, dan
