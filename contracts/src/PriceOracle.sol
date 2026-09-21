@@ -92,7 +92,12 @@ contract PriceOracle is IPriceOracle {
     function refPrice(address token) public view returns (uint256 price, uint64 ts, bool healthy) {
         Session session = sessions.tokenSession(token);
 
-        if (_isFrozenSession(session)) {
+        // The frozen branch exists because the equity feeds stop for the weekend.
+        // The quote asset's feed does not, measured over its whole history, and it
+        // has no pool against itself to read a twap from. So a token with no twap
+        // source stays on its feed in every session rather than being sent looking
+        // for a pool that cannot exist. parameter.md section 7.1.
+        if (_isFrozenSession(session) && twapSources[token].adapter != address(0)) {
             uint256 twapPrice = _twap(token);
             (uint256 anchor,) = _chainlink(token);
             uint16 drift = _deviationBps(twapPrice, anchor);

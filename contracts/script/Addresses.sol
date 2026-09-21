@@ -52,6 +52,22 @@ library Addresses {
     address internal constant FEED_GOOGL = 0xF6f373a037c30F0e5010d854385cA89185AE638b;
     address internal constant FEED_GME = 0x27C71df6A64fB476468EdF256CF72c038baB5B67;
 
+    /// The quote asset needs a feed like everything else, because Settlement prices
+    /// every token in a solution and USDG is in every solution. Two proxies answer
+    /// the same value from the same aggregator, and this is the one the chain reads,
+    /// with 1,340,130 calls from 659 callers in ninety days against 67 from 15.
+    /// parameter.md section 7.1.
+    address internal constant FEED_USDG = 0x61B7e5650328764B076A108EFF5fa7282a1B9aD2;
+
+    /// One number for every session, which is not a shortcut. The equity feeds stop
+    /// for the weekend and USDG does not, measured over its whole history at 107
+    /// rounds with a minimum gap of 86,400 seconds and a maximum of 86,487.
+    ///
+    /// Two heartbeats rather than the p99 rounded up. p99 here is the heartbeat
+    /// itself, so rounding it up would leave 513 seconds of tolerance, and USDG
+    /// being unhealthy stops every batch on every token. parameter.md 7.1.
+    uint32 internal constant STALENESS_USDG = 174_000;
+
     /// Staleness per feed, parameter.md section 7.1. These are the p99 gap between
     /// updates over the whole eighty eight days of feed history, rounded up to the
     /// nearest thousand, not the p95 over one short window. p95 would drop one batch

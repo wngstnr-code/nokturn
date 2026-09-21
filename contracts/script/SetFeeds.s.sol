@@ -77,7 +77,9 @@ contract SetFeeds is Script {
         uint32[] memory open = Addresses.stalenessOpen();
         uint32[] memory closed = Addresses.stalenessClosed();
 
-        uint256 n = tokens.length * 2;
+        // The quote asset takes a feed and no twap source. It is priced in every
+        // solution and there is no pool of USDG against itself to read.
+        uint256 n = tokens.length * 2 + 1;
         targets = new address[](n);
         values = new uint256[](n);
         payloads = new bytes[](n);
@@ -92,5 +94,11 @@ contract SetFeeds is Script {
                 PriceOracle.setTwapSource, (tokens[i], adapter, Addresses.quote(), Addresses.TWAP_WINDOW)
             );
         }
+
+        targets[n - 1] = oracle;
+        payloads[n - 1] = abi.encodeCall(
+            PriceOracle.setFeed,
+            (Addresses.quote(), Addresses.FEED_USDG, Addresses.STALENESS_USDG, Addresses.STALENESS_USDG)
+        );
     }
 }

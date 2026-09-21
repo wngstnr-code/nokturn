@@ -801,6 +801,49 @@ untuk META, MSFT, GME, dan SPY disimpan sebagai jejak di §1B dan tidak boleh
 dipakai untuk menyetel apa pun sebelum diukur ulang dengan metode yang sama.
 SPCX tetap dikecualikan permanen karena tidak punya feed sama sekali.
 
+#### USDG, aset kuotasi, diukur 21 September 2026
+
+Aset kuotasi tidak pernah masuk tabel di atas, dan itu bukan kelalaian kecil.
+`Settlement._verify` memanggil `refPrice` untuk **setiap** token di solusi, dan USDG
+ada di setiap solusi karena verifier menaruh numeraire di indeks nol. Tanpa baris
+ini, tidak ada satu pun batch yang bisa settle. Ditemukan oleh harness demo fork,
+bukan oleh suite, karena tiap fixture memasang feed USDG sendiri di `setUp`.
+
+| Feed | Proksi | Agregator | `STALENESS` | Beku akhir pekan |
+|---|---|---|---|---|
+| USDG | `0x61b7e565…` | `0x8bEeE350…` | 174.000 dtk | **Tidak** |
+
+Proksinya dipilih dengan pengukuran, bukan dengan tebakan. Ada dua proksi yang
+menjawab nilai sama dan menunjuk agregator sama. Yang ini menerima **1.340.130
+panggilan dari 659 pemanggil** dalam 90 hari, yang satunya 67 panggilan dari 15.
+Kueri `8795332`.
+
+**USDG tidak ikut membeku, dan itu yang mengubah desainnya.** Cabang sesi beku di
+`PriceOracle` ada karena feed ekuitas berhenti 48 sampai 56 jam tiap akhir pekan.
+Feed USDG tidak. Terukur atas seluruh riwayatnya, 107 ronde, jeda minimum 86.400
+detik dan maksimum 86.487. Tidak ada satu pun bolong akhir pekan. Kueri `8795289`.
+
+| | Nilai |
+|---|---|
+| Ronde | 107 |
+| Jeda min | 86.400 dtk |
+| p50 | 86.420 dtk |
+| p95 | 86.429 dtk |
+| p99 | 86.430 dtk |
+| Jeda maks | 86.487 dtk |
+
+Karena itu USDG memakai **satu** angka staleness untuk semua sesi. Bel bursa bukan
+urusannya.
+
+**Kenapa 174.000 dan bukan 87.000.** Metode di bagian ini, yaitu p99 dibulatkan ke
+atas, dibuat untuk feed yang berdetak puluhan kali sehari, di mana p99 masih memuat
+banyak detak. USDG berdetak persis sekali per 24 jam, jadi p99-nya **adalah**
+detaknya. Membulatkannya ke 87.000 menyisakan 513 detik toleransi atas maksimum
+terukur, dan karena USDG ada di setiap solusi, satu detak yang telat berarti seluruh
+protokol berhenti. 174.000 adalah dua detak, jadi ia memaafkan satu detak yang
+hilang dan tetap menyatakan feed yang diam dua hari penuh sebagai mati. Masih di
+bawah `STALENESS_CEILING`.
+
 | Konstanta | Nilai | Alasan |
 |---|---|---|
 | `STALENESS_FLOOR` | **600 detik** | Batas bawah; feed tercepat pun p95-nya ~750 dtk |
@@ -819,6 +862,7 @@ SPCX tetap dikecualikan permanen karena tidak punya feed sama sekali.
 |---|---|---|
 | **Chainlink `DualAggregator`** | Referensi utama (hari kerja) | 30 feed, 8 desimal, antarmuka `AggregatorV3` |
 | **TWAP Uniswap V3** | Pembanding — **dan sumber utama saat akhir pekan** | Gratis; sudah dibaca untuk baseline |
+| **Chainlink USDG / USD** | Satu-satunya sumber untuk aset kuotasi, di semua sesi | Tidak punya TWAP dan tidak akan punya, karena tidak ada pool USDG terhadap dirinya sendiri. Lihat §7.1 |
 | ~~RedStone~~ | ❌ Tidak ada di chain ini | Terverifikasi 1 Agu 2026 |
 
 ### 7.3 🔴 Perilaku akhir pekan — feed Chainlink MEMBEKU
