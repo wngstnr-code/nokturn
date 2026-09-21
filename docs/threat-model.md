@@ -288,11 +288,43 @@ membuatmu terlihat sebaliknya.
 | 3 | **Masalah opsi gratis** pada intent yang ditandatangani | Melekat pada semua sistem intent; dipersempit, tidak dihapus |
 | 4 | **Print bisa digeser dalam batas collar** | Dibatasi, tidak dimustahilkan; panduan konsumen diterbitkan |
 | 5 | **Kode belum diaudit pihak ketiga** | Dikompensasi exposure cap, tujuh lapis verifikasi, bug bounty |
-| 6 | **Sequencer chain di luar kendali kita** | Diwarisi dari Robinhood Chain |
+| 6 | **Sequencer chain di luar kendali kita** | Diwarisi dari Robinhood Chain. Ada feed liveness di chain ini dan kami memilih **tidak** menggerbanginya. Alasan terukur di bawah tabel |
 | 7 | **Blocklist alamat tersanksi tidak bisa dibuktikan tidak ada** — gate KYC sudah terbukti tidak ada, tapi ketiadaan blocklist hanya bisa dibuktikan negatif dari sampel | Dipersempit; balance-delta assertion + `paused()` check |
 | 8 | **Feed Chainlink membeku 48–56 jam tiap akhir pekan** — TWAP jadi sumber utama, dan TWAP bisa dimanipulasi lewat volume | Dibatasi `WEEKEND_DRIFT_CAP_BPS` 1.500 + exposure cap ×0,5 + `TWAP_WINDOW` 30 menit |
 | 9 | **Nokturn akan jadi program Stylus ke-4 di chain ini** — hanya tiga yang pernah diaktifkan, dua di antaranya cuma dipanggil 1–2 kali. Tidak ada jam terbang Stylus di chain ini untuk dijadikan rujukan | Denda init terukur (46,4rb–49,2rb gas) dan tidak menghalangi; versi Solidity tetap ada sebagai oracle differential, jadi ada jalan mundur kalau Stylus bermasalah |
 | 10 | **Dimensi regulasi belum dipetakan** — Stock Token secara hukum adalah *tokenized debt securities* terbitan Robinhood Assets (Jersey) Ltd, bukan saham dan bukan token utilitas. Menjalankan lapisan settlement di atas sekuritas, dengan pengguna nyata dan pengambilan fee, menyentuh wilayah yang belum kami telaah. Transfer restriction memang ada di token (gate yurisdiksi), dan sudah diverifikasi **tidak** memblokir `transfer`/`transferFrom` biasa — tapi ketiadaan gate teknis bukan izin hukum | **Tidak dimitigasi, dibatasi ruang lingkupnya.** Selama buildathon: tanpa pengguna pihak ketiga, tanpa fee, tanpa solicitation — hanya kontrak yang bisa diverifikasi publik plus settlement uji memakai dana sendiri. Konsultasi hukum wajib **sebelum** menerima intent dari orang lain. Jangan jadikan ini kejutan yang muncul pertama kali dari mulut juri |
+
+
+### Kenapa feed liveness sequencer tidak dipakai, diukur 21 September 2026
+
+Praktik baku di L2 adalah menolak membaca harga sesaat setelah sequencer pulih,
+karena transaksi yang tertahan dieksekusi sekaligus di harga yang sudah basi. Chain
+ini punya feed untuk itu, di `0x3cd5824b…`, dan kami sempat berencana membacanya.
+Pengukuran membatalkannya.
+
+| Waktu | Jawaban |
+|---|---|
+| 25 Agustus 07.43 | 1 |
+| 25 Agustus 07.54 | 0 |
+| 25 Agustus 09.19 | 1 lalu 0, di blok yang sama |
+| 3 September 16.02 | 1 lalu 0, di blok yang sama |
+
+Enam tulisan seumur hidupnya, dan pembacaan langsung hari ini menjawab **1**, dengan
+`updatedAt` 3 September. Delapan belas hari diam. Dalam konvensi Chainlink, 1 berarti
+sequencer turun, jadi protokol yang menggerbangi harga dengan feed ini hari ini tidak
+akan menyelesaikan satu batch pun.
+
+Ia juga bukan Sequencer Uptime Feed kanonik. `version()` menjawab 1, `decimals()`
+menjawab 0, dan namanya sendiri menyebut dirinya *keeper heartbeat*. Dua kali ia
+berkedip 1 lalu 0 di dalam satu blok, yang terbaca seperti uji coba dan bukan
+insiden.
+
+Jadi gerbang itu tidak dipasang, dan risikonya tetap terbuka apa adanya. Menggerbangi
+keamanan dengan sumber yang berperilaku seperti ini menambah permukaan gagal alih
+alih menguranginya. Kalau feed ini nanti berdetak teratur dan semantiknya
+terdokumentasi, keputusan ini ditinjau ulang.
+
+Kueri `8795706`.
 
 ---
 
