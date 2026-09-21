@@ -327,7 +327,7 @@ describe("C2 POST /v1/intents", () => {
     });
   });
 
-  test("C2-10 intents the API accepts that the contract cannot settle", {todo: "D15"}, async () => {
+  test("C2-10 intents the API accepts that the contract cannot settle", async () => {
     const zero = "0x0000000000000000000000000000000000000000";
     const cases = {
       receiverZero: {

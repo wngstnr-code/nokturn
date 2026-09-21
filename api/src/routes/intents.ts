@@ -51,6 +51,19 @@ export function intentRoutes(app: FastifyInstance) {
     const c = chain();
     const at = await stamp();
     const intent = validateIntentPayload(body.intent);
+
+    // Two intents no batch can ever settle, refused here rather than relayed.
+    // Settlement pays buyToken to receiver with safeTransfer, which reverts for
+    // the zero address and takes the whole finalize down with it, line 435. And
+    // a pair of one token has no pool to quote a baseline from. Not in the
+    // shared validator, so the escape hatch still encodes them. D15.
+    if (BigInt(intent.receiver) === 0n) {
+      throw badRequest("COORDINATOR_INVALID_REQUEST", "receiver is the zero address, and paying it reverts the whole batch");
+    }
+    if (intent.sellToken.toLowerCase() === intent.buyToken.toLowerCase()) {
+      throw badRequest("COORDINATOR_INVALID_REQUEST", "sellToken and buyToken are the same token");
+    }
+
     const hash = intentHash(intent);
     const digest = await witnessDigestNow(intent);
 
