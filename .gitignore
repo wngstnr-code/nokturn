@@ -6,6 +6,7 @@ AGENTS.md
 .cursorrules
 .aider*
 .github/copilot-instructions.md
+docs/rencana-intent-coordinator.md
 
 # Secrets
 .env
