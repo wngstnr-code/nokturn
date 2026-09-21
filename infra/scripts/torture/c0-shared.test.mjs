@@ -149,7 +149,7 @@ describe("C0 shared validation and escape hatch", () => {
     const typeReads = g.proxy.stats.bySelector[toFunctionSelector("WITNESS_TYPE_STRING()")] ?? 0;
     const sameDigest = digests.size === 1 && !digests.has(undefined);
     const fewReads = domainReads <= 10 && typeReads <= 10;
-    g.record("C0-4", {
+    g.record("C0-4", {suspect: "N1", 
       outcome: sameDigest && fewReads ? "pass" : "finding",
       summary: `${digests.size} digest berbeda, ${domainReads} baca DOMAIN_SEPARATOR, ${typeReads} baca WITNESS_TYPE_STRING`,
       evidence: {statuses, domainReads, typeReads, digests: [...digests]},

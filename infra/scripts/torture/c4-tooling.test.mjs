@@ -167,7 +167,7 @@ describe("C4 signing script and Postman", () => {
       deadApi: {mentionsApi: /make api/.test(deadApi.out), stack: stack(deadApi.out), line: deadApi.out.split("\n").find((l) => /Error|fetch/.test(l))},
     };
     const ok = r.unfunded.mentionsFund && !r.unfunded.stack && r.deadApi.mentionsApi && !r.deadApi.stack;
-    g.record("C4-5", {
+    g.record("C4-5", {suspect: "N5", 
       outcome: ok ? "pass" : "finding",
       summary: `tanpa dana: menyebut make fund ${r.unfunded.mentionsFund}, stack trace ${r.unfunded.stack}. API mati: menyebut make api ${r.deadApi.mentionsApi}, stack trace ${r.deadApi.stack}`,
       evidence: r,

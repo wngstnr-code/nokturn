@@ -236,7 +236,7 @@ describe("C2 POST /v1/intents", () => {
         summary: `yang di-authorize ${good.status} (${kind}), yang tidak ${bad.status} ${bad.body?.detail?.path}`,
         evidence: {account, tx: created.transactionHash, good: good.body?.code ?? good.body?.status, bad: bad.body?.message},
       });
-      g.record("C2-6k", {
+      g.record("C2-6k", {suspect: "N6", 
         outcome: usdgRevert ? "finding" : "pass",
         summary: usdgRevert
           ? "temuan kontrak, bukan API. AgentMandate.authorize untuk intent yang menjual USDG revert TwapSourceNotSet(USDG), karena _notional memanggil PriceOracle.refPrice(sellToken) dan oracle tidak melacak USDG. Terukur di sesi akhir pekan. Di hari kerja jalurnya lewat feed Chainlink, yang juga tidak ada untuk USDG, belum diukur. Milik Wangsit, tidak disentuh"
@@ -292,7 +292,7 @@ describe("C2 POST /v1/intents", () => {
     const s = await signed(users[0], {sellToken: accountsFile.treasury});
     const res = await submit(g.api, s);
     const ok = res.status === 400 && res.body?.code === "TokenNotAllowed";
-    g.record("C2-8b", {
+    g.record("C2-8b", {suspect: "N2", 
       outcome: ok ? "pass" : "finding",
       summary: `sellToken berupa EOA dijawab ${res.status} ${res.body?.code}`,
       evidence: {message: res.body?.message},
@@ -478,7 +478,7 @@ describe("C2 POST /v1/intents", () => {
       await sendAs({from: user.address, to: ctx.permit2, data: encodeFunctionData({abi: abis.permit2, functionName: "invalidateUnorderedNonces", args: [nonce >> 8n, 1n << (nonce % 256n)]})});
       steps.push(await look("nonce dibakar"));
       const silent = steps.slice(1).filter((st) => st.inFeed && st.status === "pending" && !st.rejection && st.feedFlags.length === 0);
-      g.record("C2-21", {
+      g.record("C2-21", {suspect: "N3", 
         outcome: silent.length === 0 ? "pass" : "finding",
         summary: steps.map((st) => `${st.label}: ${st.status}, di feed ${st.inFeed}`).join("; "),
         evidence: {steps, keputusan: true},
@@ -536,7 +536,7 @@ describe("C2 POST /v1/intents", () => {
         const res = await submit(g.api, await signed(users[0]));
         const current = await currentBatch(g.api);
         const ok = res.status === 503 && res.body?.code === "COORDINATOR_NO_OPEN_BATCH" && res.body?.detail?.reason === "auction_phase";
-        g.record(id, {
+        g.record(id, {suspect: "N4", 
           outcome: ok ? "pass" : "finding",
           summary: `sesi ${session} pada ${start + 60n}, POST ${res.status} ${res.body?.code ?? ""} batch ${res.body?.batchId ?? "-"} sesi ${res.body?.batchId ? await sessionAt(res.body.batchId) : "-"}, current ${current.batchId} (${current.reason ?? current.sessionName})`,
           evidence: {keputusan: !ok, note: "check-batch menegaskan nextValidBatchId melompati fase lelang ke batch berikutnya"},
