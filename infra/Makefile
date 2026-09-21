@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 S     := ./scripts
 
-.PHONY: help pin fork deploy fund status prewarm snapshot revert check-fork check-batch check-permit2 api sign-intent postman postman-run postman-resilience postman-api lock clean
+.PHONY: help pin fork deploy fund status prewarm snapshot revert check-fork check-batch check-permit2 api sign-intent postman postman-run postman-resilience postman-api torture torture-soak lock clean
 
 help:
 	@echo "pin          measure the head and write infra/pinned-block.json"
@@ -24,6 +24,8 @@ help:
 	@echo "postman-run  run the chain checks headless with newman"
 	@echo "postman-resilience  run the clock and session break tests"
 	@echo "postman-api  run the api surface tests"
+	@echo "torture      worst case suite for the coordinator, GROUP=c2 for one group"
+	@echo "torture-soak the two hour soak, run it in the background"
 	@echo "lock         raise the timelock delay to 48h, opt in, freezes parameters"
 	@echo "clean        remove the fork deployment record and the snapshot id"
 
@@ -79,6 +81,12 @@ postman-run:
 	@pnpm dlx newman run postman/nokturn-fork.postman_collection.json \
 		-e postman/nokturn-local.postman_environment.json \
 		--reporters cli --reporter-cli-no-banner
+
+torture:
+	@$(S)/torture.sh $(GROUP)
+
+torture-soak:
+	@$(S)/torture.sh soak
 
 lock:
 	@$(S)/lock.sh

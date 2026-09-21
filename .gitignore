@@ -72,3 +72,7 @@ infra/.snapshot-id
 # Regenerated from the live deployment by `make postman`, so the addresses in it
 # are different on every laptop. The generator is committed, its output is not.
 infra/postman/
+# The worst case suite measures one laptop against one fork block, so its raw
+# evidence and the report built from it stay local.
+infra/.torture/
+infra/torture-report.md
