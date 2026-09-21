@@ -97,7 +97,7 @@ export async function initChain(): Promise<ChainContext> {
       nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
       rpcUrls: {default: {http: [env.rpc]}},
     },
-    transport: http(env.rpc),
+    transport: http(env.rpc, {timeout: env.rpcTimeoutMs, retryCount: env.rpcRetryCount}),
   });
 
   const chainFile: ChainFile = isTestnet ? loadTestnetTokens() : loadChainFile();

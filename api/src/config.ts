@@ -61,6 +61,12 @@ export const env = {
   port: Number(process.env.NOKTURN_API_PORT ?? 3000),
   explorer: process.env.NOKTURN_EXPLORER ?? "https://robinhoodchain.blockscout.com",
   logLevel: process.env.NOKTURN_API_LOG_LEVEL ?? "info",
+  // viem's defaults are a 10 second timeout and three retries, so one hung read
+  // held a request for 41 seconds, measured 21 September 2026. These bound the
+  // worst case near 25 seconds. A cold fork read through a public endpoint
+  // takes a few seconds, which is why the timeout is not tighter. D9.
+  rpcTimeoutMs: Number(process.env.NOKTURN_API_RPC_TIMEOUT_MS ?? 8000),
+  rpcRetryCount: Number(process.env.NOKTURN_API_RPC_RETRY_COUNT ?? 2),
 };
 
 function readJson<T>(path: string, hint: string): T {

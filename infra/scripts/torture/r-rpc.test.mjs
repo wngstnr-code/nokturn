@@ -74,7 +74,7 @@ describe("R reliability against the RPC", () => {
     });
   }
 
-  test("R-4 getCode never answers", {timeout: 10 * 60_000, todo: "D9"}, async () => {
+  test("R-4 getCode never answers", {timeout: 10 * 60_000}, async () => {
     g.proxy.setRules([{mode: "hang", methods: ["eth_getCode"]}]);
     g.proxy.resetStats();
     const latencies = [];
