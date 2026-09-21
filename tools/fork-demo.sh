@@ -122,15 +122,24 @@ run --sig 'submit(uint64,bool)' "$BATCH" false
 warp_to $((BATCH + 12))
 run --sig 'finalize(uint64,bool)' "$BATCH" false
 
-# The pass through screen is not built yet, and the reason is worth writing down.
-# A batch with both sides present always beats the venue, because the two
-# counterparties skip the round trip the pool would have charged twice. So a
-# solution cannot be made to lose by pricing it badly. The honest construction is
-# two intents on the SAME side, routed to the venue in full, where the executed
-# amount is the venue quote and the surplus really is zero. That needs the venue
-# call path, which this harness does not exercise yet.
+# The second screen. Two intents on the same side, so there is nothing to net and
+# the whole volume goes to the venue in one call. Each intent gets its share of
+# what the venue returned, which means the saving is not small, it is zero, and
+# Settlement says so itself rather than being told.
+#
+# Ten batches later so the first one is long finalized, and still a multiple of the
+# session's own duration, which is what batch alignment is checked against.
+BATCH_ROUTED=$((BATCH + 10 * DUR))
+S2="$(callnum "$SESSIONS" "sessionAt(uint64)(uint8)" "$BATCH_ROUTED")"
+[ "$S2" = "$S" ] || die "the routed batch at $BATCH_ROUTED fell out of session $S into $S2"
+
+log "batch $BATCH_ROUTED, both intents on the same side, routed to the pool"
+warp_to $((BATCH_ROUTED + 2))
+run --sig 'submit(uint64,bool)' "$BATCH_ROUTED" true
+warp_to $((BATCH_ROUTED + 12))
+run --sig 'finalize(uint64,bool)' "$BATCH_ROUTED" true
 
 log "writing the record the screens read"
-run --sig 'report(uint64,uint64)' "$BATCH" 0
+run --sig 'report(uint64,uint64)' "$BATCH" "$BATCH_ROUTED"
 cat "$CONTRACTS_DIR/deployments/demo.json"
 echo
