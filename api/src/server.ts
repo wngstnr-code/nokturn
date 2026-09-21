@@ -69,6 +69,17 @@ export function buildServer(): FastifyInstance {
     if (error instanceof HttpError) {
       return reply.code(error.status).send(error.body);
     }
+    // Fastify's own rejections, a body over the limit or a content type with no
+    // parser, carry a 4xx statusCode. They are the caller's mistake and keep
+    // their status, rather than being reported as a dead node. D13.
+    const status = (error as {statusCode?: number}).statusCode;
+    if (status !== undefined && status >= 400 && status < 500) {
+      const body: ApiError = {
+        code: "COORDINATOR_INVALID_REQUEST",
+        message: error instanceof Error ? error.message : String(error),
+      };
+      return reply.code(status).send(body);
+    }
     request.log.error({err: error}, "unhandled");
     const body: ApiError = {
       // Almost every unhandled failure on a read only surface is the node, so

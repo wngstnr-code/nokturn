@@ -12,7 +12,7 @@ const g = useGroup(import.meta.url);
 const isApiError = (body) => !!body && typeof body.code === "string" && typeof body.message === "string";
 
 describe("H HTTP surface", () => {
-  test("H-1 a body over the Fastify limit", {todo: "D13"}, async () => {
+  test("H-1 a body over the Fastify limit", async () => {
     const body = JSON.stringify({intent: {pad: "x".repeat(2 * 1024 * 1024)}, signature: "0x11"});
     const res = await request(g.api, "/v1/intents", {method: "POST", headers: {"content-type": "application/json"}, body});
     const ok = res.status === 413 && isApiError(res.body) && res.body.code === "COORDINATOR_INVALID_REQUEST";
@@ -20,7 +20,7 @@ describe("H HTTP surface", () => {
     assert.ok(ok);
   });
 
-  test("H-2 content types that are not JSON", {todo: "D13"}, async () => {
+  test("H-2 content types that are not JSON", async () => {
     const payload = '{"intent":{},"signature":"0x11"}';
     const cases = {
       textPlain: {"content-type": "text/plain"},
