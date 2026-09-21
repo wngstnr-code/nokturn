@@ -13,13 +13,16 @@ contract SolverRegistryTest is Test {
     address governor = address(0x60174E);
     address treasury = address(0x7EA);
     address settlement = address(0x5E77);
+    address auctionHouse = address(0xA0C7);
     address solver = address(0x501E);
 
     function setUp() public {
         usdg = new MockERC20("Global Dollar", "USDG", 6);
         registry = new SolverRegistry(IERC20(address(usdg)), treasury, governor);
-        vm.prank(governor);
+        vm.startPrank(governor);
         registry.setSettlement(settlement);
+        registry.setAuctionHouse(auctionHouse);
+        vm.stopPrank();
 
         usdg.mint(solver, 100_000e6);
         vm.prank(solver);
@@ -180,7 +183,7 @@ contract SolverRegistryTest is Test {
         vm.prank(solver);
         registry.bond(10_000e6);
 
-        vm.expectRevert(SolverRegistry.NotSettlement.selector);
+        vm.expectRevert(SolverRegistry.NotAResultReporter.selector);
         registry.recordWin(solver, 1e18);
 
         vm.expectRevert(SolverRegistry.NotSettlement.selector);
@@ -188,6 +191,46 @@ contract SolverRegistryTest is Test {
 
         vm.expectRevert(SolverRegistry.NotSettlement.selector);
         registry.reportInvalidSurplus(solver);
+    }
+
+    /// The auction house reports the crosses it executed and nothing else. It is a
+    /// second reporter rather than a second settlement, because the calls that move
+    /// a bond stay with the one contract that holds them.
+    function test_theAuctionHouseScoresItsCrossesButCannotSlash() public {
+        vm.prank(solver);
+        registry.bond(10_000e6);
+
+        vm.prank(auctionHouse);
+        registry.recordWin(solver, 500e18);
+
+        (uint256 won, uint256 savings,,) = registry.stats(solver);
+        assertEq(won, 1, "the cross counted");
+        assertEq(savings, 500e18, "and carried its volume");
+
+        vm.prank(auctionHouse);
+        vm.expectRevert(SolverRegistry.NotSettlement.selector);
+        registry.reportFailedFinalize(solver);
+
+        vm.prank(auctionHouse);
+        vm.expectRevert(SolverRegistry.NotSettlement.selector);
+        registry.reportInvalidSurplus(solver);
+
+        (,, uint256 failed, uint256 slashes) = registry.stats(solver);
+        assertEq(failed, 0, "no failure was recorded against it");
+        assertEq(slashes, 0, "and nothing was taken");
+    }
+
+    function test_theAuctionHouseAddressIsSetOnceAndOnlyByGovernor() public {
+        SolverRegistry fresh = new SolverRegistry(IERC20(address(usdg)), treasury, governor);
+
+        vm.expectRevert(SolverRegistry.NotGovernor.selector);
+        fresh.setAuctionHouse(auctionHouse);
+
+        vm.startPrank(governor);
+        fresh.setAuctionHouse(auctionHouse);
+        vm.expectRevert(SolverRegistry.AuctionHouseAlreadySet.selector);
+        fresh.setAuctionHouse(address(0xDEAD));
+        vm.stopPrank();
     }
 
     /// The scoreboard comes from settlement facts. There is no path that lets a

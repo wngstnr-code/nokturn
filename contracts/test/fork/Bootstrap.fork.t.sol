@@ -74,6 +74,17 @@ contract BootstrapForkTest is Test {
         SolverRegistry(d.solvers).setSettlement(address(0xdead));
     }
 
+    /// The auction house is wired as well, and it is a separate call because it is
+    /// trusted with less. Leaving it out cost nothing at deploy and made every
+    /// closing cross revert with NotSettlement at its very last step, which is a
+    /// place nobody looks until an auction has already run.
+    function test_theRegistryKnowsTheAuctionHouseAndWillNotBeToldTwice() public {
+        assertEq(SolverRegistry(d.solvers).auctionHouse(), d.auctionHouse, "wired");
+        vm.prank(d.timelock);
+        vm.expectRevert(SolverRegistry.AuctionHouseAlreadySet.selector);
+        SolverRegistry(d.solvers).setAuctionHouse(address(0xdead));
+    }
+
     /// The calendar answers for a real holiday and a real trading day, which is
     /// the only way to tell a loaded table from an empty one.
     function test_theCalendarIsLoadedAndAnswersForRealDays() public view {

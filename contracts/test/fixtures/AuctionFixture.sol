@@ -12,6 +12,7 @@ import {ISessionManager} from "../../src/interfaces/ISessionManager.sol";
 import {ISignatureTransfer} from "../../src/interfaces/IPermit2.sol";
 import {ISolverRegistry} from "../../src/interfaces/ISolverRegistry.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SolverRegistry} from "../../src/SolverRegistry.sol";
 import {IntentLib} from "../../src/libraries/IntentLib.sol";
 import {Permit2Witness} from "../../src/libraries/Permit2Witness.sol";
 import {Execution, Intent, IntentFlags, IntentKind, SessionMask} from "../../src/types/Types.sol";
@@ -19,7 +20,6 @@ import {CalendarFixture} from "../../script/Calendar.sol";
 import {MockAggregator} from "../mocks/MockAggregator.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {MockPermit2} from "../mocks/MockPermit2.sol";
-import {MockSolverRegistry} from "../mocks/MockSolverRegistry.sol";
 import {MockSwapAdapter} from "../mocks/MockSwapAdapter.sol";
 
 contract IntentHasher {
@@ -33,7 +33,11 @@ abstract contract AuctionFixture is Test {
     PriceOracle oracle;
     AuctionHouse house;
     MockPermit2 permit2;
-    MockSolverRegistry registry;
+    /// The real registry, not a mock, and that is the point. Every auction test ran
+    /// against a mock that accepted a score from any caller, so the real one
+    /// refusing the auction house survived all of them and only turned up when a
+    /// cross was executed on a fork. rencana-uji.md section 6.
+    SolverRegistry registry;
     MockSwapAdapter adapter;
     IntentHasher hasher;
 
@@ -98,8 +102,7 @@ abstract contract AuctionFixture is Test {
         oracle.setTwapSource(address(nvda), address(adapter), address(usdg), 1800);
         vm.stopPrank();
 
-        registry = new MockSolverRegistry();
-        registry.setActive(solver, true);
+        registry = new SolverRegistry(IERC20(address(usdg)), treasury, governor);
         permit2 = new MockPermit2();
 
         house = new AuctionHouse(
@@ -112,15 +115,29 @@ abstract contract AuctionFixture is Test {
             governor,
             guardian
         );
-        vm.prank(governor);
+        vm.startPrank(governor);
         house.setAuctionTokenAllowed(address(nvda), true);
+        // The same call Bootstrap makes, in the same order, for the same reason. The
+        // house has to exist before the registry can be told about it.
+        registry.setAuctionHouse(address(house));
+        vm.stopPrank();
 
         adapter.setRate(address(nvda), address(usdg), 200e18);
         adapter.setRate(address(usdg), address(nvda), 0.005e18);
 
         usdg.mint(alice, 100_000e6);
         usdg.mint(carol, 100_000e6);
-        usdg.mint(solver, 10_000e6);
+        // Ten thousand to trade with, plus the bond on top, so the bond is something
+        // the solver adds rather than something the tests have to subtract.
+        usdg.mint(solver, 10_000e6 + registry.MIN_BOND_FLOOR());
+
+        // The solver becomes active by bonding, which is the only way it becomes
+        // active anywhere. A mock with a setActive switch let every auction test
+        // skip the one thing a solver has to do before it is allowed to cross.
+        vm.startPrank(solver);
+        usdg.approve(address(registry), type(uint256).max);
+        registry.bond(registry.MIN_BOND_FLOOR());
+        vm.stopPrank();
         nvda.mint(bob, 100e18);
         nvda.mint(carol, 100e18);
 
