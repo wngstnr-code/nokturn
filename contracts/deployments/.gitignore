@@ -10,3 +10,9 @@
 # tools/fork-demo.sh
 demo.json
 demo-hasher.txt
+
+# The closing cross stands on its own fork, at its own block, because a weekend
+# fork cannot reach a weekday close with the feeds still alive. Its record lives
+# and dies with that anvil too. tools/fork-auction.sh
+demo-auction.txt
+demo-auction.json
