@@ -3,3 +3,10 @@
 # Real deploys are committed, because the addresses are the record of what is on
 # chain and anybody checking our claims starts from them.
 31337.json
+
+# The fork demo keeps mainnet's chain id so the production scripts run unchanged,
+# and it removes its own 4663.json on the way out. What it leaves behind is this
+# one file, which the screens read and which lives as long as the anvil does.
+# tools/fork-demo.sh
+demo.json
+demo-hasher.txt
