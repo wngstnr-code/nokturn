@@ -211,6 +211,59 @@ tidak seharusnya muncul.
 **Closing print feed per token.** Satu kontrak per token, dipasang saat token itu
 benar-benar butuh permukaan Chainlink. Bukan bagian dari deploy inti.
 
+## Gladi resik testnet 46630, keempat, 21 September 2026
+
+Digelar ulang karena `PriceOracle` berubah. Aset kuotasi tidak pernah punya feed, dan
+karena Settlement memberi harga setiap token di dalam solusi, tidak ada satu pun batch
+yang bisa selesai. Rinciannya di `parameter.md` §7.1.
+
+Alamat oracle masuk sebagai `immutable` di Settlement, AuctionHouse, dan AgentMandate,
+dan `SolverRegistry.setSettlement` hanya bisa dipanggil sekali. Jadi oracle baru
+menyeret kesembilannya. Itu harga yang dibayar aturan inti immutable, dan ia memang
+sudah dipilih sadar. Umpan testnet tidak ikut diganti.
+
+| Kontrak | Alamat |
+|---|---|
+| `TimelockController` | `0xfC1e78f59d2E950DA80fb65537913F39c21a262d` |
+| `SessionManager` | `0x72A9164aB9b7f65f3056332bb356a53A13D24EB2` |
+| `ClearingVerifier` | `0x1B0Efa5688cb1bf9f874239E4d5Fa05B60d299b6` |
+| `PriceOracle` | `0xcc835817E1d2cac6f7503EC8C8DCA83B83A99eF3` |
+| `SolverRegistry` | `0xDc5aFF28CbE174E99042Eccf61a3De5bFb57f4f0` |
+| `Settlement` | `0x1475A90C3790b86ba95b1Fdf572Ce705cc914253` |
+| `AuctionHouse` | `0x5c3f737bC9e6359e2819B560Bef421250DCE960F` |
+| `AgentMandate` | `0x46bB255f78DC85660d5C0f8e32d2e805B00d9D3b` |
+| `UniswapV3Adapter` | `0xdbA7506A6DF72883E2c772e851Ab19FC1F0eAD92` |
+
+| Langkah | Gas | Biaya | Perkiraan script | Rasio |
+|---|---|---|---|---|
+| `Deploy`, 9 kontrak | 20.629.014 | 0,00020629 ETH | 27.246.669 | 76% |
+| `Bootstrap`, 21 panggilan | 4.207.644 | 0,00004208 ETH | 6.021.174 | 70% |
+| `Lock` | 134.260 | 0,00000134 ETH | 171.650 | 78% |
+
+Totalnya 24.970.918 gas dan 0,00024971 ETH. Rasio 70 sampai 78 persen terhadap
+perkiraan bertahan di angkatan keempat.
+
+**Yang dibuktikan dengan membaca rantai.** `minDelay` 172.800. `minBond` 500000000
+dengan lantai yang sama. Kelima token `true` di `tokenAllowed` Settlement dan di
+`auctionTokenAllowed` AuctionHouse, dan kelima pool terpasang di adapter.
+`SolverRegistry.settlement` menunjuk Settlement. Governor `SessionManager` adalah
+timelock. Baseline adapter dan token kuotasi ikut ter-allowlist. Sourcify mencatat
+kesembilannya `match`.
+
+Pemantau melaporkan `M1` sampai `M3` bersih dan `M4` menyala di kelima token, sama
+seperti tiga angkatan sebelumnya, karena 46630 tidak punya Chainlink.
+
+`SetFeeds` tidak dijalankan, dan ia memang menolak chain ini. Itu berarti perbaikan
+yang memicu gladi resik ini tidak mengubah apa pun secara fungsional di 46630. Yang
+berubah adalah bytecode yang berdiri di sana kembali berasal dari sumber yang ada di
+repo, dan itu satu satunya alasan angkatan ini digelar.
+
+**Satu kegagalan, dan runbook ini sudah memuat obatnya.** Percobaan pertama berhenti
+di `vm.envAddress: environment variable "NOKTURN_TREASURY" not found`, karena `.env`
+ada di root repo sementara forge mencarinya di `contracts/`. Bagian pembuka dokumen
+ini sudah menulis `set -a; . ../.env; set +a` sejak angkatan pertama. Yang gagal bukan
+runbooknya, melainkan menjalankan perintah tanpa membacanya lebih dulu.
+
 ## Gladi resik testnet 46630, ketiga, 20 September 2026 sore
 
 Diulang lagi di hari yang sama karena `MIN_BOND` berubah dari konstanta jadi parameter
