@@ -106,24 +106,32 @@ export function validateIntentPayload(payload: unknown): DecodedIntent {
   };
 }
 
-let cachedWitness: {domainSeparator: Hex; witnessTypeString: string} | null = null;
+let cachedWitness: Promise<{domainSeparator: Hex; witnessTypeString: string}> | null = null;
 
 /**
  * The digest a signature over this intent has to match. domainSeparator and
  * WITNESS_TYPE_STRING never change for a live deployment, so they are read
  * once and cached rather than fetched on every request. Section 2.1 of
  * docs/rencana-backend.md asks for exactly this.
+ *
+ * The read itself is what gets cached, not its answer. Caching the answer let
+ * every request that arrived before the first one returned start its own read,
+ * 262 of them from a thousand at a cold start. A failed read is dropped so the
+ * next request tries again rather than inheriting the failure. N1.
  */
 export async function witnessDigestNow(intent: DecodedIntent): Promise<Hex> {
   const c = chain();
   if (!cachedWitness) {
-    const [domainSeparator, witnessTypeString] = await Promise.all([
+    const pending = Promise.all([
       read<Hex>(c.permit2, permit2Abi, "DOMAIN_SEPARATOR"),
       read<string>(c.deployment.settlement, settlementAbi, "WITNESS_TYPE_STRING"),
-    ]);
-    cachedWitness = {domainSeparator, witnessTypeString};
+    ]).then(([domainSeparator, witnessTypeString]) => ({domainSeparator, witnessTypeString}));
+    cachedWitness = pending;
+    pending.catch(() => {
+      if (cachedWitness === pending) cachedWitness = null;
+    });
   }
-  return witnessDigest({...cachedWitness, intent, spender: c.deployment.settlement});
+  return witnessDigest({...(await cachedWitness), intent, spender: c.deployment.settlement});
 }
 
 export interface EscapeHatchPayload {

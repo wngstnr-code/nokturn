@@ -137,7 +137,7 @@ describe("C0 shared validation and escape hatch", () => {
     assert.ok(ok);
   });
 
-  test("C0-4 a cold witness cache under 1000 parallel requests", {todo: "N1"}, async () => {
+  test("C0-4 a cold witness cache under 1000 parallel requests", async () => {
     await restartApi(g);
     g.proxy.resetStats();
     const signed = await validSigned();
