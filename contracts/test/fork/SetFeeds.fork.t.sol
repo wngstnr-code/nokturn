@@ -121,6 +121,19 @@ contract SetFeedsForkTest is Test {
             assertEq(quoteToken, Addresses.USDG, "twap quote side");
             assertEq(window, Addresses.TWAP_WINDOW, "twap window");
         }
+
+        // The quote asset is priced too, and deliberately without a twap source.
+        // Settlement reads refPrice for every token in a solution and USDG is always
+        // one of them, so an oracle that cannot answer for USDG settles nothing in
+        // any session. It has no pool against itself to read a twap from, which is
+        // what the frozen branch checks for before it looks. parameter.md 7.1.
+        (address quoteAggregator, uint32 quoteOpen, uint32 quoteClosed) = oracle.feeds(Addresses.quote());
+        assertEq(quoteAggregator, Addresses.FEED_USDG, "usdg aggregator");
+        assertEq(quoteOpen, Addresses.STALENESS_USDG, "usdg staleness open");
+        assertEq(quoteClosed, Addresses.STALENESS_USDG, "usdg staleness closed");
+
+        (address quoteTwap,,) = oracle.twapSources(Addresses.quote());
+        assertEq(quoteTwap, address(0), "usdg must have no twap source");
     }
 
     /// Both sources arrive together. An oracle holding a feed and no TWAP has no
@@ -128,6 +141,10 @@ contract SetFeedsForkTest is Test {
     /// one shape section 7.3 cannot survive.
     function test_neitherSourceCanArriveWithoutTheOther() public {
         (address[] memory targets,,) = script.batch(d.oracle, d.adapter);
-        assertEq(targets.length, Addresses.allowlist().length * 2, "one feed and one twap per token");
+        // One feed and one twap source per allowlisted token, plus the feed for the
+        // quote asset. USDG gets no twap source because it has no pool against
+        // itself, which is the whole reason the frozen branch checks for one.
+        // parameter.md section 7.1.
+        assertEq(targets.length, Addresses.allowlist().length * 2 + 1, "one feed and one twap per token, plus usdg");
     }
 }
