@@ -19,7 +19,7 @@ import type {FastifyInstance} from "fastify";
 import {recoverAddress} from "viem";
 import type {EscapeHatchRequest, EscapeHatchResponse} from "../../../packages/shared/api-types.ts";
 import {badRequest} from "../errors.ts";
-import {escapeHatchFor, validateIntentPayload, witnessDigestNow} from "../intent.ts";
+import {escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp} from "../provenance.ts";
 
@@ -40,8 +40,9 @@ export function escapeRoutes(app: FastifyInstance) {
     let signatureValid = false;
     try {
       const digest = await witnessDigestNow(intent);
-      const recovered = await recoverAddress({hash: digest, signature: body.signature});
-      signatureValid = recovered.toLowerCase() === intent.owner.toLowerCase();
+      const asPermit2Reads = permit2EoaSignature(body.signature);
+      const recovered = asPermit2Reads ? await recoverAddress({hash: digest, signature: asPermit2Reads}) : null;
+      signatureValid = recovered?.toLowerCase() === intent.owner.toLowerCase();
     } catch {
       // A contract owner signs through EIP-1271 and will never recover here.
       // The check is advisory, so a failure to recover is reported as false

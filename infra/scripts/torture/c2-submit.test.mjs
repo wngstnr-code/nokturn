@@ -131,7 +131,7 @@ describe("C2 POST /v1/intents", () => {
     assert.deepEqual(bad, []);
   });
 
-  test("C2-3 the API and Permit2 agree on every encoding of a valid signature", {todo: "D14"}, async () => {
+  test("C2-3 the API and Permit2 agree on every encoding of a valid signature", async () => {
     const rows = [];
     for (const form of ["v27", "v01", "compact", "highS"]) {
       const s = await signed(users[0]);

@@ -5,7 +5,20 @@
 // copies of this check would mean a signature that passes one and fails the
 // other, and nobody would know which one was right.
 
-import {encodeFunctionData, getAddress, isAddress, type Abi, type Address, type Hex} from "viem";
+import {
+  compactSignatureToSignature,
+  encodeFunctionData,
+  getAddress,
+  hexToNumber,
+  isAddress,
+  parseCompactSignature,
+  serializeSignature,
+  size,
+  slice,
+  type Abi,
+  type Address,
+  type Hex,
+} from "viem";
 import type {IntentPayload} from "../../packages/shared/api-types.ts";
 import {chain, permit2Abi, read, settlementAbi} from "./chain.ts";
 import {badRequest} from "./errors.ts";
@@ -131,6 +144,30 @@ export function canonicalPayload(i: DecodedIntent): IntentPayload {
     batchSpan: i.batchSpan,
     nonce: String(i.nonce),
   };
+}
+
+/**
+ * The signature as Permit2's SignatureVerification reads it for an owner with
+ * no code, or null when Permit2 would reject it before recovering anything.
+ * Permit2 takes 65 bytes with v at 27 or 28, or the 64 byte EIP-2098 form, and
+ * nothing else. viem also accepts v at 0 or 1, which Permit2 hands to ecrecover
+ * as is and gets the zero address back. Every signature the API accepts and
+ * Permit2 refuses is an intent that reverts at finalize. D14.
+ */
+export function permit2EoaSignature(signature: Hex): Hex | null {
+  const bytes = size(signature);
+  if (bytes === 64) {
+    // An all zero compact form throws inside viem rather than recovering to
+    // nobody, and a throw here would surface as a 502. C2-2.
+    try {
+      return serializeSignature(compactSignatureToSignature(parseCompactSignature(signature)));
+    } catch {
+      return null;
+    }
+  }
+  if (bytes !== 65) return null;
+  const v = hexToNumber(slice(signature, 64, 65));
+  return v === 27 || v === 28 ? signature : null;
 }
 
 let cachedWitness: Promise<{domainSeparator: Hex; witnessTypeString: string}> | null = null;

@@ -24,7 +24,7 @@ import {isBatch, isValidBatchId} from "../../../packages/shared/batch.ts";
 import {createChainReader} from "../../../packages/shared/batch-viem.ts";
 import {chain, erc20Abi, mandateAbi, oracleAbi, permit2Abi, read, sessionAbi, settlementAbi} from "../chain.ts";
 import {badRequest, fail, notFound} from "../errors.ts";
-import {canonicalPayload, escapeHatchFor, validateIntentPayload, witnessDigestNow} from "../intent.ts";
+import {canonicalPayload, escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
 import {admit, currentWindow, getByBatch, getByHash} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp} from "../provenance.ts";
@@ -63,9 +63,18 @@ export function intentRoutes(app: FastifyInstance) {
 
     if (!hasCode) {
       signatureKind = "eoa";
+      const asPermit2Reads = permit2EoaSignature(body.signature);
+      if (!asPermit2Reads) {
+        throw fail(
+          401,
+          "COORDINATOR_BAD_SIGNATURE",
+          "Permit2 accepts 65 bytes with v at 27 or 28, or 64 bytes in EIP-2098 form, and this is neither",
+          {verifiedDigest: digest, path: signatureKind},
+        );
+      }
       let recovered: Hex | null = null;
       try {
-        recovered = await recoverAddress({hash: digest, signature: body.signature});
+        recovered = await recoverAddress({hash: digest, signature: asPermit2Reads});
       } catch {
         // Malformed r, s or v never reaches recovery math worth naming, so it
         // is reported the same way a mismatch is rather than as a crash.
