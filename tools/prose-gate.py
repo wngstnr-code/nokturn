@@ -10,8 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-PROSE_SUFFIXES = {".md", ".sol", ".ts", ".tsx", ".rs", ".yml", ".yaml"}
-SURFACE_SUFFIXES = {".sol", ".ts", ".tsx", ".rs"}
+PROSE_SUFFIXES = {".md", ".sol", ".ts", ".tsx", ".rs", ".yml", ".yaml", ".sh"}
+SURFACE_SUFFIXES = {".sol", ".ts", ".tsx", ".rs", ".sh"}
 EXCLUDED_DIRS = {"docs", "lib", "node_modules", ".git", "out", "cache", "broadcast"}
 
 # Written 1 August 2026 as research artifacts and committed unchanged on the day the
