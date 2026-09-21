@@ -105,18 +105,28 @@ export function intentRoutes(app: FastifyInstance) {
 
     // Steps 4 to 7 read four independent facts in parallel. They are reported
     // in table order regardless of which read finished first, so the failure a
-    // caller sees never depends on network timing.
-    const [sellAllowed, buyAllowed, nonceBitmap, balance, allowance] = await Promise.all([
+    // caller sees never depends on network timing. Settled rather than awaited
+    // together, because a sellToken with no code makes balanceOf throw, and
+    // that throw used to win over the TokenNotAllowed that step 4 owes. N2.
+    const settled = await Promise.allSettled([
       read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.sellToken]),
       read<boolean>(c.deployment.settlement, settlementAbi, "tokenAllowed", [intent.buyToken]),
       read<bigint>(c.permit2, permit2Abi, "nonceBitmap", [intent.owner, intent.nonce >> 8n]),
       read<bigint>(intent.sellToken, erc20Abi, "balanceOf", [intent.owner]),
       read<bigint>(intent.sellToken, erc20Abi, "allowance", [intent.owner, c.permit2]),
     ]);
+    const step = <T>(index: number): T => {
+      const r = settled[index]!;
+      if (r.status === "rejected") throw r.reason;
+      return r.value as T;
+    };
 
-    if (!sellAllowed) throw badRequest("TokenNotAllowed", `sellToken not allowed: ${intent.sellToken}`, {token: intent.sellToken});
-    if (!buyAllowed) throw badRequest("TokenNotAllowed", `buyToken not allowed: ${intent.buyToken}`, {token: intent.buyToken});
+    if (!step<boolean>(0)) throw badRequest("TokenNotAllowed", `sellToken not allowed: ${intent.sellToken}`, {token: intent.sellToken});
+    if (!step<boolean>(1)) throw badRequest("TokenNotAllowed", `buyToken not allowed: ${intent.buyToken}`, {token: intent.buyToken});
 
+    const nonceBitmap = step<bigint>(2);
+    const balance = step<bigint>(3);
+    const allowance = step<bigint>(4);
     const nonceUsed = (nonceBitmap >> (intent.nonce % 256n)) % 2n === 1n;
     if (nonceUsed) {
       throw fail(409, "NonceAlreadyUsed", `nonce ${intent.nonce} already used by ${intent.owner}`, {

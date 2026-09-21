@@ -288,7 +288,7 @@ describe("C2 POST /v1/intents", () => {
     assert.ok(ok);
   });
 
-  test("C2-8b a sellToken with no code at all", {todo: "N2"}, async () => {
+  test("C2-8b a sellToken with no code at all", async () => {
     const s = await signed(users[0], {sellToken: accountsFile.treasury});
     const res = await submit(g.api, s);
     const ok = res.status === 400 && res.body?.code === "TokenNotAllowed";
