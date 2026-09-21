@@ -2,7 +2,8 @@
 //
 // The mempool lives in process memory, so restarting the process is the only
 // honest way to empty it. A reset endpoint would be a debug hook on the product
-// surface, which CLAUDE.md rule 9 forbids. This one listens on 3100 so it never
+// surface, and nothing that only exists for testing may sit on the product
+// surface. This one listens on 3100 so it never
 // collides with an API a person is running on 3000.
 
 import {execFileSync, spawn} from "node:child_process";

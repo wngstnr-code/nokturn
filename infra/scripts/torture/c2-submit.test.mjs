@@ -31,7 +31,7 @@ import {
 const g = useGroup(import.meta.url, {proxy: true});
 const nextNonce = nonceSource(2);
 
-/** SPY, a real Stock Token that is not on the v1.0 allowlist. CLAUDE.md section 5. */
+/** SPY, a real Stock Token that is not on the v1.0 allowlist. docs/parameter.md section 10.1. */
 const SPY = "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C";
 
 const erc20 = parseAbi([
