@@ -10,11 +10,12 @@
 // Run with no arguments for the happy path. Run with --case nonce-used or
 // --case no-approve to reproduce the two negative cases that need to change
 // fork state first. Both refuse to run against anything that does not answer
-// anvil_nodeInfo, because both leave the fork in a different state.
+// anvil_nodeInfo, both change only a throwaway account, and both run inside an
+// evm_snapshot that is reverted on the way out.
 
 import {readFileSync} from "node:fs";
 import {fileURLToPath} from "node:url";
-import {createWalletClient, http, isHex, maxUint256, parseUnits} from "viem";
+import {createWalletClient, http, isHex, parseUnits} from "viem";
 import {mnemonicToAccount} from "viem/accounts";
 import {decodeIntent, witnessDigest} from "../../api/src/permit2.ts";
 import {chain, initChain, permit2Abi, read, settlementAbi} from "../../api/src/chain.ts";
@@ -54,13 +55,23 @@ const userAccounts = accounts.users.map((expected, i) => {
 });
 const user0 = userAccounts[0];
 
-const erc20ApproveAbi = [
+/**
+ * Derived from the same mnemonic but outside accounts.json, so no suite relies
+ * on it. The two negative cases change its state instead of a demo user's. They
+ * used to drop user3's allowance and burn user0's nonce, and a run killed
+ * between the change and its finally left the fork broken for every suite that
+ * came after. D16 in the torture report.
+ */
+const THROWAWAY_INDEX = 100;
+const throwaway = mnemonicToAccount(MNEMONIC, {addressIndex: THROWAWAY_INDEX});
+
+const erc20TransferAbi = [
   {
     type: "function",
-    name: "approve",
+    name: "transfer",
     stateMutability: "nonpayable",
     inputs: [
-      {name: "spender", type: "address"},
+      {name: "to", type: "address"},
       {name: "amount", type: "uint256"},
     ],
     outputs: [{type: "bool"}],
@@ -80,6 +91,21 @@ async function requireFork() {
   } catch {
     throw new Error("this case mutates fork state and only runs against a fork, anvil_nodeInfo failed");
   }
+}
+
+/** Runs a case inside evm_snapshot, so a normal exit or a throw leaves no trace. */
+async function inSnapshot(fn) {
+  const rpc = (method, params) => c.client.transport.request({method, params});
+  const id = await rpc("evm_snapshot", []);
+  try {
+    return await fn();
+  } finally {
+    await rpc("evm_revert", [id]);
+  }
+}
+
+async function fundGas(address) {
+  await c.client.transport.request({method: "anvil_setBalance", params: [address, "0xde0b6b3a7640000"]});
 }
 
 async function fetchJson(path, init) {
@@ -177,64 +203,62 @@ async function happyPath() {
   }
 }
 
-/** Invalidates the nonce a fresh intent would use, then submits with it anyway. */
+/** Burns the throwaway account's next nonce, then submits with it anyway. */
 async function caseNonceUsed() {
   await requireFork();
-  const wallet = createWalletClient({account: user0, chain: c.client.chain, transport: http(RPC)});
+  await inSnapshot(async () => {
+    await fundGas(throwaway.address);
+    const wallet = createWalletClient({account: throwaway, chain: c.client.chain, transport: http(RPC)});
 
-  const nonceInfo = await fetchJson(`/v1/nonces/${user0.address}`);
-  const nonce = BigInt(nonceInfo.body.next);
-  const word = nonce >> 8n;
-  const mask = 1n << (nonce % 256n);
+    const nonceInfo = await fetchJson(`/v1/nonces/${throwaway.address}`);
+    const nonce = BigInt(nonceInfo.body.next);
+    const hash = await wallet.writeContract({
+      address: c.permit2,
+      abi: permit2Abi,
+      functionName: "invalidateUnorderedNonces",
+      args: [nonce >> 8n, 1n << (nonce % 256n)],
+    });
+    await c.client.waitForTransactionReceipt({hash});
+    console.log(`state changed, nonce ${nonce} burned on throwaway ${throwaway.address}`);
 
-  const hash = await wallet.writeContract({
-    address: c.permit2,
-    abi: permit2Abi,
-    functionName: "invalidateUnorderedNonces",
-    args: [word, mask],
+    const built = await buildSignedIntent({account: throwaway, fields: {nonce: String(nonce)}});
+    const {status, body} = await submit(built);
+    if (status === 409 && body.code === "NonceAlreadyUsed") {
+      ok(`nonce-used got NonceAlreadyUsed for nonce ${nonce}`);
+    } else {
+      bad(`nonce-used got ${status} ${body.code ?? "?"}: ${body.message ?? ""}`);
+    }
   });
-  await c.client.waitForTransactionReceipt({hash});
-
-  const built = await buildSignedIntent({fields: {nonce: String(nonce)}});
-  const {status, body} = await submit(built);
-  if (status === 409 && body.code === "NonceAlreadyUsed") {
-    ok(`nonce-used got NonceAlreadyUsed for nonce ${nonce}`);
-  } else {
-    bad(`nonce-used got ${status} ${body.code ?? "?"}: ${body.message ?? ""}`);
-  }
 }
 
-/** Drops one user's Permit2 allowance to zero, submits, then restores it. */
+/**
+ * Funds the throwaway account, which has never approved Permit2, and submits
+ * from it. No allowance has to be dropped and put back, because none was ever
+ * given.
+ */
 async function caseNoApprove() {
   await requireFork();
-  const lastUser = userAccounts[userAccounts.length - 1];
-  const wallet = createWalletClient({account: lastUser, chain: c.client.chain, transport: http(RPC)});
+  await inSnapshot(async () => {
+    await fundGas(throwaway.address);
+    const sellAmount = parseUnits("50", c.quote.decimals);
+    const wallet = createWalletClient({account: user0, chain: c.client.chain, transport: http(RPC)});
+    const hash = await wallet.writeContract({
+      address: c.quote.address,
+      abi: erc20TransferAbi,
+      functionName: "transfer",
+      args: [throwaway.address, sellAmount],
+    });
+    await c.client.waitForTransactionReceipt({hash});
+    console.log(`state changed, throwaway ${throwaway.address} funded with ${sellAmount} USDG units`);
 
-  const drop = await wallet.writeContract({
-    address: c.quote.address,
-    abi: erc20ApproveAbi,
-    functionName: "approve",
-    args: [c.permit2, 0n],
-  });
-  await c.client.waitForTransactionReceipt({hash: drop});
-
-  try {
-    const built = await buildSignedIntent({account: lastUser});
+    const built = await buildSignedIntent({account: throwaway, sellAmount});
     const {status, body} = await submit(built);
     if (status === 400 && body.code === "COORDINATOR_PERMIT2_NOT_APPROVED") {
-      ok(`no-approve got COORDINATOR_PERMIT2_NOT_APPROVED for ${lastUser.address}`);
+      ok(`no-approve got COORDINATOR_PERMIT2_NOT_APPROVED for ${throwaway.address}`);
     } else {
       bad(`no-approve got ${status} ${body.code ?? "?"}: ${body.message ?? ""}`);
     }
-  } finally {
-    const restore = await wallet.writeContract({
-      address: c.quote.address,
-      abi: erc20ApproveAbi,
-      functionName: "approve",
-      args: [c.permit2, maxUint256],
-    });
-    await c.client.waitForTransactionReceipt({hash: restore});
-  }
+  });
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];

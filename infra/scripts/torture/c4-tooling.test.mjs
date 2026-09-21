@@ -70,7 +70,7 @@ const newmanSummary = (out) => {
 };
 
 describe("C4 signing script and Postman", () => {
-  test("C4-1 SIGKILL during --case no-approve", {todo: "D16"}, async () => {
+  test("C4-1 SIGKILL during --case no-approve", async () => {
     await withSnapshot(async () => {
       const before = await Promise.all(users.map((u) => allowanceOf(u.address)));
       const {killed, out} = await killMidway("no-approve", async () => (await Promise.all(users.map((u) => allowanceOf(u.address)))).some((a) => a !== maxUint256));
@@ -91,7 +91,7 @@ describe("C4 signing script and Postman", () => {
     });
   });
 
-  test("C4-2 SIGKILL during --case nonce-used", {todo: "D16"}, async () => {
+  test("C4-2 SIGKILL during --case nonce-used", async () => {
     await withSnapshot(async () => {
       const before = await Promise.all(users.map((u) => bitmapOf(u.address)));
       const {killed, out} = await killMidway("nonce-used", async () => (await Promise.all(users.map((u) => bitmapOf(u.address)))).some((b, i) => b !== before[i]));
