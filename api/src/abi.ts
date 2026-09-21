@@ -79,6 +79,16 @@ export const erc20Abi: Abi = [
     inputs: [{name: "owner", type: "address"}],
     outputs: [{type: "uint256"}],
   },
+  {
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [
+      {name: "owner", type: "address"},
+      {name: "spender", type: "address"},
+    ],
+    outputs: [{type: "uint256"}],
+  },
 ];
 
 export const invalidateNoncesAbi: Abi = [
