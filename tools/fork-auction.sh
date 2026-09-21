@@ -104,5 +104,10 @@ warp_to $((CROSS_AT + 121))
 log "executing, and reading the print back"
 run --sig 'execute()'
 
+log "writing the record the screens read"
+run --sig 'report(uint256)' "$AUCTION_BLOCK"
+cat "$CONTRACTS_DIR/deployments/demo-auction.json"
+echo
+
 printf '\nanvil is still up on %s, pid %s, log %s\n' "$FORK_RPC" "$ANVIL_PID" "$LOG"
 printf 'forked mainnet 4663 at block %s\n' "$AUCTION_BLOCK"

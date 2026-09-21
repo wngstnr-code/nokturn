@@ -207,6 +207,48 @@ contract ForkAuction is DemoBase {
         console2.log("print published", sufficient);
     }
 
+    /// @notice Writes what the screens need to read, including the fork block.
+    ///
+    /// The block is not decoration. demo.md section 1 stakes the whole demo on
+    /// somebody recomputing a number for themselves, and a closing price with no
+    /// block behind it is a number they have to take on trust.
+    function report(uint256 forkBlock) external {
+        Deployed memory d = _deployed();
+        AuctionHouse house = AuctionHouse(d.auctionHouse);
+        uint64 auctionId = _auctionId();
+
+        (,,, uint32 day,,) = house.auctionState(auctionId);
+        (
+            uint256 refPrice,
+            uint256 price,
+            uint256 matched,
+            uint256 escrowed,
+            uint32 participants,
+            address solver
+        ) = house.auctionResult(auctionId);
+        (,, bool published) = house.lastClose(Addresses.NVDA);
+
+        string memory out = "auction";
+        vm.serializeUint(out, "forkBlock", forkBlock);
+        vm.serializeUint(out, "chainId", block.chainid);
+        vm.serializeUint(out, "auctionId", auctionId);
+        vm.serializeUint(out, "day", day);
+        vm.serializeUint(out, "referencePrice", refPrice);
+        vm.serializeUint(out, "clearingPrice", price);
+        vm.serializeUint(out, "escrowedValue", escrowed);
+        vm.serializeUint(out, "matchedVolume", matched);
+        vm.serializeUint(out, "participants", participants);
+        vm.serializeBool(out, "printPublished", published);
+        vm.serializeAddress(out, "auctionHouse", d.auctionHouse);
+        vm.serializeAddress(out, "oracle", d.oracle);
+        vm.serializeAddress(out, "nvda", Addresses.NVDA);
+        vm.serializeAddress(out, "usdg", Addresses.quote());
+        string memory json = vm.serializeAddress(out, "solver", solver);
+
+        vm.writeJson(json, "deployments/demo-auction.json");
+        console2.log("wrote deployments/demo-auction.json at fork block", forkBlock);
+    }
+
     function _commit(AuctionHouse house, address spender, bytes32 typeHash, Intent memory i, uint256 key)
         internal
     {
