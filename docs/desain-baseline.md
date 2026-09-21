@@ -446,10 +446,14 @@ mencetak pasangan `amountIn` dan `amountOut` dari adapter yang sesungguhnya. Jal
 implementasimu atas state mentah yang sama dan bandingkan keluarannya. **Target nol
 selisih, bukan mendekati.**
 
-Blok tidak bisa dipatok, karena endpoint yang tembus dari Indonesia bukan archive
-node dan jendelanya sekitar dua puluh sampai empat puluh ribu blok. Jadi jalankan
-keduanya berdekatan, atau ambil state mentahnya sekali lalu pakai angka yang sama di
-kedua sisi.
+Bloknya dipatok, dan nomornya ada di `infra/pinned-block.json`. Test ini membacanya
+lewat `contracts/test/fixtures/ForkFixture.sol`, dan fork yang dipakai backend serta
+demo berdiri di blok yang sama, jadi implementasimu bisa dibandingkan dengan angka
+yang sama persis kapan pun dijalankan.
+
+Kalimat di sini semula berbunyi bahwa blok tidak bisa dipatok karena endpointnya
+bukan archive node. Itu salah, dan sudah diukur ulang 21 September 2026. Lihat
+`pertanyaan-terbuka.md`, pelajaran metodologi kesebelas.
 
 ---
 

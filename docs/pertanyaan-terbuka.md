@@ -658,6 +658,11 @@ curl --resolve rpc.mainnet.chain.robinhood.com:443:172.66.147.70 \
 > ulang, endpoint ini **tidak bisa dipakai**. Itu kembali ke `curl --resolve` ke
 > endpoint resmi, atau ke penyedia berbayar.
 
+> **Koreksi ketiga, 21 September 2026, dan yang digugurkan kali ini adalah koreksi
+> di atas.** Endpoint itu melayani state lampau. Tabel dan kesimpulan di blok ini
+> dibiarkan apa adanya karena keduanya bagian dari catatan, tapi jangan dipakai
+> sebagai dasar keputusan. Rinciannya di pelajaran metodologi kesebelas.
+
 **Pelajaran metodologi yang keenam, dan bentuknya persis sama dengan lima yang
 sudah tercatat.** Satu pengamatan positif, yaitu satu blok yang menjawab, dibaca
 sebagai sifat umum node. Kontrolnya baru dijalankan setengah hari kemudian, dan
@@ -1663,6 +1668,64 @@ alih alih 87, jadi rancangan mengisi mundur sehari saat pemantau dinyalakan gugu
 dan diganti jurnal berjalan. `parameter.md` §8.3.
 
 ---
+
+### Pelajaran metodologi kesebelas, 21 September 2026. Satu endpoint bukan satu node
+
+Ditemukan Dharu pada 20 September saat mengukur kedalaman log untuk pemantau, dan
+ditulisnya di `rencana-backend.md` §3 sebagai temuan yang harus dibicarakan dulu,
+bukan sebagai perubahan sepihak. Diukur ulang secara terpisah hari ini, dan dia
+benar.
+
+`https://robinhood.drpc.org` melayani state lampau. Bukan sekitar jendela 20 sampai
+40 ribu blok seperti yang tertulis di catatan 16 September, melainkan setidaknya
+sampai 1 Juli 2026.
+
+Diukur 21 September 2026 dengan head di 68.946.737. Kolom terakhir adalah
+`totalSupply()` USDG, dipanggil dengan `--block` di tiap kedalaman.
+
+| Mundur | Blok | Tanggal | `totalSupply()` USDG |
+|---|---|---|---|
+| 300 | 68.946.437 | 21 Sep 2026 | 698.583.674.769.608 |
+| 40.000 | 68.906.737 | 21 Sep 2026 | 698.597.528.808.070 |
+| 1.000.000 | 67.946.737 | 20 Sep 2026 | 683.482.046.081.050 |
+| 10.000.000 | 58.946.737 | 9 Sep 2026 | 684.315.186.846.140 |
+| 25.000.000 | 43.946.737 | 23 Agu 2026 | 398.735.215.608.948 |
+| 40.000.000 | 28.946.737 | 5 Agu 2026 | 357.916.669.299.090 |
+| 55.000.000 | 13.946.737 | 19 Jul 2026 | 291.843.111.557.003 |
+| 68.000.000 | 946.737 | 1 Jul 2026 | 101.253.278.669.169 |
+
+Angka di kolom terakhir adalah buktinya, bukan sekadar hiasan. Kalau endpoint
+diam diam menjawab dari head, kedelapan barisnya akan identik. Yang keluar justru
+supply yang naik sesuai umur chain, jadi state yang dibaca memang state blok itu.
+
+**Kenapa pengukuran 16 September salah, dan ini bentuk kesalahan yang baru.**
+Sembilan pelajaran pertama adalah kesalahan pengukuran kami sendiri, dan yang
+kesepuluh adalah sumber eksternal yang salah menyebut batasnya sendiri. Yang ini
+lain lagi. Pengukuran 16 September menjalankan kontrolnya dengan benar, mencatat
+`Unknown state` di tiga kedalaman, dan menyimpulkan sifat endpoint dari situ.
+
+Yang tidak terpikirkan adalah bahwa satu URL di belakang penyeimbang beban bukan
+satu node. Jawaban negatif dari sebuah URL semacam itu adalah sifat dari satu
+sampel, bukan sifat dari layanan. Kami tidak bisa memastikan mana yang terjadi,
+apakah armadanya berubah dalam lima hari atau permintaan 16 September kebetulan
+mendarat di node tanpa state lampau, dan ketidakpastian itu justru inti
+pelajarannya. **Jawaban negatif tunggal dari endpoint bersama tidak menggugurkan
+apa pun. Ia harus diulang, dan diulang di hari yang berbeda.**
+
+Yang berubah di kode karena ini.
+
+| Tempat | Sebelum | Sesudah |
+|---|---|---|
+| `contracts/test/fixtures/ForkFixture.sol` | mengikuti head lalu mundur 300 blok | membaca `infra/pinned-block.json` |
+| `contracts/foundry.toml` | komentar `[rpc_endpoints]` menyebut jendela 20 sampai 40 ribu blok | menyebut hasil ukur sembilan kedalaman |
+| `docs/desain-baseline.md` §7 | blok tidak bisa dipatok | blok dipatok, dan nomornya disebut |
+| `tools/fork-demo.sh` | fork sendiri, mengikuti head | menumpang fork `infra/Makefile` di blok yang sama |
+
+Yang paling penting bukan salah satu barisnya, melainkan akibat gabungannya. Fork
+test, backend, dan demo sekarang berdiri di **satu blok yang sama**, yaitu blok di
+`infra/pinned-block.json`. Sebelumnya masing masing mengambil head sendiri sendiri,
+dan tiga struk untuk intent yang sama bisa berbeda tanpa ada yang keliru.
+
 
 ## RONDE 5 — peta venue lengkap (10 September 2026)
 

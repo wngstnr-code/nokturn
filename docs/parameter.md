@@ -1197,9 +1197,13 @@ lewat `bookLength`, `bookAt`, dan `commitment`.
 Terukur 20 September 2026 di `robinhood.drpc.org`, mainnet dan testnet, dan hasilnya
 bukan yang tertulis di pesan errornya.
 
-Log **dilayani setidaknya 60 juta blok ke belakang**, jauh melampaui jendela state
-yang cuma 20 sampai 40 ribu blok. Jadi kalimat lama bahwa endpoint ini bukan archive
-node benar untuk state dan **tidak benar untuk log**.
+Log **dilayani setidaknya 60 juta blok ke belakang**.
+
+Catatan 21 September 2026. Kalimat di sini semula berbunyi bahwa kedalaman log itu
+jauh melampaui jendela state yang cuma 20 sampai 40 ribu blok. Premis itu gugur.
+State pun dilayani sampai 1 Juli 2026, terukur di delapan kedalaman. Jadi endpoint
+ini archive untuk keduanya, dan yang tersisa dari catatan ini hanyalah batas per
+kueri di bawah. Lihat `pertanyaan-terbuka.md`, pelajaran metodologi kesebelas.
 
 Tapi satu kueri tidak boleh melebihi **101 blok**, apa pun filternya dan seberapa pun
 sedikit yang cocok. Kueri 102 blok atas satu event langka yang tidak cocok dengan apa
