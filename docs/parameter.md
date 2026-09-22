@@ -1062,8 +1062,59 @@ feed, yaitu pola pool yang ditinggalkan arus. Menempatkannya di allowlist berart
 menerbitkan harga pembanding dari pool yang memegang seperdua puluh arusnya. **META
 masuk di v1.1 bersama adapter V4.**
 
-**AMC dan GLD** belum pernah diperiksa sama sekali, dan keduanya ada di sepuluh
-besar volume. Bukan ditolak, melainkan belum diukur.
+**AMC dan GLD** diukur lawan keenam syarat pada 22 September 2026. Keduanya
+**tidak masuk**, dan keduanya gugur di syarat yang sama, yaitu feed. Lima syarat
+lainnya lolos dengan lega.
+
+| # | Syarat | AMC | GLD |
+|---|---|---|---|
+| 1 | Gerbang Stock Token | Lolos. Beacon cocok, `uiMultiplier()` tepat 1e18 | Lolos. Beacon cocok, `uiMultiplier()` tepat 1e18 |
+| 2 | Volume 30 hari | $387,7jt, di atas GOOGL | $302,0jt, sekelas GOOGL |
+| 3 | Kualitas feed | **Gagal. Tidak ada feed sama sekali** | **Gagal untuk sekarang. Feed baru lahir 19 Sep, tujuh ronde** |
+| 4 | Likuiditas akhir pekan | 335.673 trade, $82,9jt | 893.970 trade, $79,0jt |
+| 5 | Kedalaman pool | 25 bps di sepuluh kali cap, nol crossing di cap, sampai $748.290 | 5 sampai 9 bps di sepuluh kali cap, nol crossing di cap, sampai $575.254 atau $1.990.532 |
+| 6 | Venue dominan | Uniswap V3 46,2%, V4 52,5%. Sekelas GOOGL dan TSLA | Uniswap V3 71,9%, V4 21,7% |
+
+Token asli AMC `0x05a3d1cd21d0c88145e82600e62e7e496e0f222b` dan GLD
+`0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e`. Volume, venue, dan akhir pekan dari
+kueri `8804945`, satu pengukuran bersama kelima token allowlist supaya jendelanya
+sama. Dalam jendela yang sama GOOGL ada di V3 45,8% dan TSLA di 45,4%, jadi AMC
+tidak lebih buruk dari incumbent di syarat enam.
+
+**Feed diperiksa lewat semua kontrak yang pernah memancarkan `AnswerUpdated`**,
+kueri `8804959`, 132 kontrak, lalu `description()` dibaca satu per satu di chain.
+Tidak ada satu pun yang menyebut AMC, baik di keluarga `Robinhood X / USD` maupun di
+keluarga polos. GLD punya satu, `GLD / USD` di aggregator
+`0xea3f8e77a98d7877b6f8164569a8e82454cccdb8`, `AccessControlledOCR2Aggregator`
+dengan owner yang sama dengan aggregator NVDA. Tapi ronde pertamanya Sabtu
+19 September pukul 12.00 ET, dan sampai 22 September baru ada tujuh ronde. Syarat
+tiga diukur atas seluruh riwayat feed, dan tiga hari bukan riwayat.
+
+**Kedalaman pool diukur satu pool per pengukuran**, supaya `setPool` tidak menimpa
+pool pertama seperti yang hampir terjadi pada GME. Metodenya sama dengan
+`CandidateDepthFork.t.sol`, fork di head mundur 300 blok. Daftar pool dari kueri
+`8804983`.
+
+| Pool | Fee | $50.000 | Crossing di cap | Terbesar yang bisa dikuotasi |
+|---|---|---|---|---|
+| AMC `0xaa34fea7…` | 3000 | 25 bps | 0 | $748.290 |
+| GLD `0xba2f1ed4…` | 500 | 9 bps | 0 | $575.254 |
+| GLD `0x7a6a053e…` | 3000 | 5 bps | 0 | $1.990.532 |
+
+GLD punya dua pool USDG yang hampir sama besar, $103,1jt dan $82,9jt dalam 30 hari.
+Adapter memetakan satu pasangan ke satu pool, jadi kalau GLD masuk nanti, pilihan
+poolnya harus diputuskan dan ditulis di sini dulu.
+
+**Putusannya berbeda untuk keduanya.** AMC menunggu Chainlink menerbitkan feed, dan
+sampai itu terjadi tidak ada yang bisa dilakukan dari sisi kita. GLD tinggal
+menunggu waktu. Feednya sudah ada dan resmi, dan kelima syarat lain lolos, termasuk
+pangsa V3 tertinggi ketiga setelah GME dan NVDA. Ukur ulang syarat tiga setelah
+feednya punya riwayat yang layak dibandingkan dengan AAPL. Penambahannya satu
+proposal timelock, bukan deploy ulang.
+
+Satu hal kecil yang relevan untuk P6-3. Dua ronde pertama feed GLD jatuh di Sabtu
+dan Minggu siang ET, dan harganya berbeda, $401,36 lalu $400,78. Dua titik bukan
+bukti, tapi feed polos ini tidak diam di akhir pekan.
 
 Catatan yang tidak nyaman tapi penting, **diperbarui 20 September 2026.** Kalimat
 lama di sini menyebut GME dan SPCX sebagai dua token yang tidak bisa diluncurkan

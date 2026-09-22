@@ -1417,6 +1417,12 @@ yang sudah diterima justru menempatkan GOOGL di atas garis, bukan di bawahnya.
 dan GME.** SPY dan SPCX tetap di luar karena feed. META masuk v1.1 bersama adapter V4.
 AMC dan GLD belum pernah diukur sama sekali, dan itu tetap benar untuk dikatakan.
 
+**Diperbarui 22 September 2026.** AMC dan GLD sudah diukur lawan keenam syarat, dan
+keduanya gugur di feed. AMC tidak punya feed Chainlink sama sekali. GLD punya, tapi
+baru lahir 19 September dengan tujuh ronde, jadi belum ada riwayat untuk diukur.
+Lima syarat lainnya lolos untuk keduanya. GLD calon terkuat v1.1 begitu feednya
+punya riwayat. Rinciannya di `parameter.md` §7.4.
+
 Menambah token adalah satu proposal timelock 48 jam, bukan deploy ulang, jadi daftar
 ini bisa tumbuh tanpa menyentuh kontraknya.
 
