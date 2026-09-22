@@ -2,21 +2,25 @@
 
 import assert from "node:assert/strict";
 import {execFile, spawn} from "node:child_process";
-import {readFileSync, rmSync} from "node:fs";
+import {copyFileSync, readFileSync, rmSync} from "node:fs";
 import {join} from "node:path";
 import {describe, test} from "node:test";
 import {encodeFunctionData, maxUint256, parseAbi} from "viem";
 import {REPO_ROOT} from "./lib/api.mjs";
 import {EVIDENCE_DIR} from "./lib/evidence.mjs";
-import {FORK_RPC, chainNow, sendAs, warpTo, withSnapshot} from "./lib/fork.mjs";
-import {useGroup} from "./lib/harness.mjs";
-import {USDG, abis, ctx, users} from "./lib/sign.mjs";
+import {FORK_RPC, chainNow, killFork, restartFork, sendAs, warpTo, withSnapshot} from "./lib/fork.mjs";
+import {restartApi, useGroup} from "./lib/harness.mjs";
+import {USDG, abis, accountsFile, ctx, users} from "./lib/sign.mjs";
 
 const g = useGroup(import.meta.url);
 
 const SIGN_INTENT = join(REPO_ROOT, "infra", "scripts", "sign-intent.mjs");
 const POSTMAN_API = join(REPO_ROOT, "infra", "scripts", "postman-api.mjs");
 const COLLECTION = "postman/nokturn-api.postman_collection.json";
+const STALE_COLLECTION = "postman/nokturn-api.before-redeploy.postman_collection.json";
+// One log per restart. A shared one was overwritten by the restore in finally,
+// which erased the only record of why the first deploy had failed.
+const forkLog = (tag) => join(REPO_ROOT, "infra", ".torture", `fork-restart-${tag}.log`);
 const erc20 = parseAbi(["function allowance(address,address) view returns (uint256)", "function transfer(address,uint256) returns (bool)", "function balanceOf(address) view returns (uint256)"]);
 
 const allowanceOf = (owner) => ctx.client.readContract({address: USDG().address, abi: erc20, functionName: "allowance", args: [owner, ctx.permit2]});
@@ -201,5 +205,62 @@ describe("C4 signing script and Postman", () => {
       evidence: r,
     });
     assert.ok(ok);
+  });
+
+  // Last in the group, because it restarts the fork and the group's snapshot
+  // does not survive that. It ends on the canonical deployment, asserted.
+  test("C4-4b a collection generated before a redeploy", {timeout: 60 * 60_000, todo: "D17"}, async () => {
+    const deploymentFile = () => JSON.parse(readFileSync(join(REPO_ROOT, "infra", "fork-deployment.json"), "utf8"));
+    const canonical = deploymentFile();
+    const generated = await run(POSTMAN_API, [], {NOKTURN_API_URL: g.api.url});
+    assert.equal(generated.code, 0, generated.out);
+    // Kept apart from the generated file, so anything that regenerates the
+    // collection later cannot quietly replace the old one under test.
+    copyFileSync(join(REPO_ROOT, "infra", COLLECTION), join(REPO_ROOT, "infra", STALE_COLLECTION));
+
+    const baseline = await runNewman(COLLECTION, "c4-4b-baseline");
+    if (!baseline.ran || baseline.failed !== 0) {
+      g.record("C4-4b", {
+        outcome: "skip",
+        suspect: "D17",
+        summary: "baseline tidak bersih, V1 dan V2 tidak berarti tanpanya",
+        evidence: {baseline: baseline.failures ?? baseline.tail},
+      });
+      assert.fail(`baseline is not clean: ${JSON.stringify(baseline.failures ?? baseline.tail)}`);
+    }
+
+    g.snap = null;
+    const variants = {};
+    try {
+      await killFork();
+      await restartFork({repoRoot: REPO_ROOT, logFile: forkLog("v1")});
+      await restartApi(g);
+      variants.v1 = {settlement: deploymentFile().settlement, ...(await runNewman(STALE_COLLECTION, "c4-4b-v1"))};
+
+      await killFork();
+      await restartFork({repoRoot: REPO_ROOT, logFile: forkLog("v2"), bumpNonce: true, deployer: accountsFile.deployer});
+      const moved = deploymentFile().settlement;
+      assert.notEqual(moved, canonical.settlement, "the nonce bump did not move the deployment");
+      await restartApi(g);
+      variants.v2 = {settlement: moved, ...(await runNewman(STALE_COLLECTION, "c4-4b-v2"))};
+    } finally {
+      await killFork();
+      await restartFork({repoRoot: REPO_ROOT, logFile: forkLog("restore")});
+      await restartApi(g);
+      await run(POSTMAN_API, [], {NOKTURN_API_URL: g.api.url});
+    }
+    const restored = deploymentFile().settlement === canonical.settlement;
+
+    const same = (v) => v?.ran && v.failed === baseline.failed;
+    const ok = same(variants.v1) && same(variants.v2);
+    const line = (name, v) => `${name} Settlement ${v.settlement === canonical.settlement ? "sama" : "pindah"}, ${v.failed ?? "?"} gagal dari ${v.assertions ?? "?"}`;
+    g.record("C4-4b", {
+      outcome: ok ? "pass" : "finding",
+      suspect: "D17",
+      summary: `baseline 0 gagal dari ${baseline.assertions}. ${line("V1", variants.v1)}. ${line("V2", variants.v2)}. Deployment kanonik dipulihkan ${restored}`,
+      evidence: {v1Failures: variants.v1.failures, v2Failures: variants.v2.failures},
+    });
+    assert.ok(restored, "canonical deployment not restored, rerun make fork deploy fund");
+    assert.ok(ok, `V1 ${JSON.stringify(variants.v1.failures)} V2 ${JSON.stringify(variants.v2.failures)}`);
   });
 });
