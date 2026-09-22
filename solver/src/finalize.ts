@@ -25,15 +25,25 @@ export interface FinalizeOutcome {
 }
 
 /**
+ * A failed poll is the node or the network, and the watcher polls again on its
+ * own. Only this many failures in a row, about ten seconds at 250 ms, mean the
+ * node is gone. E4 found that giving up on the first one stopped the whole
+ * service on a single dropped request.
+ */
+const MAX_POLL_FAILURES = 40;
+
+/**
  * Resolves with the first block whose timestamp passes the predicate, or null
  * once one passes the deadline instead. Driven by viem's block watcher.
  */
 export function untilBlock(c: PublicClient, until: (ts: bigint) => boolean, deadline: bigint): Promise<{number: bigint; timestamp: bigint} | null> {
   return new Promise((resolve, reject) => {
+    let failures = 0;
     const unwatch = c.watchBlocks({
       emitOnBegin: true,
       pollingInterval: 250,
       onBlock: (b) => {
+        failures = 0;
         if (b.timestamp > deadline) {
           unwatch();
           resolve(null);
@@ -43,6 +53,8 @@ export function untilBlock(c: PublicClient, until: (ts: bigint) => boolean, dead
         }
       },
       onError: (error) => {
+        failures += 1;
+        if (failures < MAX_POLL_FAILURES) return;
         unwatch();
         reject(error);
       },
