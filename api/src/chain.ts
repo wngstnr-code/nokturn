@@ -74,6 +74,12 @@ export interface ChainContext {
 }
 
 let context: ChainContext | null = null;
+let requests = 0;
+
+/** Requests sent to the node since boot, so a caller can log what one step cost. */
+export function rpcRequestCount(): number {
+  return requests;
+}
 
 /**
  * Asked of the node rather than taken from a flag. A fork reports the chain id
@@ -105,7 +111,13 @@ export async function initChain(): Promise<ChainContext> {
       nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
       rpcUrls: {default: {http: [env.rpc]}},
     },
-    transport: http(env.rpc, {timeout: env.rpcTimeoutMs, retryCount: env.rpcRetryCount}),
+    transport: http(env.rpc, {
+      timeout: env.rpcTimeoutMs,
+      retryCount: env.rpcRetryCount,
+      onFetchRequest: () => {
+        requests += 1;
+      },
+    }),
   });
 
   const chainFile: ChainFile = isTestnet ? loadTestnetTokens() : loadChainFile();

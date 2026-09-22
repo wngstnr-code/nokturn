@@ -651,8 +651,8 @@ selama enam minggu, tercatat di `ForkFixture.sol`.
 |---|---|---|
 | F7 | Penerimaan intent dan verifikasi tanda tangan Permit2 witness | Tanda tangan palsu ditolak di API, bukan di revert kontrak. Jalur EIP-1271 untuk `MandateAccount` ikut diuji |
 | F8 | Validasi pra-terbang yang mencerminkan pemeriksaan kontrak | Semua penolakan §2 keluar sebagai error API yang bisa dibaca, memakai nama error kontrak yang sama |
-| F9 | Penjadwal batch, penyelarasan `batchId`, penanganan guard band dan fase lelang | Batch terbuka dan tertutup sendiri melintasi pergantian sesi, dan tidak ada batch yang lahir di guard band |
-| F10 | Umpan solver, REST dan WebSocket | Dua solver menerima isi batch yang sama pada detik yang sama |
+| F9 | Penjadwal batch, penyelarasan `batchId`, penanganan guard band dan fase lelang | Batch terbuka dan tertutup sendiri melintasi pergantian sesi, dan tidak ada batch yang lahir di guard band. Terpasang 22 September 2026, grup torture `f9` lulus sepuluh dari sepuluh |
+| F10 | Umpan solver, REST dan WebSocket | Dua solver menerima isi batch yang sama pada detik yang sama. Terpasang 22 September 2026, grup torture `f10` lulus sepuluh dari sepuluh, dengan selisih terima `collect_closed` antara dua klien 0 ms |
 | F11 | API struk batch, disajikan dari indexer | Nabil bisa merender layar utama dan layar gagal sepenuhnya dari API |
 | F12 | API baca sesi dan allowlist untuk frontend | Layar sesi dan layar gerbang allowlist tidak memanggil chain sendiri |
 | F13 | `packages/shared/api-types.ts` | Skema dibekukan dan Nabil coding terhadapnya sebelum implementasinya selesai |

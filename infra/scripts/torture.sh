@@ -29,7 +29,7 @@ elif [ -n "$GROUP" ]; then
   [ ${#FILES[@]} -gt 0 ] || die "no group named $GROUP under $DIR"
 else
   FILES=()
-  for f in c0-shared c1-mempool c2-submit c3-read c4-tooling h-http r-rpc l-load; do
+  for f in c0-shared c1-mempool c2-submit c3-read c4-tooling h-http r-rpc l-load f9-lifecycle f10-stream; do
     FILES+=("$DIR/$f.test.mjs")
   done
 fi

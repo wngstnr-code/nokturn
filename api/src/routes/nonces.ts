@@ -19,6 +19,7 @@ import type {NonceResponse} from "../../../packages/shared/api-types.ts";
 import {chain, permit2Abi, read} from "../chain.ts";
 import {badRequest} from "../errors.ts";
 import {env} from "../config.ts";
+import {heldNonces, sweep} from "../mempool.ts";
 import {provenance, stamp} from "../provenance.ts";
 
 /**
@@ -28,9 +29,12 @@ import {provenance, stamp} from "../provenance.ts";
  */
 const MAX_WORDS = 4n;
 
-function firstFreeBit(bitmap: bigint): number | null {
+// Free on chain is not enough. A nonce an accepted intent still holds would be
+// refused as a duplicate, which is how two runs of make sign-intent in a row
+// used to fail. D5.
+function firstFreeBit(bitmap: bigint, word: bigint, held: Set<bigint>): number | null {
   for (let bit = 0n; bit < 256n; bit += 1n) {
-    if ((bitmap >> bit) % 2n === 0n) return Number(bit);
+    if ((bitmap >> bit) % 2n === 0n && !held.has(word * 256n + bit)) return Number(bit);
   }
   return null;
 }
@@ -47,6 +51,8 @@ export function nonceRoutes(app: FastifyInstance) {
       const c = chain();
       const at = await stamp();
       const address = getAddress(owner);
+      sweep(at.timestamp);
+      const held = heldNonces(address);
 
       const scannedWords: NonceResponse["scannedWords"] = [];
       let next: bigint | null = null;
@@ -54,7 +60,7 @@ export function nonceRoutes(app: FastifyInstance) {
       for (let word = 0n; word < MAX_WORDS; word += 1n) {
         const bitmap = await read<bigint>(c.permit2, permit2Abi, "nonceBitmap", [address, word]);
         scannedWords.push({word: String(word), bitmap: String(bitmap)});
-        const bit = firstFreeBit(bitmap);
+        const bit = firstFreeBit(bitmap, word, held);
         if (bit !== null) {
           // Permit2 splits a nonce into the word it lives in and the bit inside
           // that word, so the nonce is the word shifted up by eight plus the bit.
@@ -66,7 +72,7 @@ export function nonceRoutes(app: FastifyInstance) {
       if (next === null) {
         throw badRequest(
           "COORDINATOR_INVALID_REQUEST",
-          `every nonce in the first ${MAX_WORDS} words is used for ${address}`,
+          `every nonce in the first ${MAX_WORDS} words is used or held by a pending intent for ${address}`,
           {owner: address},
         );
       }

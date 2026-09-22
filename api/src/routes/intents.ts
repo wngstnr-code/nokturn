@@ -35,7 +35,8 @@ import {
 } from "../chain.ts";
 import {badRequest, fail, notFound} from "../errors.ts";
 import {canonicalPayload, escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
-import {admit, currentWindow, getByBatch, getByHash, sweep} from "../mempool.ts";
+import {publish} from "../events.ts";
+import {admit, counts, openWindow, getByBatch, getByHash, sweep} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp, type BlockStamp} from "../provenance.ts";
 import {SESSION_NAMES} from "./session.ts";
@@ -50,6 +51,15 @@ const EIP1271_MAGIC = "0x1626ba7e";
 
 /** EIP-7702's delegation designator prefix, docs/rencana-backend.md section 3C. */
 const DELEGATION_PREFIX = "0xef0100";
+
+/**
+ * Collection is over once chain time passes collectEnd, which is the batchId.
+ * The same predicate opens Settlement's solution window, so the feed's frozen
+ * flag and the lifecycle's collect_closed can never disagree with the contract.
+ */
+export function isCollectClosed(batchId: bigint, chainTime: bigint): boolean {
+  return chainTime > batchId;
+}
 
 export function intentRoutes(app: FastifyInstance) {
   app.post<{Body: {intent?: unknown; signature?: Hex}}>("/v1/intents", async (request): Promise<SubmitIntentResponse> => {
@@ -181,7 +191,7 @@ export function intentRoutes(app: FastifyInstance) {
     // Settlement._pull makes against collectEnd, contracts/src/Settlement.sol
     // line 387.
     const windowAt = async (when: BlockStamp): Promise<BatchWindow> => {
-      const lookup = await currentWindow(when);
+      const lookup = await openWindow(when);
       if (!isBatch(lookup)) {
         throw fail(503, "COORDINATOR_NO_OPEN_BATCH", `no batch open right now: ${lookup.reason}`, {
           reason: lookup.reason,
@@ -231,6 +241,14 @@ export function intentRoutes(app: FastifyInstance) {
       receivedAt: Number(at.timestamp),
     };
     admit(hash, signed, lookup.batchId);
+    publish(
+      {
+        type: "batch.intent_added",
+        at: signed.receivedAt,
+        data: {batchId: String(lookup.batchId), intentHash: hash, ...counts(lookup.batchId)},
+      },
+      {owner: intent.owner},
+    );
 
     return {
       intentHash: hash,
@@ -373,7 +391,7 @@ export function intentRoutes(app: FastifyInstance) {
         collectEndsAt: Number(collectEnd),
         solveEndsAt: Number(solveEnd),
         chainTime: Number(at.timestamp),
-        frozen: at.timestamp > collectEnd,
+        frozen: isCollectClosed(batchId, at.timestamp),
         intents: getByBatch(batchId),
         oraclePrices,
         oracleUnavailable,

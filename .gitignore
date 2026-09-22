@@ -8,6 +8,9 @@ AGENTS.md
 .github/copilot-instructions.md
 docs/rencana-intent-coordinator.md
 docs/rencana-uji-terburuk-coordinator.md
+docs/rencana-uji-d17.md
+docs/rencana-perbaikan-keputusan.md
+docs/rencana-hari2-penuntasan.md
 
 # Secrets
 .env

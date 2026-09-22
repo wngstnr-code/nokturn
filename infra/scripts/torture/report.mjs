@@ -45,7 +45,7 @@ function fixCommits() {
   return bySuspect;
 }
 
-const ORDER = ["c0-shared", "c1-mempool", "c2-submit", "c3-read", "c4-tooling", "h-http", "r-rpc", "l-load", "s-soak"];
+const ORDER = ["c0-shared", "c1-mempool", "c2-submit", "c3-read", "c4-tooling", "h-http", "r-rpc", "l-load", "f9-lifecycle", "f10-stream", "s-soak"];
 const LABEL = {pass: "lulus", finding: "TEMUAN", measure: "ukur", skip: "lewati"};
 
 const pinned = JSON.parse(readFileSync(join(REPO_ROOT, "infra", "pinned-block.json"), "utf8"));

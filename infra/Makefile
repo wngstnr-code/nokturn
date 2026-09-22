@@ -23,7 +23,7 @@ help:
 	@echo "postman      regenerate infra/postman from the live deployment"
 	@echo "postman-run  run the chain checks headless with newman"
 	@echo "postman-resilience  run the clock and session break tests"
-	@echo "postman-api  run the api surface tests"
+	@echo "postman-api  regenerate and run the api surface tests"
 	@echo "torture      worst case suite for the coordinator, GROUP=c2 for one group"
 	@echo "torture-soak the two hour soak, run it in the background"
 	@echo "lock         raise the timelock delay to 48h, opt in, freezes parameters"
@@ -75,7 +75,10 @@ postman-resilience:
 	@pnpm dlx newman run postman/nokturn-resilience.postman_collection.json \
 		--reporters cli --reporter-cli-no-banner
 
+# Regenerated on every run. The collection is ignored and per laptop, and a copy
+# that outlived a redeploy signs for the old Settlement. D17.
 postman-api:
+	@node $(S)/postman-api.mjs
 	@pnpm dlx newman run postman/nokturn-api.postman_collection.json \
 		--reporters cli --reporter-cli-no-banner
 

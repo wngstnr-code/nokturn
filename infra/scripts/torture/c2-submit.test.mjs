@@ -9,7 +9,7 @@ import {describe, test} from "node:test";
 import {encodeAbiParameters, encodeFunctionData, keccak256, maxUint256, parseAbi, toFunctionSelector, toHex} from "viem";
 import {loadAbi} from "../../../api/src/abi.ts";
 import {get, submit, post} from "./lib/api.mjs";
-import {SESSION, batchDuration, findSessionStart, inGuardBand, leaveGuardBand, sessionAt} from "./lib/calendar.mjs";
+import {SESSION, batchDuration, findSessionStart, inGuardBand, leaveGuardBand, nextTransition, sessionAt} from "./lib/calendar.mjs";
 import {chainNow, ethCall, sendAs, setCode, warpTo, withSnapshot} from "./lib/fork.mjs";
 import {currentBatch, freshWindow, manualMining, nonceSource, useGroup} from "./lib/harness.mjs";
 import {
@@ -31,7 +31,7 @@ import {
 const g = useGroup(import.meta.url, {proxy: true});
 const nextNonce = nonceSource(2);
 
-/** SPY, a real Stock Token that is not on the v1.0 allowlist. CLAUDE.md section 5. */
+/** SPY, a real Stock Token that is not on the v1.0 allowlist. docs/parameter.md section 10.1. */
 const SPY = "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C";
 
 const erc20 = parseAbi([
@@ -529,7 +529,7 @@ describe("C2 POST /v1/intents", () => {
   });
 
   for (const [id, session] of [["C2-16a", SESSION.AUCTION_OPEN], ["C2-16b", SESSION.AUCTION_CLOSE]]) {
-    test(`${id} during an auction phase`, {todo: "KEPUTUSAN N4"}, async () => {
+    test(`${id} during an auction phase`, async () => {
       await manualMining(async () => {
         const start = await findSessionStart(session, await chainNow());
         await warpTo(start + 60n);
@@ -545,6 +545,40 @@ describe("C2 POST /v1/intents", () => {
       });
     });
   }
+
+  test("C2-16c POST and GET /v1/batches/current agree around both auctions", async () => {
+    await manualMining(async () => {
+      const aoStart = await findSessionStart(SESSION.AUCTION_OPEN, await chainNow());
+      const aoEnd = await nextTransition(aoStart);
+      const acStart = await findSessionStart(SESSION.AUCTION_CLOSE, aoEnd);
+      // In time order, since chain time only moves forward. The last second of
+      // OPEN is the case where every batch left in the session sits in the band.
+      const points = [
+        ["awal AUCTION_OPEN", aoStart],
+        ["tengah AUCTION_OPEN", aoStart + (aoEnd - aoStart) / 2n],
+        ["akhir AUCTION_OPEN", aoEnd - 1n],
+        ["detik terakhir OPEN", acStart - 1n],
+        ["di AUCTION_CLOSE", acStart + 60n],
+      ];
+      const answers = [];
+      for (const [label, t] of points) {
+        await warpTo(t);
+        const res = await submit(g.api, await signed(users[0]));
+        const current = await currentBatch(g.api);
+        const refused = res.status === 503 && res.body?.code === "COORDINATOR_NO_OPEN_BATCH" && res.body?.detail?.reason === "auction_phase";
+        const agree = refused ? current.batchId === null && current.reason === "auction_phase" : res.body?.batchId === current.batchId;
+        answers.push({label, t: String(t), session: await sessionAt(t), post: `${res.status} ${res.body?.detail?.reason ?? res.body?.batchId ?? ""}`, current: current.batchId ?? current.reason, agree, refused});
+      }
+      const ok = answers.every((a) => a.agree && a.refused);
+      g.record("C2-16c", {
+        suspect: "N4",
+        outcome: ok ? "pass" : "finding",
+        summary: answers.map((a) => `${a.label} POST ${a.post}, current ${a.current}`).join(". "),
+        evidence: {answers},
+      });
+      assert.ok(ok, JSON.stringify(answers));
+    });
+  });
 
   test("C2-17b a holiday batch uses the holiday duration and bit", async () => {
     await manualMining(async () => {

@@ -3,7 +3,7 @@
 // claims a persistence it does not have.
 
 import type {ApiError, IntentStatus, SignedIntent} from "../../packages/shared/api-types.ts";
-import {nextValidBatchId, type BatchLookup} from "../../packages/shared/batch.ts";
+import {NO_ORDINARY_BATCH, isBatch, nextValidBatchId, type BatchLookup} from "../../packages/shared/batch.ts";
 import {createChainReader} from "../../packages/shared/batch-viem.ts";
 import {chain} from "./chain.ts";
 import {fail} from "./errors.ts";
@@ -15,7 +15,7 @@ import type {BlockStamp} from "./provenance.ts";
  * to validate anything the contract itself checks.
  */
 const SOLUTION_WINDOW = 10n;
-const FINALIZE_DEADLINE = 300n;
+export const FINALIZE_DEADLINE = 300n;
 
 export interface StoredIntent {
   batchId: bigint;
@@ -40,7 +40,7 @@ function ownerNonceKey(owner: string, nonce: string): string {
  * lookup never turns into a 404 for something that really was accepted once.
  *
  * Exported because a status lookup has to run it as well. Called only from
- * currentWindow, a quiet coordinator reported an intent pending for as long
+ * openWindow, a quiet coordinator reported an intent pending for as long
  * as nobody asked for the current batch. C1-8.
  */
 export function sweep(now: bigint): void {
@@ -52,18 +52,59 @@ export function sweep(now: bigint): void {
       if (stored && stored.status === "pending") stored.status = "expired";
     }
   }
+
+  // A nonce is held for as long as its signature could still settle, which
+  // ends where Permit2 refuses it, block.timestamp past the deadline, and the
+  // deadline is validUntil. Releasing it with the batch instead would let a
+  // second intent reuse a nonce the first can still spend. D5.
+  for (const [key, intentHash] of byOwnerNonce) {
+    const stored = byHash.get(intentHash);
+    if (!stored || now > BigInt(stored.signed.intent.validUntil)) byOwnerNonce.delete(key);
+  }
+}
+
+/** Nonces this owner's accepted intents still hold. Accurate as of the last sweep. */
+export function heldNonces(owner: string): Set<bigint> {
+  const prefix = `${owner.toLowerCase()}:`;
+  const held = new Set<bigint>();
+  for (const key of byOwnerNonce.keys()) {
+    if (key.startsWith(prefix)) held.add(BigInt(key.slice(prefix.length)));
+  }
+  return held;
 }
 
 /**
- * The batch a new intent joins, and the one GET /v1/batches/current reports.
- * Both routes call this single function so they are structurally unable to
- * name a different batch for the same moment.
+ * The batch a new intent joins, the one GET /v1/batches/current reports, and
+ * the one the lifecycle opens. All three call this single function so they are
+ * structurally unable to name a different batch for the same moment.
+ *
+ * nextValidBatchId walks past an auction phase to the first batch after it,
+ * which is right for a solver planning ahead and wrong here. An intent taken
+ * during an auction would wait out the whole phase in a batch nobody can see
+ * yet, while the route that reports the current batch said a different thing.
+ * So an auction phase, or a batch that only starts after one, is no batch. N4.
  */
-export async function currentWindow(at: BlockStamp): Promise<BatchLookup> {
+export async function openWindow(at: BlockStamp): Promise<BatchLookup> {
   const c = chain();
   const reader = createChainReader(c.client, c.deployment.sessions);
   sweep(at.timestamp);
-  return nextValidBatchId(reader, at.timestamp);
+
+  const auction: BatchLookup = {batchId: null, reason: "auction_phase", retryAt: null};
+  if ((await reader.batchDuration(await reader.sessionAt(at.timestamp))) === NO_ORDINARY_BATCH) return auction;
+
+  const lookup = await nextValidBatchId(reader, at.timestamp);
+  if (!isBatch(lookup)) return lookup;
+
+  // The last seconds of OPEN, where every batch left sits in the guard band
+  // and the search lands in POST_MARKET. Bounded like the search itself.
+  let t = at.timestamp;
+  for (let step = 0; step < 4; step += 1) {
+    const next = await reader.nextTransition(t);
+    if (next <= t || next >= lookup.batchId) break;
+    if ((await reader.batchDuration(await reader.sessionAt(next))) === NO_ORDINARY_BATCH) return auction;
+    t = next;
+  }
+  return lookup;
 }
 
 /** Throws COORDINATOR_DUPLICATE_INTENT, 409, on a repeat hash or owner/nonce. */
