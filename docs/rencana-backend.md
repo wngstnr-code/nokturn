@@ -854,6 +854,28 @@ netting-nya tidak nol.
 Indexer menunjuk ke anvil lokal, karena rentang `eth_getLogs` ditolak di endpoint
 publik (§3).
 
+**Hasil M2, 23 September 2026.** Fork mainnet 4663 dengan penanda tangan lokal,
+bukan mainnet dan bukan arus asli. `solve.ts` menetapkan atau merutekan satu
+pasangan sebagai satu kesatuan, tidak pernah campuran, jadi dua intent berlawanan
+di satu pasangan saja menghasilkan netting 100% tanpa apa pun yang dirutekan.
+Struk M2 karena itu memakai **dua pasangan dalam satu batch**: NVDA (dua intent
+berlawanan arah, netted penuh) dan AAPL (satu intent tanpa lawan, dirutekan).
+
+| | |
+|---|---|
+| Batch | 1789894020 |
+| Transaksi `finalize` | `0x40212b8338607774d81a0d3cc6ce707da8ae0af931d16b49e5623fb59abd7455` |
+| Blok | 67798959 |
+| `nettingRatioBps` | 7894 (78,94%, di antara 0 dan 10000 sesuai syarat) |
+| `nettedVolumeUsd` / `routedVolumeUsd` | 299854453656046388304 / 79993823200000000000 |
+| `totalSavingsUsd` | 150145992818052994 |
+
+Tiga belas pemeriksaan lulus, termasuk `totals` sama persis dengan field
+`BatchSettled` on-chain, provenansi struk menunjuk ke log `BatchSettled` yang
+benar, dan **tiga dari tiga** `verifyBaseline.castCommand` dijalankan sungguhan
+lewat `cast` dan hasilnya sama persis dengan `baselineBuy` di event. Struk
+disimpan di `infra/.torture/m2-receipt.json` (gitignored) untuk Nabil.
+
 ### Hari 6, 25 September. Replay dan batch gagal
 
 F29, lalu harness replay. Dan **F28 ditambah satu skenario wajib**, yaitu batch yang
