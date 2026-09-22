@@ -26,12 +26,30 @@ export function client(rpc = RPC): PublicClient {
 }
 
 /**
+ * A JSON-RPC error response is a final answer as far as viem's own transport
+ * retryCount is concerned, so a chaos proxy or a flaky node that returns one
+ * crashes a one-shot boot read before the indexer processes a single block.
+ * I5 found this at 30 percent injected errors. solver/src/chain.ts carries
+ * the same fix under the same name, for the same reason.
+ */
+async function withRetry<T>(fn: () => Promise<T>, attempts = 5, baseDelayMs = 250): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+      await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** (attempt - 1)));
+    }
+  }
+}
+
+/**
  * The deployment record and its first block. Deploy.s.sol does not record the
  * block it deployed at, so on a fork the pinned block stands in. Nothing of
  * Nokturn can exist at or below it, because the fork starts empty of Nokturn.
  */
 export async function loadDeployment(c: PublicClient): Promise<Deployment> {
-  const chainId = await c.getChainId();
+  const chainId = await withRetry(() => c.getChainId());
   const forkRecord = process.env.NOKTURN_INDEXER_DEPLOYMENT ?? join(REPO_ROOT, "infra", "fork-deployment.json");
   let record: Record<string, unknown>;
   let fromBlock: bigint;
