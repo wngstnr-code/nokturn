@@ -1,0 +1,17 @@
+{
+  "name": "@nokturn/solver",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/unit/**/*.test.ts\"",
+    "test:fork": "node --test --test-concurrency=1 \"test/fork/**/*.test.ts\""
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2"
+  }
+}
