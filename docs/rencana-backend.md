@@ -670,12 +670,12 @@ ia bukan fitur opsional.
 
 | # | Fitur | Selesai kalau |
 |---|---|---|
-| F15 | Klien baseline, kuotasi per intent ke `UniswapV3Adapter` | Nol selisih terhadap `quoteFromState` di blok yang sama, dibuktikan ulang tiap PR |
-| F16 | Pencarian harga kliring per pasangan | Hierarki `desain-kliring.md` §2 dipatuhi, yaitu maksimalkan volume, lalu minimalkan imbalance, lalu terdekat ke referensi |
-| F17 | Penjatahan pro-rata dengan prioritas harga, pembulatan ke bawah | Uji properti membuktikan jumlah yang diterima tidak pernah melampaui yang tersedia |
-| F18 | Netting internal dan perutean sisa jadi `VenueCall` | Batch dengan dua sisi berlawanan menghasilkan nol `venueCalls` |
-| F19 | Perakitan `Solution` dan penghitungan ulang `savings` | Angka solver sama persis dengan keluaran `ClearingVerifier.verify` |
-| F20 | Simulasi kering lewat `eth_call` ke `submitSolution` sebelum mengirim | Tidak ada transaksi terkirim yang akan revert |
+| F15 | Klien baseline, kuotasi per intent ke `UniswapV3Adapter` | Nol selisih terhadap `quoteFromState` di blok yang sama, dibuktikan ulang tiap PR. Terpasang 22 September 2026, 40 dari 40 kuotasi sama persis di blok fork 67798434. Belum tiap PR, karena test fork solver belum masuk CI |
+| F16 | Pencarian harga kliring per pasangan | Hierarki `desain-kliring.md` §2 dipatuhi, yaitu maksimalkan volume, lalu minimalkan imbalance, lalu terdekat ke referensi. Terpasang 22 September 2026, `volumeAt` sama dengan `evaluateVolume` di 200 harga |
+| F17 | Penjatahan pro-rata dengan prioritas harga, pembulatan ke bawah | Uji properti membuktikan jumlah yang diterima tidak pernah melampaui yang tersedia. Terpasang 22 September 2026, lulus di 500 buku acak dengan seed tetap |
+| F18 | Netting internal dan perutean sisa jadi `VenueCall` | Batch dengan dua sisi berlawanan menghasilkan nol `venueCalls`. Terpasang 22 September 2026, lulus di 500 buku acak dan di skenario netted pada fork |
+| F19 | Perakitan `Solution` dan penghitungan ulang `savings` | Angka solver sama persis dengan keluaran `ClearingVerifier.verify`. Terpasang 22 September 2026, 10 dari 10 solusi sama sampai satu wei |
+| F20 | Simulasi kering lewat `eth_call` ke `submitSolution` sebelum mengirim | Tidak ada transaksi terkirim yang akan revert. Terpasang 22 September 2026, simulasi kering lolos untuk routed dan netted, 35 sampai 71 ms dari tutup collect. Pengiriman belum ada, itu F21 |
 | F21 | Siklus hidup kirim dan finalisasi, jendela 10 detik dan tenggat 300 detik | Nol `expireBatch` selama satu jam operasi berkelanjutan |
 | F22 | Operasi bonding, 500 USDG di `SolverRegistry` | `isActive` benar untuk kedua solver |
 | F23 | Profil solver kedua untuk demo kompetisi | Dua solver mengajukan, yang savings-nya lebih tinggi menang, keduanya terbit di event |
