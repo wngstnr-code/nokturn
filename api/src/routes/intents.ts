@@ -201,10 +201,21 @@ export function intentRoutes(app: FastifyInstance) {
           reason: lookup.reason,
         });
       }
-      if (intent.validUntil < Number(lookup.collectEnd) || intent.validAfter > Number(lookup.collectEnd)) {
-        throw badRequest("IntentExpired", "intent is not valid at this batch's collectEnd", {
+      if (intent.validAfter > Number(lookup.collectEnd)) {
+        throw badRequest("IntentExpired", "intent is not valid yet at this batch's collectEnd", {
           validAfter: intent.validAfter,
           validUntil: intent.validUntil,
+          collectEnd: String(lookup.collectEnd),
+        });
+      }
+      // Settlement._requireCollectable refuses validUntil <= solveEnd since
+      // 0067794, so an intent that expires inside the solving window would be
+      // accepted here and then sink every solution that includes it.
+      const solveEnd = lookup.collectEnd + SOLUTION_WINDOW;
+      if (intent.validUntil <= Number(solveEnd)) {
+        throw badRequest("IntentExpired", "intent expires before this batch's solving window closes, so no solution could collect it", {
+          validUntil: intent.validUntil,
+          solveEnd: String(solveEnd),
           collectEnd: String(lookup.collectEnd),
         });
       }
