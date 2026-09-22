@@ -1879,6 +1879,24 @@ freeze dengan lima tarikan Permit2, pencarian harga indikatif yang kuadratik
 terhadap panjang buku, cross, dan eksekusi. Tiga suite lain praktis gratis di
 sampingnya, 109 detik dari 111 detik pada pengukuran 50 kali 256.
 
+## 14. Batas operasional coordinator
+
+Ditulis 22 September 2026, sebelum `WS /v1/stream` dipasang. Angka ini milik
+coordinator, bukan kontrak, jadi tidak ada satu pun yang menyentuh dana. Semuanya
+ada supaya satu klien tidak bisa menghabiskan memori server yang dipakai semua
+orang.
+
+| Nama | Nilai | Alasan |
+|---|---|---|
+| `STREAM_MAX_CLIENTS` | 200 | Dua solver, frontend, dan juri yang membuka banyak tab masih jauh di bawahnya. Batas ini mencegah satu klien nakal menghabiskan memori |
+| `STREAM_MAX_MESSAGE_BYTES` | 16 KB | Pesan masuk yang sah hanya `StreamSubscribe`, yang panjangnya puluhan byte |
+| `STREAM_MAX_BUFFERED_BYTES` | 1 MB | Klien yang tidak membaca diputus supaya tidak menumpuk memori server |
+| `STREAM_PING_SECONDS` | 30 | Mendeteksi koneksi mati di belakang NAT |
+
+Klien ke-201 ditutup dengan kode 1013, begitu juga klien yang buffernya melewati
+batas. Pesan yang lebih besar dari batas ditutup dengan 1009. Klien yang tidak
+menjawab dua ping berturut-turut diputus.
+
 ---
 
 ## Aturan perubahan
