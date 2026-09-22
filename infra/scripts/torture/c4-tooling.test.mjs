@@ -34,9 +34,9 @@ function run(file, args = [], env = {}, timeout = 120_000) {
   });
 }
 
-function runShell(command, timeout = 300_000) {
+function runShell(command, {timeout = 300_000, env = {}} = {}) {
   return new Promise((resolve) => {
-    execFile("bash", ["-lc", command], {cwd: REPO_ROOT, timeout, env: process.env}, (error, stdout, stderr) => {
+    execFile("bash", ["-lc", command], {cwd: REPO_ROOT, timeout, env: {...process.env, ...env}}, (error, stdout, stderr) => {
       resolve({code: error?.code ?? 0, out: `${stdout}${stderr}`});
     });
   });
@@ -158,7 +158,8 @@ describe("C4 signing script and Postman", () => {
   test("C4-4 the Postman collection after two hours of chain time", {timeout: 15 * 60_000}, async () => {
     const generated = await run(POSTMAN_API, [], {NOKTURN_API_URL: g.api.url});
     assert.equal(generated.code, 0, generated.out);
-    const viaMake = await runShell("make -C infra postman-api");
+    // make regenerates the collection first, so it has to reach this group's API.
+    const viaMake = await runShell("make -C infra postman-api", {env: {NOKTURN_API_URL: g.api.url}});
     const f = await runNewman(COLLECTION, "c4-4-fresh");
     await warpTo((await chainNow()) + 7200n);
     const a = await runNewman(COLLECTION, "c4-4-aged");
