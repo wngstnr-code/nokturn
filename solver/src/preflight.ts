@@ -7,7 +7,7 @@
 
 import {formatEther, formatUnits, type Address, type PublicClient} from "viem";
 import {registryAbi} from "./abi.ts";
-import type {Contracts} from "./chain.ts";
+import {withRetry, type Contracts} from "./chain.ts";
 
 /**
  * One hour at one batch a minute is sixty submits and sixty finalizes. At 2M gas
@@ -28,14 +28,17 @@ export interface Readiness {
 }
 
 export async function readiness(c: PublicClient, k: Contracts, address: Address): Promise<Readiness> {
+  // withRetry, because this runs once at boot alongside contracts() and a
+  // single transient RPC error here must not be indistinguishable from an
+  // actually unbonded solver. See the comment on withRetry in chain.ts.
   const read = <T>(functionName: string, args: unknown[] = []) =>
-    c.readContract({address: k.solvers, abi: registryAbi(), functionName, args}) as Promise<T>;
+    withRetry(() => c.readContract({address: k.solvers, abi: registryAbi(), functionName, args}) as Promise<T>);
   const [active, [bonded, unbondAvailableAt], minBond, balance, code] = await Promise.all([
     read<boolean>("isActive", [address]),
     read<[bigint, bigint]>("bondOf", [address]),
     read<bigint>("minBond"),
-    c.getBalance({address}),
-    c.getCode({address}),
+    withRetry(() => c.getBalance({address})),
+    withRetry(() => c.getCode({address})),
   ]);
   const bare = !code || code === "0x";
 
