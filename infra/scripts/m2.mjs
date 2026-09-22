@@ -1,9 +1,11 @@
 // M2. One receipt with netting and a baseline gap, proven from the chain.
 //
-// Two opposite intents of unequal size in one batch, so part of the larger one
-// nets against the smaller and the rest reaches the venue. The solver settles it,
-// the indexer records it, and GET /v1/batches/:batchId is checked against the
-// chain field by field, including running every verifyBaseline command with cast.
+// A pair is netted or routed as a whole, never a mix, so the receipt needs two
+// pairs in the same batch to show both: opposite NVDA intents that net in full,
+// and a one sided AAPL intent that has nowhere to net and reaches the venue. The
+// solver settles it, the indexer records it, and GET /v1/batches/:batchId is
+// checked against the chain field by field, including running every
+// verifyBaseline command with cast.
 //
 // Local signers on a fork of mainnet 4663. Not mainnet and not real flow.
 //
@@ -23,7 +25,7 @@ const root = new URL("../../", here);
 const accounts = JSON.parse(readFileSync(new URL("../accounts.json", here), "utf8"));
 const pin = JSON.parse(readFileSync(new URL("../pinned-block.json", here), "utf8"));
 const MNEMONIC = process.env.NOKTURN_FORK_MNEMONIC ?? accounts._mnemonic;
-const users = [0, 1].map((i) => {
+const users = [0, 1, 2].map((i) => {
   const a = mnemonicToAccount(MNEMONIC, {addressIndex: 6 + i});
   if (a.address.toLowerCase() !== accounts.users[i].toLowerCase()) throw new Error(`index ${6 + i} is not users[${i}]`);
   return a;
@@ -36,6 +38,7 @@ const c = chain();
 const settlement = c.deployment.settlement;
 const USDG = c.quote.address;
 const NVDA = c.tokens.find((t) => t.symbol === "NVDA").token;
+const AAPL = c.tokens.find((t) => t.symbol === "AAPL").token;
 
 const get = async (path) => {
   const res = await fetch(`${API}${path}`);
@@ -85,23 +88,28 @@ console.log(`fork of mainnet 4663 pinned at block ${pin.block}, local signers, h
 const solverDone = child("solver", ["solver/src/index.ts", "--run", "--duration", RUN_MINUTES]);
 const indexerDone = child("indexer", ["indexer/src/index.ts", "--duration", RUN_MINUTES]);
 
-// users[0] sells 400 USDG, users[1] sells NVDA worth about 150, so about 250 of
-// the first has nobody to meet and goes to the pool.
+// users[0] and users[1] cross on NVDA, both PARTIAL_FILL, so solve.ts nets that
+// pair in full (one pair is netted or routed, never a mix). users[2] sells AAPL
+// alone, with no counterparty, so that pair has nowhere to net and goes to the
+// venue. One batch, one pair netted, one pair routed, the mix the receipt needs
+// to show both nettingRatioBps between 0 and 100 percent and a real baseline gap.
 const batch = await freshBatch(25);
-const big = parseUnits("400", 6);
-const small = await venue(USDG, NVDA, parseUnits("150", 6));
+const nvdaSell = parseUnits("400", 6);
+const nvdaOther = await venue(USDG, NVDA, parseUnits("150", 6));
+const aaplSell = parseUnits("80", 6);
 const legs = [
-  {account: users[0], sellToken: USDG, buyToken: NVDA, sellAmount: big, minBuyAmount: ((await venue(USDG, NVDA, big)) * 99n) / 100n},
-  {account: users[1], sellToken: NVDA, buyToken: USDG, sellAmount: small, minBuyAmount: ((await venue(NVDA, USDG, small)) * 99n) / 100n},
+  {account: users[0], sellToken: USDG, buyToken: NVDA, sellAmount: nvdaSell, minBuyAmount: ((await venue(USDG, NVDA, nvdaSell)) * 99n) / 100n},
+  {account: users[1], sellToken: NVDA, buyToken: USDG, sellAmount: nvdaOther, minBuyAmount: ((await venue(NVDA, USDG, nvdaOther)) * 99n) / 100n},
+  {account: users[2], sellToken: USDG, buyToken: AAPL, sellAmount: aaplSell, minBuyAmount: ((await venue(USDG, AAPL, aaplSell)) * 99n) / 100n, flags: "0"},
 ];
 for (const leg of legs) {
-  const built = await buildSignedIntent({account: leg.account, sellAmount: leg.sellAmount, fields: {sellToken: leg.sellToken, buyToken: leg.buyToken, sellAmount: String(leg.sellAmount), minBuyAmount: String(leg.minBuyAmount), flags: "1"}});
+  const built = await buildSignedIntent({account: leg.account, sellAmount: leg.sellAmount, fields: {sellToken: leg.sellToken, buyToken: leg.buyToken, sellAmount: String(leg.sellAmount), minBuyAmount: String(leg.minBuyAmount), flags: leg.flags ?? "1"}});
   const res = await fetch(`${API}/v1/intents`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({intent: built.intent, signature: built.signature})});
   const body = await res.json();
   if (!res.ok || body.batchId !== batch.batchId) throw new Error(`POST /v1/intents answered ${res.status} ${JSON.stringify(body)}`);
 }
 const batchId = BigInt(batch.batchId);
-console.log(`two opposite intents of unequal size accepted into batch ${batchId}`);
+console.log(`three intents across two pairs accepted into batch ${batchId}`);
 
 console.log(`solver exited ${await solverDone}, indexer exited ${await indexerDone}`);
 
@@ -141,7 +149,7 @@ for (const f of receipt.fills) {
 }
 
 const balances = {};
-for (const u of users) for (const [sym, t] of [["USDG", USDG], ["NVDA", NVDA]]) balances[`${u.address} ${sym}`] = String(await c.client.readContract({address: t, abi: erc20Abi, functionName: "balanceOf", args: [u.address]}));
+for (const u of users) for (const [sym, t] of [["USDG", USDG], ["NVDA", NVDA], ["AAPL", AAPL]]) balances[`${u.address} ${sym}`] = String(await c.client.readContract({address: t, abi: erc20Abi, functionName: "balanceOf", args: [u.address]}));
 
 const result = {
   note: "fork of mainnet 4663, local signers, not mainnet and not real flow",
