@@ -160,6 +160,47 @@ Kedua allowlist sekarang sama panjang, lima token, sejak umpan `tGME` dipasang
 token lebih sedikit, dan selisihnya sengaja dibiarkan terlihat alih alih dipadankan
 diam diam.
 
+## Memeriksa hasil deploy dari rantai
+
+```bash
+forge script script/VerifyDeployment.s.sol:VerifyDeployment --rpc-url $NOKTURN_RPC_TESTNET
+```
+
+Ditambahkan 22 September 2026. Empat gladi pertama memeriksa ini dengan tangan,
+satu `cast call` per baris, dan pemeriksaan seperti itu tidak bisa diulang orang
+lain. Skrip ini hanya membaca, tidak menandatangani apa pun, dan tidak butuh kunci.
+Ia membaca catatan `deployments/<chainid>.json`, lalu menanyakan setiap alamat ke
+kontraknya sendiri, bukan ke catatan yang mengklaimnya.
+
+Yang diperiksa ada tiga kelompok, yaitu governance (`minDelay` 48 jam, governor
+sesi adalah timelock, `minBond` sama dengan lantainya), seluruh referensi immutable
+antar kontrak, dan allowlist di Settlement maupun AuctionHouse ditambah pool per
+token di adapter.
+
+Semua pembacaan lewat `staticcall` mentah, bukan panggilan bertipe. Alasannya
+skrip ini memang akan diarahkan ke deployment yang lebih tua dari dirinya sendiri,
+dan panggilan bertipe ke selector yang tidak ada di bytecode lama akan mematikan
+skripnya. Verifier yang mati lebih buruk daripada tidak ada verifier, karena
+operator membaca crash dan bukan temuan.
+
+Harganya, kompiler tidak lagi menjaga tanda tangan fungsi di skrip ini tetap
+sejalan dengan `src/`. Yang membayarnya kembali adalah
+`test/fork/VerifyDeployment.fork.t.sol`, yang menjalankan verifier atas deployment
+yang benar secara konstruksi. Getter yang diganti nama di `src` dan tidak diganti
+di sini muncul sebagai pemeriksaan gagal di situ.
+
+Dijalankan atas testnet 46630 pada 22 September 2026, hasilnya persis satu temuan.
+
+```
+BAD  registry auctionHouse
+     the deployed contract does not answer this call
+failed checks 1
+```
+
+Itu benar dan memang yang diharapkan. Deployment testnet yang berjalan sekarang
+lebih tua daripada `SolverRegistry.setAuctionHouse`, jadi bytecode-nya tidak punya
+fungsi itu. Ia akan hijau setelah deploy ulang.
+
 ## Verifikasi
 
 ```bash
