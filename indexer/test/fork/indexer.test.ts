@@ -17,6 +17,14 @@ const TEST_DB = "nokturn_fork_test";
 const TEST_URL = ADMIN_URL.replace(/\/[^/]+$/, `/${TEST_DB}`);
 process.env.NOKTURN_DATABASE_URL = TEST_URL;
 const API = process.env.NOKTURN_API_URL ?? "http://127.0.0.1:3000";
+/**
+ * db.sh reads NOKTURN_DB_PORT to pick docker-compose.yml's port mapping, and
+ * falls back to 5433. execFileSync does not inherit a shell's env vars from a
+ * separate session, only this process's own, so I4 passes it through by hand.
+ * Without this, "up" after "down" can recreate the container on the wrong
+ * port when the default collides with something else on this machine.
+ */
+const DB_PORT = new URL(ADMIN_URL).port || "5433";
 
 // Imported after the database url is set, because db.ts reads it at import.
 const {closeDb, db, migrate} = await import("../../src/db.ts");
@@ -159,11 +167,11 @@ describe("indexer on the fork", () => {
   test("I4 the database down for thirty seconds, the indexer backs off and catches up", async () => {
     const child = run(["indexer/src/index.ts", "--duration", "1.5"]);
     await new Promise((r) => setTimeout(r, 5_000));
-    execFileSync("bash", [`${REPO_ROOT}/infra/scripts/db.sh`, "down"], {stdio: "ignore"});
+    execFileSync("bash", [`${REPO_ROOT}/infra/scripts/db.sh`, "down"], {stdio: "ignore", env: {...process.env, NOKTURN_DB_PORT: DB_PORT}});
     const receiptRoute = await getJson("/v1/batches");
     const health = await fetch(`${API}/v1/health`).then((r) => r.status);
     await new Promise((r) => setTimeout(r, 30_000));
-    execFileSync("bash", [`${REPO_ROOT}/infra/scripts/db.sh`, "up"], {stdio: "ignore"});
+    execFileSync("bash", [`${REPO_ROOT}/infra/scripts/db.sh`, "up"], {stdio: "ignore", env: {...process.env, NOKTURN_DB_PORT: DB_PORT}});
     const done = await child;
     await closeDb();
     const head = await c.getBlockNumber();
