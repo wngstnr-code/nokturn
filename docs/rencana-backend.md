@@ -833,6 +833,18 @@ dalam satu transaksi `finalize`, dan kedua intent tetap tereksekusi. Catatan
 Hari 5 harus memperlakukan `BatchSettled` sebagai penentu, bukan event yang terbit
 lebih dulu. Belum dibicarakan dengan Wangsit apakah ini disengaja.
 
+**Kondisi buruk F21, 23 September 2026.** `solver/test/fork/lifecycle.test.ts`, setiap
+kasus dijalankan sekali. E5 dan E6 berjalan di dalam `evm_snapshot` dan di-revert.
+
+| ID | Hasil |
+|---|---|
+| E1 | Lulus. Proses dibunuh setelah receipt submit dengan status tersimpan `best`. Restart memulihkannya dan memfinalisasi batch 1789894080 dengan `BatchSettled`, di transaksi `0xf9edc69e0a24780a4b0961d85b4dec50ac4fc93c315d99c249142742c649cb2d`. Di Windows, SIGKILL tercatat sebagai exit code 1, bukan sinyal |
+| E2 | Lulus. solverB memfinalisasi lebih dulu dengan solusi yang dibaca dari calldata submit. solverA mencatat `finalized_by_other` dari `AlreadyFinalized` dan tidak mengirim transaksi apa pun |
+| E3 | Lulus. `window_missed` satu detik setelah `solveEnd`. Nonce solverA tetap 9, dan store kosong |
+| E4 | **Tidak tuntas.** Percobaan pertama menemukan bug nyata. `untilBlock` menyerah pada satu poll yang gagal, jadi watcher durasi menghentikan layanan dengan nol batch diproses. Diperbaiki di `6d00e3a`, yaitu menyerah setelah 40 kegagalan berturut-turut. Percobaan kedua gagal karena race di harness. Proxy mulai menyuntik error sebelum startup solver selesai, dan `eth_chainId` saat startup membuat solver keluar dengan pesan jelas (exit 1). Tidak ada percobaan ketiga |
+| E5 | **W5 terbukti.** Solusi routed 150 USDG ke NVDA, lalu swap 5 USDG searah di pool yang sama di antara submit dan finalize. `finalize` revert `LiquidityExhausted(0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3, 33241480166)` di kedua percobaan, dan statusnya `finalize_reverted`. Batch tetap belum final, jadi di mainnet `expireBatch` akan men-slash solver yang jujur |
+| E6 | Perilaku baru sejak `0067794`. `users[1]` memindahkan seluruh NVDA-nya setelah submit. `finalize` **tidak** revert, tapi menerbitkan `IntentCollectionFailed` untuk intent 1 dan `BatchPassthrough("intent could not be collected")`. Solver mencatat `finalized`, tanpa slash |
+
 ### Hari 5, 24 September. Indexer dan struk, M2
 
 F24, F25, F26, F27, lalu F11. Target M2 adalah struk yang menampilkan netting dan
