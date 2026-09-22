@@ -91,11 +91,6 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
       }
       if (T > t.solveEnd + FINALIZE_DEADLINE) state.tracked.delete(id);
     }
-    // Only closed batches are evicted, so a cap can never swallow a close.
-    for (const [id, t] of state.tracked) {
-      if (state.tracked.size <= MAX_TRACKED) break;
-      if (t.closed) state.tracked.delete(id);
-    }
 
     if (current.batchId !== null) {
       const id = BigInt(current.batchId);
@@ -104,6 +99,13 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
         state.tracked.set(id, {collectEnd: BigInt(current.collectEndsAt), solveEnd: BigInt(current.solveEndsAt), closed: false});
         publish({type: "batch.opened", at: Number(T), data: current});
       }
+    }
+
+    // After the open, so the batch just added counts against the cap. Only
+    // closed batches are evicted, so the cap can never swallow a close.
+    for (const [id, t] of state.tracked) {
+      if (state.tracked.size <= MAX_TRACKED) break;
+      if (t.closed) state.tracked.delete(id);
     }
 
     const session = await read<number>(c.deployment.sessions, sessionAbi, "currentSession", [], at.number);
