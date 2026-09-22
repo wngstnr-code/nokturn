@@ -143,7 +143,7 @@ describe("C4 signing script and Postman", () => {
     });
   });
 
-  test("C4-3 sign-intent twice in a row", {todo: "KEPUTUSAN D5"}, async () => {
+  test("C4-3 sign-intent twice in a row", async () => {
     const first = await run(SIGN_INTENT, [], {NOKTURN_API_URL: g.api.url});
     const second = await run(SIGN_INTENT, [], {NOKTURN_API_URL: g.api.url});
     const ok = first.code === 0 && second.code === 0;

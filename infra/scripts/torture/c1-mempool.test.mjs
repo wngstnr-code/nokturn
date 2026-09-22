@@ -130,7 +130,7 @@ describe("C1 mempool", () => {
     assert.ok(ok);
   });
 
-  test("C1-6 the nonce GET /v1/nonces suggests after expiry is accepted", {todo: "KEPUTUSAN D5"}, async () => {
+  test("C1-6 the nonce GET /v1/nonces suggests after expiry is accepted", async () => {
     assert.ok(shared.reusedNonce !== undefined, "C1-4 did not run");
     const suggested = await suggestedNonce(users[1]);
     const res = await submit(g.api, await signFor(users[1], {nonce: suggested, minBuyAmount: "2"}));
@@ -142,6 +142,41 @@ describe("C1 mempool", () => {
       evidence: {suggested, reusedNonce: shared.reusedNonce, answer: res.body},
     });
     assert.ok(ok, `${res.status} ${res.text}`);
+  });
+
+  test("C1-6b a swept batch does not free a nonce whose intent is still valid", async () => {
+    assert.ok(shared.reusedNonce !== undefined, "C1-4 did not run");
+    // C1-4 signed reusedNonce with validUntil thirty days out, and C1-5 swept
+    // its batch. Permit2 would still accept that signature, so the nonce is held.
+    const suggested = await suggestedNonce(users[1]);
+    const res = await submit(g.api, await signFor(users[1], {nonce: shared.reusedNonce, minBuyAmount: "3"}));
+    const ok = suggested !== shared.reusedNonce && res.status === 409 && res.body?.code === "COORDINATOR_DUPLICATE_INTENT";
+    g.record("C1-6b", {
+      outcome: ok ? "pass" : "finding",
+      suspect: "D5",
+      summary: `nonce ${shared.reusedNonce} masih dipegang, nonces menyarankan ${suggested}, POST ulang menjawab ${res.status} ${res.body?.code ?? ""}`,
+    });
+    assert.ok(ok, `${suggested} ${res.status} ${res.text}`);
+  });
+
+  test("C1-6c a nonce comes free once chain time passes validUntil", async () => {
+    const user = users[3];
+    const batch = await freshWindow(g.api, 20);
+    const nonce = await suggestedNonce(user);
+    const validUntil = batch.collectEndsAt + 5;
+    const first = await submit(g.api, await signFor(user, {nonce, validUntil: String(validUntil)}));
+    assert.equal(first.status, 200, first.text);
+    const whileHeld = await suggestedNonce(user);
+    await warpTo(BigInt(validUntil) + 1n);
+    const afterExpiry = await suggestedNonce(user);
+    const again = await submit(g.api, await signFor(user, {nonce, minBuyAmount: "2"}));
+    const ok = whileHeld !== nonce && afterExpiry === nonce && again.status === 200;
+    g.record("C1-6c", {
+      outcome: ok ? "pass" : "finding",
+      suspect: "D5",
+      summary: `nonce ${nonce}, selama dipegang disarankan ${whileHeld}, setelah validUntil ${validUntil} lewat disarankan ${afterExpiry}, POST ulang ${again.status} ${again.body?.code ?? ""}`,
+    });
+    assert.ok(ok, `${whileHeld} ${afterExpiry} ${again.status} ${again.text}`);
   });
 
   test("C1-7 memory across 20000 intents in 200 batches", {timeout: 60 * 60_000, todo: "KEPUTUSAN D6"}, async () => {

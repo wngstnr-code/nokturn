@@ -418,7 +418,11 @@ export interface OraclePriceRow {
  */
 export interface NonceResponse {
   owner: Address;
-  /** The lowest nonce Permit2 has not consumed. */
+  /**
+   * The lowest nonce Permit2 has not consumed and no intent pending in this
+   * coordinator still holds. A held nonce comes free once chain time passes
+   * that intent's validUntil, because Permit2 refuses the signature from then.
+   */
   next: Uint;
   /** The bitmap words that were scanned, so the answer can be rechecked. */
   scannedWords: {word: Uint; bitmap: Uint}[];

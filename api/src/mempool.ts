@@ -52,6 +52,25 @@ export function sweep(now: bigint): void {
       if (stored && stored.status === "pending") stored.status = "expired";
     }
   }
+
+  // A nonce is held for as long as its signature could still settle, which
+  // ends where Permit2 refuses it, block.timestamp past the deadline, and the
+  // deadline is validUntil. Releasing it with the batch instead would let a
+  // second intent reuse a nonce the first can still spend. D5.
+  for (const [key, intentHash] of byOwnerNonce) {
+    const stored = byHash.get(intentHash);
+    if (!stored || now > BigInt(stored.signed.intent.validUntil)) byOwnerNonce.delete(key);
+  }
+}
+
+/** Nonces this owner's accepted intents still hold. Accurate as of the last sweep. */
+export function heldNonces(owner: string): Set<bigint> {
+  const prefix = `${owner.toLowerCase()}:`;
+  const held = new Set<bigint>();
+  for (const key of byOwnerNonce.keys()) {
+    if (key.startsWith(prefix)) held.add(BigInt(key.slice(prefix.length)));
+  }
+  return held;
 }
 
 /**
