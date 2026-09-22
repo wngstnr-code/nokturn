@@ -118,5 +118,9 @@ export function encodeSolution(s: Solution): Hex {
  * offset included, which is what abi.encode(s) produces.
  */
 export function solutionHash(s: Solution): Hex {
-  return keccak256(encodeAbiParameters(submitSolutionAbi().inputs, [s]));
+  return keccak256(encodeAbiParameters(solutionAbiParameters(), [s]));
+}
+
+export function solutionAbiParameters(): AbiFunction["inputs"] {
+  return submitSolutionAbi().inputs;
 }
