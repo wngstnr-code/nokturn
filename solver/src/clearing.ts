@@ -346,3 +346,59 @@ function ration(side: Candidate[], capacity: bigint, allot: Map<number, bigint>)
 }
 
 const sum = (xs: bigint[]) => xs.reduce((a, b) => a + b, 0n);
+
+export interface Residual {
+  /** Base pulled minus base delivered. Negative means the venue has to supply it. */
+  base: bigint;
+  /** Quote pulled minus quote delivered. */
+  quote: bigint;
+}
+
+export function residual(pair: Pair, fills: readonly Fill[]): Residual {
+  const byIndex = new Map(pair.entries.map((e) => [e.index, e.intent]));
+  let base = 0n;
+  let quote = 0n;
+  for (const f of fills) {
+    const i = byIndex.get(f.index)!;
+    if (same(i.sellToken, pair.quote)) {
+      quote += f.executedSell;
+      base -= f.executedBuy;
+    } else {
+      base += f.executedSell;
+      quote -= f.executedBuy;
+    }
+  }
+  return {base, quote};
+}
+
+export interface VenueNeed {
+  tokenIn: Address;
+  tokenOut: Address;
+  amountIn: bigint;
+  /** The least the venue has to return for both tokens to stay conserved. */
+  needOut: bigint;
+}
+
+/**
+ * F18. Opposing flow is already netted by the allocation, so what is left is the
+ * residual. When both tokens come out non negative nothing touches a venue and
+ * the dust stays with the contract. Otherwise the token in surplus goes to the
+ * venue in one call per pair direction, for at least what the short token needs.
+ *
+ * minOut is supplied by the caller. Jalur B fills it from quoteFromState, and a
+ * unit test passes it directly. A minOut below needOut would fail verify with
+ * ValueNotConserved, so that is refused here instead.
+ */
+export function route(pair: Pair, fills: readonly Fill[], adapter: Address, minOut: (need: VenueNeed) => bigint): {venueCalls: VenueCall[]; residual: Residual} {
+  const r = residual(pair, fills);
+  if (r.base >= 0n && r.quote >= 0n) return {venueCalls: [], residual: r};
+  if (r.base < 0n && r.quote < 0n) throw new Error(`both tokens short, base ${r.base} quote ${r.quote}, which no venue call can fix`);
+
+  const need: VenueNeed =
+    r.quote < 0n
+      ? {tokenIn: pair.base, tokenOut: pair.quote, amountIn: r.base, needOut: -r.quote}
+      : {tokenIn: pair.quote, tokenOut: pair.base, amountIn: r.quote, needOut: -r.base};
+  const out = minOut(need);
+  if (out < need.needOut) throw new Error(`minOut ${out} is below the ${need.needOut} the batch needs back, ValueNotConserved`);
+  return {venueCalls: [{adapter, tokenIn: need.tokenIn, tokenOut: need.tokenOut, amountIn: need.amountIn, minOut: out}], residual: r};
+}
