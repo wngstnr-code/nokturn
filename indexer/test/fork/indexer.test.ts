@@ -196,21 +196,39 @@ describe("indexer on the fork", () => {
     }
   });
 
-  test("I8 every indexed fill's baseline, recomputed with quoteFromState", async () => {
+  // Anvil keeps eth_call state for a rolling window rather than the whole fork
+  // history. Measured 23 September 2026: quoteFromState answers at 1000 blocks
+  // back and refuses at 5000 with BlockOutOfRangeError, an unrelated node
+  // limit rather than a baseline disagreement. Batches older than that window
+  // are counted separately and never asserted on, so this stays a check of
+  // whether the baseline agrees, not of how long the node has been running.
+  const STATE_WINDOW_BLOCKS = 800n;
+
+  test("I8 every recent fill's baseline, recomputed with quoteFromState", async () => {
     await catchUp();
-    const batches = (await db().query("SELECT DISTINCT batch_id FROM fills ORDER BY batch_id")).rows.map((r) => String(r.batch_id));
+    const head = await c.getBlockNumber();
+    const cutoff = head > STATE_WINDOW_BLOCKS ? head - STATE_WINDOW_BLOCKS : 0n;
+    const rows = (await db().query("SELECT DISTINCT batch_id, block_number FROM fills ORDER BY batch_id")).rows;
+    const recent = rows.filter((r) => BigInt(r.block_number) >= cutoff).map((r) => String(r.batch_id));
+    const outOfWindow = rows.length - recent.length;
     let fills = 0;
+    let stateUnavailable = 0;
     const differ: unknown[] = [];
-    for (const id of batches) {
+    for (const id of recent) {
       const r = await getJson(`/v1/batches/${id}`);
-      assert.equal(r.status, 200, JSON.stringify(r.body));
+      if (r.status !== 200) {
+        stateUnavailable += 1;
+        continue;
+      }
       for (const f of r.body.fills) {
         fills += 1;
         if (f.verifyBaseline.expected !== f.baselineBuy) differ.push({batchId: id, intentHash: f.intentHash, baselineBuy: f.baselineBuy, expected: f.verifyBaseline.expected, routed: f.attribution.routedSell});
       }
     }
-    results.I8 = {batches: batches.length, fills, differ: differ.length, examples: differ.slice(0, 5)};
+    results.I8 = {totalBatchesIndexed: rows.length, outOfStateWindow: outOfWindow, checkedBatches: recent.length, stateUnavailable, fills, differ: differ.length, examples: differ.slice(0, 5)};
+    assert.equal(stateUnavailable, 0, "a batch inside the measured state window should still answer");
     assert.ok(fills > 0);
+    assert.equal(differ.length, 0, JSON.stringify(differ));
   });
 
   test("I9 auction and closing print events from tools/fork-demo.sh", async () => {
