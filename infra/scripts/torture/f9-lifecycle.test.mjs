@@ -69,12 +69,17 @@ describe("F9 batch lifecycle", () => {
     });
     // The interval miner runs until manualMining stops it, so the batch that
     // turned over just before is heard here too. Only the five this test walked
-    // through are compared.
+    // through are compared, which starts at the close of the first batch and
+    // leaves out the open that came before the test did.
     const first = BigInt(seen[0].closed);
     const frames = listener.frames
       .slice(start)
       .map((f) => f.frame)
-      .filter((f) => (f.type === "batch.opened" || f.type === "batch.collect_closed") && BigInt(f.data.batchId) >= first);
+      .filter(
+        (f) =>
+          (f.type === "batch.collect_closed" && BigInt(f.data.batchId) >= first) ||
+          (f.type === "batch.opened" && BigInt(f.data.batchId) > first),
+      );
     const expected = seen.flatMap((s) => [`batch.collect_closed ${s.closed}`, `batch.opened ${s.current}`]);
     const got = frames.map((f) => `${f.type} ${f.data.batchId}`);
     const ok = JSON.stringify(got) === JSON.stringify(expected);
