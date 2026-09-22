@@ -33,8 +33,27 @@ export interface Contracts {
   baselineAdapter: Address;
 }
 
+/**
+ * A JSON-RPC error response is a normal, final answer as far as the transport's
+ * own retryCount is concerned, so a proxy or a node that returns one instead of
+ * an HTTP 5xx is never retried there. E4 found this the hard way, five reads at
+ * boot against 30 percent RPC errors, and the solver crashed before it processed
+ * a single batch. This is the same tolerance untilBlock gives a failed poll,
+ * moved to the one-shot reads that run once at startup.
+ */
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 5, baseDelayMs = 250): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+      await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** (attempt - 1)));
+    }
+  }
+}
+
 export async function contracts(c: PublicClient, settlement: Address, blockNumber?: bigint): Promise<Contracts> {
-  const read = (functionName: string) => c.readContract({address: settlement, abi: settlementAbi(), functionName, blockNumber}) as Promise<Address>;
+  const read = (functionName: string) => withRetry(() => c.readContract({address: settlement, abi: settlementAbi(), functionName, blockNumber}) as Promise<Address>);
   const [verifier, oracle, sessions, solvers, baselineAdapter] = await Promise.all([
     read("verifier"),
     read("oracle"),

@@ -81,6 +81,16 @@ const permit2Abi = [
     inputs: [],
     outputs: [{type: "bytes32"}],
   },
+  {
+    type: "function",
+    name: "nonceBitmap",
+    stateMutability: "view",
+    inputs: [
+      {name: "owner", type: "address"},
+      {name: "word", type: "uint256"},
+    ],
+    outputs: [{type: "uint256"}],
+  },
 ];
 
 const erc20Abi = [
@@ -115,6 +125,22 @@ if (user.address.toLowerCase() !== accounts.users[0].toLowerCase()) {
   throw new Error(`mnemonic does not derive user0. got ${user.address}, expected ${accounts.users[0]}`);
 }
 
+/**
+ * A nonce this check has not already spent. Sessions that sign real flow through
+ * the API burn user0's low sequential nonces, so a hardcoded one goes stale the
+ * moment any solver run or replay touches this account. Word 900000 is far
+ * outside anything the API or a replay harness would ever assign on its own.
+ */
+async function freeNonce(client, permit2, owner) {
+  const WORD = 900_000n;
+  const bitmapAbi = [{type: "function", name: "nonceBitmap", stateMutability: "view", inputs: [{name: "owner", type: "address"}, {name: "word", type: "uint256"}], outputs: [{type: "uint256"}]}];
+  const bitmap = await client.readContract({address: permit2, abi: bitmapAbi, functionName: "nonceBitmap", args: [owner, WORD]});
+  for (let bit = 0n; bit < 256n; bit += 1n) {
+    if ((bitmap & (2n ** bit)) === 0n) return WORD * 256n + bit;
+  }
+  throw new Error(`every nonce in word ${WORD} for ${owner} is spent, which should never happen`);
+}
+
 function impersonated(from) {
   return createWalletClient({
     account: from,
@@ -141,6 +167,7 @@ try {
   const now = Number((await client.getBlock()).timestamp);
   const nvda = c.tokens.find((t) => t.symbol === "NVDA");
   const sellAmount = parseUnits("100", c.quote.decimals);
+  const nonce = await freeNonce(client, c.permit2, user.address);
 
   const payload = {
     owner: user.address,
@@ -157,7 +184,7 @@ try {
     // CLOSED_WEEKEND, SessionMask bit 6.
     allowedSessions: String(1 << 6),
     batchSpan: "1",
-    nonce: "7",
+    nonce: String(nonce),
   };
   const intent = decodeIntent(payload);
 
@@ -234,7 +261,7 @@ try {
     abi: permit2Abi,
     functionName: "permitWitnessTransferFrom",
     args: [
-      {permitted: {token: intent.sellToken, amount: intent.sellAmount}, nonce: 8n, deadline: BigInt(intent.validUntil)},
+      {permitted: {token: intent.sellToken, amount: intent.sellAmount}, nonce: nonce + 1n, deadline: BigInt(intent.validUntil)},
       {to: accounts.solverA, requestedAmount: intent.sellAmount},
       intent.owner,
       witness,

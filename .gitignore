@@ -79,3 +79,4 @@ infra/postman/
 # evidence and the report built from it stay local.
 infra/.torture/
 infra/torture-report.md
+solver/.state/

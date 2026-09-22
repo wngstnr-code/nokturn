@@ -676,8 +676,8 @@ ia bukan fitur opsional.
 | F18 | Netting internal dan perutean sisa jadi `VenueCall` | Batch dengan dua sisi berlawanan menghasilkan nol `venueCalls`. Terpasang 22 September 2026, lulus di 500 buku acak dan di skenario netted pada fork |
 | F19 | Perakitan `Solution` dan penghitungan ulang `savings` | Angka solver sama persis dengan keluaran `ClearingVerifier.verify`. Terpasang 22 September 2026, 10 dari 10 solusi sama sampai satu wei |
 | F20 | Simulasi kering lewat `eth_call` ke `submitSolution` sebelum mengirim | Tidak ada transaksi terkirim yang akan revert. Terpasang 22 September 2026, simulasi kering lolos untuk routed dan netted, 35 sampai 71 ms dari tutup collect. Pengiriman belum ada, itu F21 |
-| F21 | Siklus hidup kirim dan finalisasi, jendela 10 detik dan tenggat 300 detik | Nol `expireBatch` selama satu jam operasi berkelanjutan |
-| F22 | Operasi bonding, 500 USDG di `SolverRegistry` | `isActive` benar untuk kedua solver |
+| F21 | Siklus hidup kirim dan finalisasi, jendela 10 detik dan tenggat 300 detik | **Selesai 23 September 2026.** Run satu jam, 60 batch diproses, 60 `finalized`, nol `abandoned`, nol `finalize_reverted`. Diverifikasi dari chain (`f21-check.mjs`, bukan ringkasan solver): 60 `SolutionSubmitted`, 60 `BatchSettled`, nol batch menang yang belum final lewat tenggat. Latensi collect-tutup ke receipt submit p50 907 ms, p99 1150 ms (run 10 menit) dan p99 8260 ms (run satu jam, satu batch tertunda karena kontensi RPC lokal, tetap sebelum tenggat) |
+| F22 | Operasi bonding, 500 USDG di `SolverRegistry` | **Selesai 23 September 2026.** `solver/src/preflight.ts`. `isActive` benar untuk solverA dan solverB, keduanya bond 500 USDG. Akun yang tidak di-bond ditolak dengan pesan yang menyebut `make fund` |
 | F23 | Profil solver kedua untuk demo kompetisi | Dua solver mengajukan, yang savings-nya lebih tinggi menang, keduanya terbit di event |
 
 Catatan F15, dan ini rekomendasi yang perlu persetujuan tim karena menyentuh titik
@@ -803,6 +803,47 @@ F21, F22, lalu jalankan rantainya utuh. Tanda tangan dari skrip, coordinator, so
 Netting boleh nol hari ini. Itu sudah tertulis di definisi M1.
 
 Selesai hari 4 kalau ada satu hash transaksi `finalize` di fork yang bisa kamu tunjuk.
+
+**Hasil M1, 23 September 2026.** Ini fork mainnet 4663 dengan penanda tangan lokal,
+bukan mainnet dan bukan arus asli. Blok patokan fork 67798044, Settlement di
+`0xeF70f91c4bF752a197bc454399d8E501Ed5CdCB1`, di-deploy dari `main` `cb5c3a8`.
+Dijalankan sekali dengan `node infra/scripts/m1.mjs`, dan semuanya dibaca dari chain,
+bukan dari log solver.
+
+| | Netted | Routed |
+|---|---|---|
+| Batch | 1789893780 | 1789893840 |
+| Transaksi `finalize` | `0x7bd4d475addae6a5bbdbbcb1d0876c6cf12536c68e4ee8fd14ef94b41841e041` | `0x1acf4f7602f8c1ed271cc8a474d68b57f719d767cbd8ae3745845ac2b235b4bc` |
+| Blok | 67798721 | 67798781 |
+| Event | `IntentSettled` dua kali, `BatchSettled` | `VenueRouted`, `BatchPassthrough("savings below threshold")`, `IntentSettled` dua kali, `BatchSettled` |
+| Savings | 401534494244194383 (sekitar 0,40 USD) | 0 |
+
+Intent netted. `users[0]` menjual 399999999 unit USDG dan menerima
+1811304369852297889 unit NVDA, dengan baseline 1810395396188000690. `users[1]` menjual
+1811304369852297889 unit NVDA dan menerima 399999998 unit USDG, dengan baseline
+399799166. Saldo keduanya bergeser tepat sebesar `executedSell` dan `executedBuy` di
+blok `finalize`, dan nonce Permit2 keduanya berubah dari belum terpakai menjadi
+terpakai di blok yang sama. Latensi dari `collect_closed` sampai receipt submit
+550 ms untuk netted dan 802 ms untuk routed.
+
+**Temuan untuk indexer.** Batch routed yang tidak menghasilkan savings menerbitkan
+`BatchPassthrough` dengan alasan "savings below threshold" **dan** `BatchSettled`
+dalam satu transaksi `finalize`, dan kedua intent tetap tereksekusi. Catatan
+`ForkDemo` bahwa routed berakhir sebagai passthrough hanya separuh benar. Indexer di
+Hari 5 harus memperlakukan `BatchSettled` sebagai penentu, bukan event yang terbit
+lebih dulu. Belum dibicarakan dengan Wangsit apakah ini disengaja.
+
+**Kondisi buruk F21, 23 September 2026.** `solver/test/fork/lifecycle.test.ts`, setiap
+kasus dijalankan sekali. E5 dan E6 berjalan di dalam `evm_snapshot` dan di-revert.
+
+| ID | Hasil |
+|---|---|
+| E1 | Lulus. Proses dibunuh setelah receipt submit dengan status tersimpan `best`. Restart memulihkannya dan memfinalisasi batch 1789894080 dengan `BatchSettled`, di transaksi `0xf9edc69e0a24780a4b0961d85b4dec50ac4fc93c315d99c249142742c649cb2d`. Di Windows, SIGKILL tercatat sebagai exit code 1, bukan sinyal |
+| E2 | Lulus. solverB memfinalisasi lebih dulu dengan solusi yang dibaca dari calldata submit. solverA mencatat `finalized_by_other` dari `AlreadyFinalized` dan tidak mengirim transaksi apa pun |
+| E3 | Lulus. `window_missed` satu detik setelah `solveEnd`. Nonce solverA tetap 9, dan store kosong |
+| E4 | **Tidak tuntas.** Percobaan pertama menemukan bug nyata. `untilBlock` menyerah pada satu poll yang gagal, jadi watcher durasi menghentikan layanan dengan nol batch diproses. Diperbaiki di `6d00e3a`, yaitu menyerah setelah 40 kegagalan berturut-turut. Percobaan kedua gagal karena race di harness. Proxy mulai menyuntik error sebelum startup solver selesai, dan `eth_chainId` saat startup membuat solver keluar dengan pesan jelas (exit 1). Tidak ada percobaan ketiga |
+| E5 | **W5 terbukti.** Solusi routed 150 USDG ke NVDA, lalu swap 5 USDG searah di pool yang sama di antara submit dan finalize. `finalize` revert `LiquidityExhausted(0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3, 33241480166)` di kedua percobaan, dan statusnya `finalize_reverted`. Batch tetap belum final, jadi di mainnet `expireBatch` akan men-slash solver yang jujur |
+| E6 | Perilaku baru sejak `0067794`. `users[1]` memindahkan seluruh NVDA-nya setelah submit. `finalize` **tidak** revert, tapi menerbitkan `IntentCollectionFailed` untuk intent 1 dan `BatchPassthrough("intent could not be collected")`. Solver mencatat `finalized`, tanpa slash |
 
 ### Hari 5, 24 September. Indexer dan struk, M2
 

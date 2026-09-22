@@ -1,21 +1,21 @@
-// The reference solver, dry run only.
+// The reference solver.
 //
 //   node solver/src/index.ts --once
+//   node solver/src/index.ts --run [--duration <minutes>]
 //
-// Follows one batch through WS /v1/stream, solves it when collection closes,
-// and asks every check that can refuse the solution through eth_call. Nothing
-// is sent. Sending and finalize are F21, and a solver that submits has to keep
-// the Solution byte for byte until finalize, which this one does not need yet.
+// --once follows one batch through WS /v1/stream and asks every check that can
+// refuse the solution through eth_call, without sending anything. --run is the
+// service in run.ts, which submits and finalizes.
 
 import {fileURLToPath} from "node:url";
-import type {Address, Hex, PublicClient} from "viem";
-import type {BatchIntentsResponse, StreamEvent} from "../../packages/shared/api-types.ts";
-import {USDG} from "../../packages/shared/addresses.ts";
+import type {Hex} from "viem";
+import type {StreamEvent} from "../../packages/shared/api-types.ts";
 import {assertBare, solverAccount} from "./account.ts";
-import {API, client, contracts, settlementAddress, type Contracts} from "./chain.ts";
-import type {Intent} from "./solution.ts";
+import {API, client, contracts, settlementAddress} from "./chain.ts";
+import {feed, solveAt} from "./feed.ts";
+import {describeSummary, run} from "./run.ts";
 import {solutionHash} from "./solution.ts";
-import {readInputs, solve, type Plan, type SignedIntent} from "./solve.ts";
+import type {Plan} from "./solve.ts";
 import {preflight, simulateSubmit, verifyOnChain, type Preflight} from "./simulate.ts";
 
 export interface Report {
@@ -33,43 +33,6 @@ export interface Report {
 }
 
 type Frame = StreamEvent | {code: string; message: string};
-
-function toIntent(p: BatchIntentsResponse["intents"][number]["intent"]): Intent {
-  return {
-    owner: p.owner,
-    receiver: p.receiver,
-    sellToken: p.sellToken,
-    buyToken: p.buyToken,
-    sellAmount: BigInt(p.sellAmount),
-    minBuyAmount: BigInt(p.minBuyAmount),
-    validAfter: Number(p.validAfter),
-    validUntil: Number(p.validUntil),
-    flags: Number(p.flags),
-    kind: Number(p.kind),
-    maxDevFromRefBps: Number(p.maxDevFromRefBps),
-    allowedSessions: Number(p.allowedSessions),
-    batchSpan: Number(p.batchSpan),
-    nonce: BigInt(p.nonce),
-  };
-}
-
-async function feed(batchId: bigint): Promise<{body: BatchIntentsResponse; signed: SignedIntent[]}> {
-  const res = await fetch(`${API}/v1/batches/${batchId}/intents`);
-  if (!res.ok) throw new Error(`GET /v1/batches/${batchId}/intents answered ${res.status}: ${await res.text()}`);
-  const body = (await res.json()) as BatchIntentsResponse;
-  return {body, signed: body.intents.map((s) => ({intent: toIntent(s.intent), signature: s.signature}))};
-}
-
-function tokensOf(signed: SignedIntent[]): Address[] {
-  const set = new Map<string, Address>([[USDG.toLowerCase(), USDG as Address]]);
-  for (const {intent} of signed) for (const t of [intent.sellToken, intent.buyToken]) set.set(t.toLowerCase(), t);
-  return [...set.values()];
-}
-
-async function solveAt(c: PublicClient, k: Contracts, batchId: bigint, signed: SignedIntent[], solver: Address, block: bigint): Promise<{plan: Plan; inputs: Awaited<ReturnType<typeof readInputs>>}> {
-  const inputs = await readInputs(c, k, batchId, tokensOf(signed), block);
-  return {plan: await solve(c, k, batchId, signed, USDG as Address, solver, inputs), inputs};
-}
 
 /**
  * One batch, start to dry run. batchId is the batch to follow. Without it, the
@@ -193,15 +156,29 @@ export function describeReport(r: Report): string {
   ].join("\n");
 }
 
+const USAGE = "usage: node solver/src/index.ts --once | --run [--duration <minutes>]";
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  if (!process.argv.includes("--once")) {
-    console.error("usage: node solver/src/index.ts --once\nonly the dry run exists today. sending is F21.");
+  const argv = process.argv.slice(2);
+  const fail = (error: unknown) => {
+    console.error(`solver failed\n  ${(error as Error).message}`);
+    process.exit(1);
+  };
+  if (argv.includes("--once")) {
+    once().then((r) => console.log(describeReport(r)), fail);
+  } else if (argv.includes("--run")) {
+    const at = argv.indexOf("--duration");
+    const durationMinutes = at >= 0 ? Number(argv[at + 1]) : undefined;
+    if (durationMinutes !== undefined && !(durationMinutes > 0)) {
+      console.error(`--duration needs a positive number of minutes\n${USAGE}`);
+      process.exit(2);
+    }
+    run({durationMinutes}).then((s) => {
+      console.log(describeSummary(s));
+      process.exit(0);
+    }, fail);
+  } else {
+    console.error(USAGE);
     process.exit(2);
   }
-  once()
-    .then((r) => console.log(describeReport(r)))
-    .catch((error) => {
-      console.error(`solver failed\n  ${(error as Error).message}`);
-      process.exit(1);
-    });
 }
