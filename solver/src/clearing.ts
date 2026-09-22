@@ -341,6 +341,19 @@ function ration(side: Candidate[], capacity: bigint, allot: Map<number, bigint>)
       allot.set(c.entry.index, take);
       used += take;
     }
+    // Flooring each share leaves a few units of the tier's capacity unallotted.
+    // Left alone they come back as a residual too small for any venue to quote,
+    // and the quote side ends up short by a unit. So they go to partial fills
+    // with room left, in intent order, until the tier is exact.
+    for (const c of split) {
+      if (used >= cap) break;
+      const has = allot.get(c.entry.index)!;
+      const room = c.size - has;
+      const give = room < cap - used ? room : cap - used;
+      if (give <= 0n) continue;
+      allot.set(c.entry.index, has + give);
+      used += give;
+    }
     remaining = cap - used;
   }
 }

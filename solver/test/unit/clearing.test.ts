@@ -85,7 +85,16 @@ describe("F17 rationing on the 4.1 book", () => {
     const size = (k: number) => (pair.entries[k]!.intent.sellAmount * a.quotePrice) / a.basePrice;
     const skew = b1 * size(1) - b2 * size(0);
     const magnitude = skew < 0n ? -skew : skew;
-    assert.ok(magnitude <= size(0) + size(1), `b1 ${b1} b2 ${b2} skew ${skew}`);
+    // Up to one unit from each floor, and one more from handing out the remainder.
+    assert.ok(magnitude <= 2n * (size(0) + size(1)), `b1 ${b1} b2 ${b2} skew ${skew}`);
+  });
+
+  test("a partial long side takes the short side exactly, so nothing is left for a venue", () => {
+    const {pair, ref} = bookOf41(PARTIAL_FILL);
+    const a = allocate(pair, clear(pair, ref)!, ref);
+    const received = a.fills.filter((f) => f.index <= 2).reduce((s, f) => s + f.executedBuy, 0n);
+    assert.equal(received, 130n * 10n ** 18n);
+    assert.equal(route(pair, a.fills, OWNER_A, (need) => need.needOut).venueCalls.length, 0);
   });
 
   test("without PARTIAL_FILL a buyer trades completely or not at all", () => {
