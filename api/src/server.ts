@@ -6,6 +6,7 @@
 // whole response down. And every error leaves through one handler, so a caller
 // never sees a shape that is not ApiError.
 
+import websocket from "@fastify/websocket";
 import Fastify, {type FastifyInstance} from "fastify";
 import type {ApiError} from "../../packages/shared/api-types.ts";
 import {env} from "./config.ts";
@@ -19,6 +20,7 @@ import {nonceRoutes} from "./routes/nonces.ts";
 import {quoteRoutes} from "./routes/quote.ts";
 import {sessionRoutes} from "./routes/session.ts";
 import {solverRoutes} from "./routes/solvers.ts";
+import {STREAM_MAX_MESSAGE_BYTES, streamRoutes} from "./routes/stream.ts";
 import {stubRoutes} from "./routes/stubs.ts";
 
 function bigintSafe(_key: string, value: unknown) {
@@ -118,6 +120,12 @@ export function buildServer(): FastifyInstance {
   intentRoutes(app);
   solverRoutes(app);
   stubRoutes(app);
+
+  // An oversized frame is closed with 1009 by ws itself, before any handler
+  // allocates for it. The stream routes sit in their own scope so they are
+  // declared after the plugin has loaded, which wsHandler needs.
+  app.register(websocket, {options: {maxPayload: STREAM_MAX_MESSAGE_BYTES}});
+  app.register(async (scope) => streamRoutes(scope));
 
   app.get("/", async () => {
     const c = chain();

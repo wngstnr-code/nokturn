@@ -21,11 +21,4 @@ export function stubRoutes(app: FastifyInstance) {
   for (const route of PENDING) {
     app[route.method](route.path, async (_request, reply) => notImplemented(reply, route.needs));
   }
-
-  // The socket is refused at the upgrade rather than accepted and left silent,
-  // so a client finds out immediately instead of waiting for events that will
-  // never arrive.
-  app.get("/v1/stream", async (_request, reply) =>
-    notImplemented(reply, "the coordinator batch lifecycle, which drives every event on this socket"),
-  );
 }

@@ -725,12 +725,27 @@ export type StreamEvent =
   | {type: "auction.indicative"; at: Timestamp; data: AuctionResponse}
   | {type: "auction.crossed"; at: Timestamp; data: AuctionResponse};
 
+/**
+ * Sent once connected. A later subscribe replaces the earlier one, and each one
+ * is answered with a batch.opened snapshot of the batch open right now when
+ * that topic is asked for.
+ */
 export interface StreamSubscribe {
   type: "subscribe";
   topics: StreamEvent["type"][];
-  /** Only deliver events touching this owner. Omit for everything. */
+  /**
+   * Narrows batch.intent_added to this owner's intents. Batch, session, token
+   * and oracle events concern everyone and still arrive. Omit for everything.
+   */
   owner?: Address;
 }
+
+/**
+ * Everything the server writes to the socket. An ApiError answers a malformed
+ * subscribe, or names topics that have no real source yet, and the socket stays
+ * open either way.
+ */
+export type StreamFrame = StreamEvent | ApiError;
 
 // ---------------------------------------------------------------------------
 // Routes
