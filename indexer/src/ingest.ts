@@ -14,6 +14,24 @@ export const MAX_RANGE = 500n;
 export const MAX_REWIND = 64;
 const FULL_RESET_WINDOW_MS = 10 * 60_000;
 
+/**
+ * A transient RPC failure and a block that genuinely does not exist here both
+ * throw from getBlock, and only one of them means the chain reorged. I5 found
+ * that treating every failure as "not found" turns a flaky node into a false
+ * revert, and under sustained chaos, into a false second full reset. This
+ * gives a getBlock used for that judgment a few tries before it is believed.
+ */
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4, baseDelayMs = 200): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+      await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** (attempt - 1)));
+    }
+  }
+}
+
 export interface Deployment {
   chainId: number;
   settlement: string;
@@ -103,7 +121,7 @@ export class Ingest {
   private async rewind(cp: Checkpoint): Promise<{to: bigint; full: boolean}> {
     const stored = await this.store.storedBlocks(this.d.chainId, this.d.settlement, cp.lastBlock, MAX_REWIND);
     for (const s of stored) {
-      const onChain = await this.c.getBlock({blockNumber: s.number}).catch(() => null);
+      const onChain = await withRetry(() => this.c.getBlock({blockNumber: s.number})).catch(() => null);
       if (onChain?.hash === s.hash) {
         await this.store.rewind({...cp, lastBlock: s.number, lastHash: s.hash});
         this.log(`revert detected at ${cp.lastBlock}, rolled back to ${s.number}`);
@@ -126,7 +144,7 @@ export class Ingest {
     let rewoundTo: bigint | null = null;
     let fullReset = false;
 
-    const at = await this.c.getBlock({blockNumber: cp.lastBlock}).catch(() => null);
+    const at = await withRetry(() => this.c.getBlock({blockNumber: cp.lastBlock})).catch(() => null);
     if (at?.hash !== cp.lastHash) {
       const r = await this.rewind(cp);
       rewoundTo = r.to;
