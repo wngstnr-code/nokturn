@@ -123,18 +123,20 @@ contract SettlementEdgesTest is SettlementFixture {
         assertEq(nvda.balanceOf(alice), 1e18, "valid from the close of collection means valid for it");
     }
 
-    /// The window check reads validUntil as inclusive of the collection mark, so it
-    /// is not this contract that turns such an intent away. Permit2 does, because
-    /// the same number is the permit deadline and finalize runs after the mark.
     /// An intent has to stay valid through the solving window, not just the batch.
-    function test_anIntentExpiringOnTheCollectionMarkIsRefusedByThePermitNotByUs() public {
+    /// The same number is the permit deadline and finalize runs after the mark, so
+    /// such a solution can never be collected. It is turned away when it is offered
+    /// rather than when it is settled, because a solution that is already dead on
+    /// arrival is the solver's own doing and finalize no longer distinguishes.
+    function test_anIntentExpiringOnTheCollectionMarkIsRefusedAtSubmission() public {
         Solution memory s = _nettedSolution();
         s.intents[0].validUntil = uint32(BATCH_ID);
-        _submitAt(s, 0.01e18 * 200 + 2e18);
 
-        vm.warp(BATCH_ID + 20);
-        vm.expectRevert(abi.encodeWithSelector(MockPermit2.PermitExpired.selector, uint256(BATCH_ID)));
-        settlement.finalize(BATCH_ID, s);
+        vm.warp(BATCH_ID + 1);
+        s.claimedSavings = 0.01e18 * 200 + 2e18;
+        vm.prank(solver);
+        vm.expectRevert(abi.encodeWithSelector(ISettlement.IntentExpired.selector, uint256(0)));
+        settlement.submitSolution(s);
     }
 
     /// Either leg leaving the allowlist between submission and finalize stops the

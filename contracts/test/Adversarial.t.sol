@@ -199,7 +199,8 @@ contract AdversarialSettlementTest is SettlementFixture {
 
     /// A10. P0-1 proved there is no KYC gate on transfer today, but the token is a
     /// beacon proxy and an issuer pause is one upgrade away. The batch has to fail
-    /// whole rather than halfway.
+    /// whole rather than halfway, and the solver cannot be made to answer for a
+    /// decision the issuer took after the solution was already recorded.
     function test_A10_stockTokenTransferRevertsDuringFinalize() public {
         PausableERC20 stock = new PausableERC20("Nvidia", "RHNVDA", 18);
         _allowlistToken(address(stock), FEE_TOKEN_SELLER, 10e18);
@@ -214,9 +215,10 @@ contract AdversarialSettlementTest is SettlementFixture {
         stock.setPaused(true);
 
         vm.warp(BATCH_ID + 20);
-        vm.expectRevert(PausableERC20.TransferPaused.selector);
         settlement.finalize(BATCH_ID, s);
 
+        assertTrue(settlement.finalized(BATCH_ID), "the batch is retired rather than left open");
+        assertEq(registry.failedFinalizes(), 0, "and the solver is not slashed for the pause");
         assertEq(stock.balanceOf(FEE_TOKEN_SELLER), 10e18, "the seller keeps everything");
         assertEq(usdg.balanceOf(alice), 1000e6, "the buyer keeps everything");
         assertEq(stock.balanceOf(address(settlement)), 0);

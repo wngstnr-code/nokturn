@@ -29,6 +29,12 @@ interface ISettlement {
     );
 
     event BatchPassthrough(uint64 indexed batchId, uint256 intentCount, string reason);
+
+    /// The one leg that could not be collected at finalize, and whose owner it
+    /// belongs to. Settlement cannot tell a withdrawn approval from a spent
+    /// balance and does not try. It names the owner and leaves the judgement to
+    /// whoever is deciding which intents to accept next.
+    event IntentCollectionFailed(uint64 indexed batchId, address indexed owner, uint256 intentIndex);
     event SolutionSubmitted(
         uint64 indexed batchId, address indexed solver, bytes32 hash, uint256 claimedSavings
     );

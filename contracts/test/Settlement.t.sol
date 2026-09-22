@@ -391,7 +391,11 @@ contract SettlementTest is SettlementFixture {
         settlement.finalize(BATCH_ID, s);
     }
 
-    function test_anExpiredIntentIsRefusedAtFinalize() public {
+    /// An expired intent is refused when the solution is offered. The permit behind
+    /// it carries the same deadline, so a solution built on one could never have
+    /// been collected, and there is nothing to learn by waiting until finalize to
+    /// say so.
+    function test_anExpiredIntentIsRefusedAtSubmission() public {
         Solution memory s = _nettedSolution();
         // forge-lint: disable-next-line(unsafe-typecast)
         s.intents[0].validUntil = uint32(BATCH_ID - 1);
@@ -399,11 +403,11 @@ contract SettlementTest is SettlementFixture {
 
         vm.warp(BATCH_ID + 1);
         vm.prank(solver);
+        vm.expectRevert(abi.encodeWithSelector(ISettlement.IntentExpired.selector, 0));
         settlement.submitSolution(s);
 
-        vm.warp(BATCH_ID + 20);
-        vm.expectRevert(abi.encodeWithSelector(ISettlement.IntentExpired.selector, 0));
-        settlement.finalize(BATCH_ID, s);
+        (bytes32 hash,,) = settlement.bestSolution(BATCH_ID);
+        assertEq(hash, bytes32(0), "and it leaves no winner behind");
     }
 
     function test_dailyTokenCapAccumulatesAcrossBatches() public {

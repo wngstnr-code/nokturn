@@ -45,6 +45,13 @@ contract MockPermit2 is ISignatureTransfer {
         token.transferFrom(owner, to, amount);
     }
 
+    /// The real Permit2 lets an owner retire nonces without spending them, which is
+    /// how an intent is cancelled once it has been signed. It is here because the
+    /// same call is also how an owner walks away from a batch mid flight.
+    function invalidateUnorderedNonces(uint256 word, uint256 mask) external {
+        bitmap[msg.sender][word] |= mask;
+    }
+
     function DOMAIN_SEPARATOR() external view returns (bytes32) {
         return keccak256(
             abi.encode(

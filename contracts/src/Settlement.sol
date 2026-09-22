@@ -107,6 +107,7 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
     error BatchInGuardBand(uint64 batchId);
     error AlreadyFinalized(uint64 batchId);
     error NoWinningSolution(uint64 batchId);
+    error IntentNonceUsed(uint256 intentIndex);
     error SolutionHashMismatch(uint64 batchId);
     error SolutionArraysMismatch();
     error FeeExceedsCap(uint256 withheld, uint256 cap);
@@ -212,6 +213,8 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
         }
         if (finalized[s.batchId]) revert AlreadyFinalized(s.batchId);
 
+        _requireCollectable(s, solveEnd);
+
         uint256 computed = _verify(s);
         if (computed != s.claimedSavings) {
             emit SolutionRejected(s.batchId, msg.sender, "savings mismatch");
@@ -232,6 +235,14 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
     }
 
     /// @inheritdoc ISettlement
+    /// @dev A leg that cannot be collected retires the batch instead of reverting.
+    /// The solution window is already shut by the time finalize runs, so no other
+    /// solution can replace this one, and an owner who moves their balance, revokes
+    /// their approval or burns their nonce in that gap would otherwise decide that
+    /// the winner is slashed for a failure that is not theirs. One transaction, and
+    /// the whole batch and an honest solver's bond go with it. Nothing is executed
+    /// here, everything already taken is given back, and the offending owner is
+    /// named in an event so the coordinator can price the behaviour offchain.
     function finalize(uint64 batchId, Solution calldata winning) external nonReentrant whenLive {
         if (finalized[batchId]) revert AlreadyFinalized(batchId);
         (, uint64 collectEnd, uint64 solveEnd) = batchWindow(batchId);
@@ -252,7 +263,12 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
         finalized[batchId] = true;
 
         uint256[] memory before = _balances(winning.tokens);
-        _pull(winning, collectEnd);
+        uint256 collected = _pull(winning, collectEnd);
+        if (collected != winning.executions.length) {
+            _refund(winning, collected);
+            emit BatchPassthrough(batchId, winning.executions.length, "intent could not be collected");
+            return;
+        }
         _route(winning);
         _deliver(winning);
 
@@ -376,7 +392,27 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
         }
     }
 
-    function _pull(Solution calldata s, uint64 collectEnd) internal {
+    /// @dev Returns how many executions were collected. A short count is not an
+    /// error here. It means an owner made their own leg impossible after the
+    /// solution window had already closed, and finalize unwinds rather than
+    /// reverting. See the comment on finalize.
+    /// @dev The two ways a leg is doomed before the solution is even recorded. A
+    /// nonce Permit2 has already spent never comes back, and a permit whose
+    /// deadline falls inside the solving window is dead before finalize can run.
+    /// Both are the solver's own doing and both are refused here, which is what
+    /// leaves finalize free to read a failed collection as the owner changing
+    /// their mind rather than as anything the solver is answerable for.
+    function _requireCollectable(Solution calldata s, uint64 solveEnd) internal view {
+        for (uint256 k = 0; k < s.executions.length; ++k) {
+            uint256 index = s.executions[k].intentIndex;
+            Intent calldata i = s.intents[index];
+            if (i.validUntil <= solveEnd) revert IntentExpired(index);
+            uint256 word = permit2.nonceBitmap(i.owner, i.nonce >> 8);
+            if (word & (2 ** (i.nonce & 0xff)) != 0) revert IntentNonceUsed(index);
+        }
+    }
+
+    function _pull(Solution calldata s, uint64 collectEnd) internal returns (uint256) {
         Session session = sessions.sessionAt(collectEnd);
         uint8 sessionBit = SessionMask.bit(session);
 
@@ -392,7 +428,10 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
                 revert TokenNotAllowed(tokenAllowed[i.sellToken] ? i.buyToken : i.sellToken);
             }
 
-            permit2.permitWitnessTransferFrom(
+            // Permit2 and the sell token are both allowlisted, so nothing an owner
+            // controls runs inside this call. What an owner does control is whether
+            // it can succeed at all, and that is what the catch is here for.
+            try permit2.permitWitnessTransferFrom(
                 ISignatureTransfer.PermitTransferFrom({
                     permitted: ISignatureTransfer.TokenPermissions({
                         token: i.sellToken, amount: i.sellAmount
@@ -407,7 +446,23 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
                 _intentHash(i),
                 WITNESS_TYPE_STRING,
                 s.signatures[e.intentIndex]
-            );
+            ) {}
+            catch {
+                emit IntentCollectionFailed(s.batchId, i.owner, e.intentIndex);
+                return k;
+            }
+        }
+        return s.executions.length;
+    }
+
+    /// @dev Gives back what was already taken when a later leg cannot be collected.
+    /// The owner is paid, not the receiver, because nothing was executed and the
+    /// receiver is where a filled intent lands rather than where it came from.
+    function _refund(Solution calldata s, uint256 collected) internal {
+        for (uint256 k = 0; k < collected; ++k) {
+            Execution calldata e = s.executions[k];
+            Intent calldata i = s.intents[e.intentIndex];
+            IERC20(i.sellToken).safeTransfer(i.owner, e.executedSell);
         }
     }
 
