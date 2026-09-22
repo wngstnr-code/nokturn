@@ -12,7 +12,7 @@ import type {FastifyInstance} from "fastify";
 import type {CurrentBatchResponse, SessionName, SessionResponse} from "../../../packages/shared/api-types.ts";
 import {isBatch} from "../../../packages/shared/batch.ts";
 import {chain, read, sessionAbi} from "../chain.ts";
-import {counts, currentWindow} from "../mempool.ts";
+import {counts, openWindow} from "../mempool.ts";
 import {provenance, stamp} from "../provenance.ts";
 
 /** Index by the Session enum, contracts/src/types/Types.sol. */
@@ -105,7 +105,7 @@ export function sessionRoutes(app: FastifyInstance) {
     const at = await stamp();
 
     const session = await read<number>(c.deployment.sessions, sessionAbi, "currentSession");
-    const lookup = await currentWindow(at);
+    const lookup = await openWindow(at);
 
     if (!isBatch(lookup)) {
       return {

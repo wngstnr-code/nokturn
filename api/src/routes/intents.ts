@@ -35,7 +35,7 @@ import {
 } from "../chain.ts";
 import {badRequest, fail, notFound} from "../errors.ts";
 import {canonicalPayload, escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
-import {admit, currentWindow, getByBatch, getByHash, sweep} from "../mempool.ts";
+import {admit, openWindow, getByBatch, getByHash, sweep} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp, type BlockStamp} from "../provenance.ts";
 import {SESSION_NAMES} from "./session.ts";
@@ -181,7 +181,7 @@ export function intentRoutes(app: FastifyInstance) {
     // Settlement._pull makes against collectEnd, contracts/src/Settlement.sol
     // line 387.
     const windowAt = async (when: BlockStamp): Promise<BatchWindow> => {
-      const lookup = await currentWindow(when);
+      const lookup = await openWindow(when);
       if (!isBatch(lookup)) {
         throw fail(503, "COORDINATOR_NO_OPEN_BATCH", `no batch open right now: ${lookup.reason}`, {
           reason: lookup.reason,
