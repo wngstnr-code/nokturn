@@ -100,13 +100,68 @@ Kolom **Sisa** = risiko yang masih ada setelah mitigasi. Ditulis jujur.
 |---|---|---|
 | Solusi tidak valid | Verifier menolak; bond disita | — |
 | **Penyalinan solusi** ⚠️ | Solver B melihat solusi A di mempool, ajukan ulang dengan surplus +1 wei. **Tidak ada commit–reveal di v1.** Mitigasi: jendela solusi pendek, syarat bond | **Ada dan diakui.** Item pengerasan v1.1. Sebutkan di pitch |
-| Menang lalu gagal `finalize` (grief) | Slashing; siapa pun boleh `finalize`; ada solusi fallback | Kecil |
+| Menang lalu gagal `finalize` (grief) | Slashing, dan siapa pun boleh memanggil `finalize` | Kecil. Lihat catatan 22 September di bawah, karena barisnya dulu salah |
+| **Pengguna menjatuhkan batch setelah solusi terkunci** | `finalize` menangkap tarikan yang gagal, mengembalikan yang sudah tertarik, dan menamai pemiliknya lewat `IntentCollectionFailed` | **Ada dan diakui.** Bukan kerugian dana, tapi satu transaksi tetap bisa membatalkan satu batch |
 | Solver tunggal menetapkan fee semaunya | **Batas keras di kontrak: maks 20% savings ATAU 3 bps notional** | — |
 | Reentrancy lewat adapter | Allowlist adapter (time-lock) + ReentrancyGuard + **pengukuran delta saldo** | Kecil |
 | Token aneh: fee-on-transfer, rebasing, hook ERC-777 | **Jangan pernah percaya nilai kembalian** — ukur saldo sebelum & sesudah. Vetting per-token sebelum masuk allowlist | Kecil |
 | Panen debu pembulatan | Pembulatan selalu berpihak ke kontrak; invarian debu ≥ 0; debu disapu ke protokol, bukan ke solver | — |
 | `uiMultiplier` berubah di tengah batch | Baca multiplier di awal dan saat settle; kalau berubah → revert batch untuk token itu | — |
 | Hook transfer Stock Token menggagalkan transfer | ✅ **Terjawab 31 Juli 2026: tidak ada gate KYC/yurisdiksi.** `transfer` & `transferFrom` via Permit2 ke alamat baru berhasil; semua probe antarmuka pembatasan (ERC-1404, `isBlocked`, `isFrozen`, `isBlacklisted`) revert. Semua Stock Token berbagi satu beacon → logika identik. Desain `finalize()` berlaku apa adanya | **Kecil.** Dua sisa: token **Pausable** (`paused()` ada, kini `false`) → cek sebelum kliring; dan blocklist alamat tersanksi **tidak bisa dibuktikan tidak ada** → balance-delta assertion tetap wajib |
+
+### Koreksi 22 September 2026, pemilik yang menggagalkan tarikannya sendiri
+
+Baris "menang lalu gagal `finalize`" di atas menyebut "ada solusi fallback".
+**Itu tidak pernah ada di `Settlement.sol`.** Kontrak hanya menyimpan satu
+pemenang, dan jendela solusi sudah tertutup saat `finalize` berjalan, jadi tidak
+ada solusi kedua yang bisa menggantikannya. Barisnya salah sejak ditulis, dan
+sekarang sudah diperbaiki.
+
+Yang lebih penting, baris itu hanya membayangkan solver yang sengaja mangkir. Ia
+sama sekali tidak membayangkan **pengguna** sebagai penyerang. Ditemukan torture
+suite Dharu, skenario C2-20 dan C2-21.
+
+Serangannya satu transaksi, dijalankan setelah solver mengirim solusi dan sebelum
+`finalize`.
+
+1. Pemilik memindahkan saldo jualnya, atau
+2. mencabut allowance ke Permit2, atau
+3. membakar nonce-nya lewat `invalidateUnorderedNonces`.
+
+Dulu `_pull` tidak punya `try`, jadi satu tarikan yang gagal membatalkan seluruh
+batch. Setelah `FINALIZE_DEADLINE` lewat, siapa pun memanggil `expireBatch`, dan
+`reportFailedFinalize` menyita bond solver yang tidak melakukan kesalahan apa pun.
+Biaya penyerang satu transaksi, kerugian pihak lain satu bond ditambah satu batch.
+
+**Yang berubah di kontrak.**
+
+`_pull` sekarang membungkus panggilan Permit2 dengan `try`. Tarikan yang gagal
+tidak me-revert. Ia mengembalikan semua yang sudah tertarik ke pemiliknya
+masing-masing, menandai batch sebagai passthrough, dan menerbitkan
+`IntentCollectionFailed(batchId, owner, intentIndex)`. Tidak ada yang dieksekusi
+dan tidak ada yang disita.
+
+Supaya pembedaan itu jujur, `submitSolution` sekarang menolak dua bentuk yang
+memang kesalahan solver sendiri, yaitu solusi yang dibangun di atas nonce yang
+sudah terpakai dan intent yang `validUntil`-nya jatuh di dalam jendela solusi.
+Keduanya mustahil ditarik sejak detik solusi diajukan. Tanpa penolakan itu, solver
+punya jalan murah untuk menghindari slashing dengan sengaja mengajukan solusi yang
+pasti gagal.
+
+**Risiko sisa, dan kami tidak menutupnya.** Seorang pemilik masih bisa
+membatalkan satu batch untuk peserta lain dengan biaya satu transaksi. Itu
+kerugian liveness, bukan kerugian dana, dan nonce si penyerang ikut hangus. Yang
+dipegang kontrak adalah nama pemiliknya di event. Penilaian siapa yang boleh ikut
+batch berikutnya ada di koordinator, bukan di kontrak, karena kontrak tidak bisa
+membedakan pencabutan yang jahat dari pengguna yang berubah pikiran.
+
+Efek sampingnya satu lagi. Skenario A10, penerbit token mem-`pause` di antara
+submit dan finalize, dulu ikut me-revert batch dan menyita solver. Sekarang ia
+juga passthrough. Kelasnya sama, yaitu keadaan di luar kendali solver yang berubah
+setelah solusinya terkunci.
+
+Diverifikasi di `contracts/test/SettlementCollection.t.sol`, lima kasus, termasuk
+bahwa solver yang benar-benar mangkir tetap disita.
 
 ### 3.3 Lelang — permukaan bernilai tertinggi
 

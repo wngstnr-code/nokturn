@@ -316,7 +316,7 @@ tentang serangan nyata.
 | # | Skenario | Harapan |
 |---|---|---|
 | A1 | Solver klaim savings palsu | Revert `SavingsMismatch`, bond disita |
-| A2 | Solver menang lalu tidak `finalize` | Slash 10%; solusi lain atau pass-through mengambil alih |
+| A2 | Solver menang lalu tidak `finalize` | Slash 10%. **Dikoreksi 22 September 2026,** tidak ada solusi cadangan yang mengambil alih. Kontrak hanya menyimpan satu pemenang dan jendela solusi sudah tutup |
 | A3 | Adapter jahat mencoba reentrancy | Revert; delta saldo terjaga |
 | A4 | Oracle dimanipulasi 500 bps sesaat | Ketidaksepakatan terdeteksi → `PROTECTIVE` |
 | A5 | Kedua oracle basi saat OPEN | `PROTECTIVE`; tidak ada lelang |
@@ -324,7 +324,7 @@ tentang serangan nyata.
 | A7 | Penantang mengajukan harga lebih buruk | Tantangan gagal; bond penantang disita |
 | A8 | `uiMultiplier` berubah di tengah batch | Revert untuk token itu; sisanya lanjut |
 | A9 | Token fee-on-transfer masuk allowlist | Delta saldo menangkap selisih; akuntansi tetap benar |
-| A10 | Transfer Stock Token revert saat `finalize` | Batch revert bersih, tidak ada dana tersangkut. **P0-1 terjawab: tidak ada gate KYC**, jadi ini bukan jalur yang diharapkan — tapi tetap diuji karena token **Pausable** dan blocklist alamat tersanksi tidak bisa dibuktikan tidak ada |
+| A10 | Transfer Stock Token revert saat `finalize` | **Diubah 22 September 2026,** batch jadi passthrough dan solver tidak disita, karena `pause` penerbit bukan kesalahan solver. Tidak ada dana tersangkut. **P0-1 terjawab: tidak ada gate KYC**, jadi ini bukan jalur yang diharapkan — tapi tetap diuji karena token **Pausable** dan blocklist alamat tersanksi tidak bisa dibuktikan tidak ada |
 | A11 | Guardian pause di tengah jendela solusi | Batch batal bersih; escrow kembali |
 | A12 | Exposure cap terlampaui | Revert `ExposureCapExceeded` sebelum dana bergerak |
 | A13 | Semua solver berkolusi mengajukan solusi buruk | Pass-through aktif; fee nol |
@@ -332,6 +332,7 @@ tentang serangan nyata.
 | A15 | Intent agent melanggar mandat | Revert `MandateRuleBroken` di `AgentMandate.authorize`, dan Permit2 menolak penarikannya. `MandateViolated` dihapus, lihat `parameter.md` §5B |
 | A16 | Solver mengecilkan baseline untuk menggelembungkan savings | Revert `BaselineBelowVenue`. Ditambahkan 20 September 2026 setelah P7-1, lihat `parameter.md` §4C |
 | A17 | Governance menyetel syarat bond ke nol | Revert `MinBondOutOfRange`. Tanpa lantai, `isActive` membaca setiap alamat yang tidak pernah bond sebagai solver aktif. Ditambahkan 20 September 2026 saat bond jadi parameter, lihat `parameter.md` §5A |
+| A18 | Pemilik mencabut allowance, memindahkan saldo, atau membakar nonce setelah solusi terkunci | `finalize` jadi passthrough, yang sudah tertarik dikembalikan, solver tidak disita, pemiliknya dinamai di `IntentCollectionFailed`. Nonce terpakai dan intent kedaluwarsa ditolak di `submitSolution`. Ditambahkan 22 September 2026 dari torture suite C2-20 dan C2-21, lihat `threat-model.md` §3.2 |
 
 ### 7.1 Peta ke nama test
 
@@ -358,6 +359,7 @@ sudah hijau.
 | A15 | `test_A15_agentIntentBreachingTheMandate` | `test/AgentMandate.t.sol` |
 | A16 | `test_A16_solverUnderstatesTheBaselineToInflateSavings` | `test/Adversarial.t.sol` |
 | A17 | `test_A17_governanceSetsTheEntryPriceToZero` | `test/SolverRegistry.t.sol` |
+| A18 | `test_anOwnerWhoRevokesCannotGetTheSolverSlashed` dan empat test lain di kelas yang sama | `test/SettlementCollection.t.sol` |
 
 **A11 sudah punya subjek, 19 September 2026.** Ternyata bukan keputusan yang menunggu.
 `parameter.md` §8 dan `threat-model.md` sudah menentukan guardian sejak awal, dan yang

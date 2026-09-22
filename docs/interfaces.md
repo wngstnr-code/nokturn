@@ -165,6 +165,15 @@ interface ISettlement {
 }
 ```
 
+**Dua aturan `finalize`, ditambahkan 22 September 2026.** Satu leg yang tidak bisa
+ditarik **tidak** me-revert batch. Ia mengembalikan semua yang sudah tertarik ke
+pemiliknya, menandai batch sebagai passthrough, dan menerbitkan
+`IntentCollectionFailed`. Solver tidak disita. Sebagai imbangannya, `submitSolution`
+menolak solusi yang dibangun di atas nonce yang sudah terpakai (`IntentNonceUsed`)
+atau di atas intent yang `validUntil`-nya jatuh di dalam jendela solusi
+(`IntentExpired`), karena keduanya mustahil ditarik sejak solusi itu diajukan.
+Alasannya di `threat-model.md` §3.2.
+
 ### Event
 
 ```solidity
@@ -193,6 +202,7 @@ event BatchSettled(
 );
 
 event BatchPassthrough(uint64 indexed batchId, uint256 intentCount, string reason);
+event IntentCollectionFailed(uint64 indexed batchId, address indexed owner, uint256 intentIndex);
 event SolutionSubmitted(uint64 indexed batchId, address indexed solver, bytes32 hash, uint256 claimedSavings);
 event SolutionRejected(uint64 indexed batchId, address indexed solver, bytes32 reason);
 event ClearingPrice(uint64 indexed batchId, address indexed token, uint256 price, uint256 refPrice);
