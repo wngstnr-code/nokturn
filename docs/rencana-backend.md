@@ -804,6 +804,35 @@ Netting boleh nol hari ini. Itu sudah tertulis di definisi M1.
 
 Selesai hari 4 kalau ada satu hash transaksi `finalize` di fork yang bisa kamu tunjuk.
 
+**Hasil M1, 23 September 2026.** Ini fork mainnet 4663 dengan penanda tangan lokal,
+bukan mainnet dan bukan arus asli. Blok patokan fork 67798044, Settlement di
+`0xeF70f91c4bF752a197bc454399d8E501Ed5CdCB1`, di-deploy dari `main` `cb5c3a8`.
+Dijalankan sekali dengan `node infra/scripts/m1.mjs`, dan semuanya dibaca dari chain,
+bukan dari log solver.
+
+| | Netted | Routed |
+|---|---|---|
+| Batch | 1789893780 | 1789893840 |
+| Transaksi `finalize` | `0x7bd4d475addae6a5bbdbbcb1d0876c6cf12536c68e4ee8fd14ef94b41841e041` | `0x1acf4f7602f8c1ed271cc8a474d68b57f719d767cbd8ae3745845ac2b235b4bc` |
+| Blok | 67798721 | 67798781 |
+| Event | `IntentSettled` dua kali, `BatchSettled` | `VenueRouted`, `BatchPassthrough("savings below threshold")`, `IntentSettled` dua kali, `BatchSettled` |
+| Savings | 401534494244194383 (sekitar 0,40 USD) | 0 |
+
+Intent netted. `users[0]` menjual 399999999 unit USDG dan menerima
+1811304369852297889 unit NVDA, dengan baseline 1810395396188000690. `users[1]` menjual
+1811304369852297889 unit NVDA dan menerima 399999998 unit USDG, dengan baseline
+399799166. Saldo keduanya bergeser tepat sebesar `executedSell` dan `executedBuy` di
+blok `finalize`, dan nonce Permit2 keduanya berubah dari belum terpakai menjadi
+terpakai di blok yang sama. Latensi dari `collect_closed` sampai receipt submit
+550 ms untuk netted dan 802 ms untuk routed.
+
+**Temuan untuk indexer.** Batch routed yang tidak menghasilkan savings menerbitkan
+`BatchPassthrough` dengan alasan "savings below threshold" **dan** `BatchSettled`
+dalam satu transaksi `finalize`, dan kedua intent tetap tereksekusi. Catatan
+`ForkDemo` bahwa routed berakhir sebagai passthrough hanya separuh benar. Indexer di
+Hari 5 harus memperlakukan `BatchSettled` sebagai penentu, bukan event yang terbit
+lebih dulu. Belum dibicarakan dengan Wangsit apakah ini disengaja.
+
 ### Hari 5, 24 September. Indexer dan struk, M2
 
 F24, F25, F26, F27, lalu F11. Target M2 adalah struk yang menampilkan netting dan
