@@ -293,8 +293,19 @@ const stubs = [
   {method: "GET", path: "/v1/batches", needs: "the indexer"},
   {method: "GET", path: "/v1/batches/1789900000", needs: "the indexer"},
   {method: "GET", path: "/v1/auctions/1", needs: "an auction"},
-  {method: "GET", path: "/v1/stream", needs: "the coordinator"},
 ];
+
+requests.push({
+  name: "/v1/stream without an upgrade is told to use a websocket",
+  method: "GET",
+  path: "/v1/stream",
+  expectStatus: 426,
+  tests: [
+    `pm.test("code is COORDINATOR_INVALID_REQUEST", () => pm.expect(body.code).to.eql("COORDINATOR_INVALID_REQUEST"));`,
+    `pm.test("the message names the fix", () => pm.expect(body.message).to.match(/websocket/i));`,
+  ],
+  why: "Newman cannot open a websocket, so this only proves the route is live and refuses plain http in the frozen shape. What travels over the socket is held by torture group f10.",
+});
 
 for (const s of stubs) {
   requests.push({
@@ -351,7 +362,8 @@ const collection = {
       "Chain reads, and the coordinator's own accept and reject paths for",
       "POST /v1/intents, answer for real. Three routes still answer 503 in the",
       "frozen error shape because they need the indexer or an open auction.",
-      "None of them invent data.",
+      "None of them invent data. WS /v1/stream is live, and a plain GET on it",
+      "answers 426. Its events are tested by torture group f10, not here.",
       "",
       "The happy path for submitting an intent does not live here, because",
       "running this collection twice against the same batch would hit its own",
