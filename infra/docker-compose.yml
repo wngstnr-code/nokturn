@@ -15,7 +15,7 @@ services:
       POSTGRES_PASSWORD: nokturn
       POSTGRES_DB: nokturn
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:${NOKTURN_DB_PORT:-5433}:5432"
     volumes:
       - nokturn-pg:/var/lib/postgresql
     healthcheck:

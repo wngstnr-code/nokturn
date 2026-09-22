@@ -13,10 +13,12 @@ docker info >/dev/null 2>&1 || die "docker is not answering. start Docker Deskto
 
 COMPOSE=(docker compose -f "$INFRA_DIR/docker-compose.yml" -p nokturn)
 
+PORT="${NOKTURN_DB_PORT:-5433}"
+
 case "${1:-}" in
   up)
     "${COMPOSE[@]}" up -d --wait postgres
-    log "postgres on 127.0.0.1:5433, NOKTURN_DATABASE_URL=postgres://nokturn:nokturn@127.0.0.1:5433/nokturn"
+    log "postgres on 127.0.0.1:$PORT, NOKTURN_DATABASE_URL=postgres://nokturn:nokturn@127.0.0.1:$PORT/nokturn"
     ;;
   down)
     "${COMPOSE[@]}" stop postgres
