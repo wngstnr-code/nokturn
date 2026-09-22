@@ -676,8 +676,8 @@ ia bukan fitur opsional.
 | F18 | Netting internal dan perutean sisa jadi `VenueCall` | Batch dengan dua sisi berlawanan menghasilkan nol `venueCalls`. Terpasang 22 September 2026, lulus di 500 buku acak dan di skenario netted pada fork |
 | F19 | Perakitan `Solution` dan penghitungan ulang `savings` | Angka solver sama persis dengan keluaran `ClearingVerifier.verify`. Terpasang 22 September 2026, 10 dari 10 solusi sama sampai satu wei |
 | F20 | Simulasi kering lewat `eth_call` ke `submitSolution` sebelum mengirim | Tidak ada transaksi terkirim yang akan revert. Terpasang 22 September 2026, simulasi kering lolos untuk routed dan netted, 35 sampai 71 ms dari tutup collect. Pengiriman belum ada, itu F21 |
-| F21 | Siklus hidup kirim dan finalisasi, jendela 10 detik dan tenggat 300 detik | Nol `expireBatch` selama satu jam operasi berkelanjutan |
-| F22 | Operasi bonding, 500 USDG di `SolverRegistry` | `isActive` benar untuk kedua solver |
+| F21 | Siklus hidup kirim dan finalisasi, jendela 10 detik dan tenggat 300 detik | **Selesai 23 September 2026.** Run satu jam, 60 batch diproses, 60 `finalized`, nol `abandoned`, nol `finalize_reverted`. Diverifikasi dari chain (`f21-check.mjs`, bukan ringkasan solver): 60 `SolutionSubmitted`, 60 `BatchSettled`, nol batch menang yang belum final lewat tenggat. Latensi collect-tutup ke receipt submit p50 907 ms, p99 1150 ms (run 10 menit) dan p99 8260 ms (run satu jam, satu batch tertunda karena kontensi RPC lokal, tetap sebelum tenggat) |
+| F22 | Operasi bonding, 500 USDG di `SolverRegistry` | **Selesai 23 September 2026.** `solver/src/preflight.ts`. `isActive` benar untuk solverA dan solverB, keduanya bond 500 USDG. Akun yang tidak di-bond ditolak dengan pesan yang menyebut `make fund` |
 | F23 | Profil solver kedua untuk demo kompetisi | Dua solver mengajukan, yang savings-nya lebih tinggi menang, keduanya terbit di event |
 
 Catatan F15, dan ini rekomendasi yang perlu persetujuan tim karena menyentuh titik
