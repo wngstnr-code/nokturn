@@ -50,7 +50,24 @@ const provenanceChecks = [
   `pm.test("provenance names where it came from", () => pm.expect(["mainnet","testnet","fork"]).to.include(p.source.kind));`,
 ];
 
+const baked = config.contracts.settlement.toLowerCase();
+
 const requests = [
+  {
+    name: "the collection was generated for this deployment",
+    method: "GET",
+    path: "/v1/config",
+    tests: [
+      `const live = body.contracts.settlement.toLowerCase();`,
+      `pm.test("settlement is the one this collection was generated for", () => {`,
+      `  pm.expect(live, "generated for ${baked}, the api reports " + live + ". run make postman-api").to.eql("${baked}");`,
+      `});`,
+      // Every signed case below binds the baked Settlement as spender, so a
+      // mismatch makes them fail for a reason that is not the one they test.
+      `if (live !== "${baked}") postman.setNextRequest(null);`,
+    ],
+    why: "Imported into the Postman app, this file can outlive a redeploy. Its signatures then bind the old Settlement and every signed case fails for the wrong reason, so the run stops here instead.",
+  },
   {
     name: "health is up and honest about what is down",
     method: "GET",

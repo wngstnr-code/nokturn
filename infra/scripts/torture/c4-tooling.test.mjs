@@ -100,6 +100,7 @@ async function runNewman(collection, tag) {
     assertions: run.stats.assertions.total,
     failed: run.stats.assertions.failed,
     failures: run.failures.map((f) => `${f.source?.name ?? "?"} :: ${f.error?.test ?? f.error?.message ?? "?"}`),
+    messages: run.failures.map((f) => f.error?.message ?? ""),
   };
 }
 
@@ -210,7 +211,7 @@ describe("C4 signing script and Postman", () => {
 
   // Last in the group, because it restarts the fork and the group's snapshot
   // does not survive that. It ends on the canonical deployment, asserted.
-  test("C4-4b a collection generated before a redeploy", {timeout: 60 * 60_000, todo: "D17"}, async () => {
+  test("C4-4b a collection generated before a redeploy", {timeout: 60 * 60_000}, async () => {
     const deploymentFile = () => JSON.parse(readFileSync(join(REPO_ROOT, "infra", "fork-deployment.json"), "utf8"));
     const canonical = deploymentFile();
     const generated = await run(POSTMAN_API, [], {NOKTURN_API_URL: g.api.url});
@@ -230,20 +231,31 @@ describe("C4 signing script and Postman", () => {
       assert.fail(`baseline is not clean: ${JSON.stringify(baseline.failures ?? baseline.tail)}`);
     }
 
+    // make postman-api is the path people use, so V1 and V2 go through it. The
+    // old file is also run directly, which is what an import into the Postman
+    // app does, to show the guard in its first request stops it.
+    const viaMake = async () => {
+      const res = await runShell("make -C infra postman-api", {env: {NOKTURN_API_URL: g.api.url}});
+      const summary = newmanSummary(res.out);
+      return {code: res.code, ran: !!summary, ...summary, tail: res.out.split("\n").filter(Boolean).slice(-3).join(" | ")};
+    };
+
     g.snap = null;
     const variants = {};
     try {
       await killFork();
       await restartFork({repoRoot: REPO_ROOT, logFile: forkLog("v1")});
       await restartApi(g);
-      variants.v1 = {settlement: deploymentFile().settlement, ...(await runNewman(STALE_COLLECTION, "c4-4b-v1"))};
+      variants.v1 = {settlement: deploymentFile().settlement, ...(await viaMake())};
+      variants.v1Stale = await runNewman(STALE_COLLECTION, "c4-4b-v1");
 
       await killFork();
       await restartFork({repoRoot: REPO_ROOT, logFile: forkLog("v2"), bumpNonce: true, deployer: accountsFile.deployer});
       const moved = deploymentFile().settlement;
       assert.notEqual(moved, canonical.settlement, "the nonce bump did not move the deployment");
       await restartApi(g);
-      variants.v2 = {settlement: moved, ...(await runNewman(STALE_COLLECTION, "c4-4b-v2"))};
+      variants.v2 = {settlement: moved, ...(await viaMake())};
+      variants.v2Stale = await runNewman(STALE_COLLECTION, "c4-4b-v2");
     } finally {
       await killFork();
       await restartFork({repoRoot: REPO_ROOT, logFile: forkLog("restore")});
@@ -252,16 +264,25 @@ describe("C4 signing script and Postman", () => {
     }
     const restored = deploymentFile().settlement === canonical.settlement;
 
-    const same = (v) => v?.ran && v.failed === baseline.failed;
-    const ok = same(variants.v1) && same(variants.v2);
-    const line = (name, v) => `${name} Settlement ${v.settlement === canonical.settlement ? "sama" : "pindah"}, ${v.failed ?? "?"} gagal dari ${v.assertions ?? "?"}`;
+    const clean = (v) => v?.ran && v.code === 0 && v.failed === 0;
+    const guard = variants.v2Stale;
+    const guardStopped =
+      guard?.ran &&
+      guard.requests === 1 &&
+      guard.failures.length > 0 &&
+      guard.failures.every((f) => f.startsWith("00. ")) &&
+      guard.messages.some((m) => m.includes("make postman-api"));
+    const ok = clean(variants.v1) && clean(variants.v2) && variants.v1Stale?.failed === 0 && guardStopped;
+    const line = (name, v) => `${name} lewat make, Settlement ${v.settlement === canonical.settlement ? "sama" : "pindah"}, keluar ${v.code}, ${v.failed ?? "?"} gagal dari ${v.assertions ?? "?"}`;
     g.record("C4-4b", {
       outcome: ok ? "pass" : "finding",
       suspect: "D17",
-      summary: `baseline 0 gagal dari ${baseline.assertions}. ${line("V1", variants.v1)}. ${line("V2", variants.v2)}. Deployment kanonik dipulihkan ${restored}`,
-      evidence: {v1Failures: variants.v1.failures, v2Failures: variants.v2.failures},
+      summary:
+        `baseline 0 gagal dari ${baseline.assertions}. ${line("V1", variants.v1)}. ${line("V2", variants.v2)}. ` +
+        `File lama langsung, V1 ${variants.v1Stale?.failed ?? "?"} gagal, V2 berhenti di request pertama ${guardStopped}. Deployment kanonik dipulihkan ${restored}`,
+      evidence: {v2Guard: guard?.messages, v1: variants.v1.failures ?? variants.v1.tail, v2: variants.v2.failures ?? variants.v2.tail},
     });
     assert.ok(restored, "canonical deployment not restored, rerun make fork deploy fund");
-    assert.ok(ok, `V1 ${JSON.stringify(variants.v1.failures)} V2 ${JSON.stringify(variants.v2.failures)}`);
+    assert.ok(ok, JSON.stringify({v1: variants.v1, v2: variants.v2, v1Stale: variants.v1Stale?.failures, guard: guard?.failures}));
   });
 });
