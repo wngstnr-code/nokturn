@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {describe, test} from "node:test";
-import {clear, inBand, legsOf, pairsOf, volumeAt, type Reference} from "../../src/clearing.ts";
+import {allocate, clear, inBand, legsOf, pairsOf, volumeAt, type Reference} from "../../src/clearing.ts";
 import {WAD, conservation, limitRespected, uniformPriceHolds} from "../../src/math.ts";
 import {PARTIAL_FILL, type Intent} from "../../src/solution.ts";
 import {NVDA, OWNER_A, QUOTE, TSLA, intent, rng} from "./fixtures.ts";
@@ -65,5 +65,35 @@ describe("F16 clearing price", () => {
     const {pairs, unsupported} = pairsOf([buyer(1n, 1n), intent({sellToken: NVDA, buyToken: TSLA, sellAmount: 1n, minBuyAmount: 1n})], QUOTE);
     assert.equal(pairs.length, 1);
     assert.deepEqual(unsupported, [1]);
+  });
+});
+
+describe("F17 rationing on the 4.1 book", () => {
+  test("partial buyers share the short side pro rata and B3 does not trade", () => {
+    const {pair, ref} = bookOf41(PARTIAL_FILL);
+    const c = clear(pair, ref)!;
+    const a = allocate(pair, c, ref);
+    const byIndex = new Map(a.fills.map((f) => [f.index, f]));
+    assert.equal(byIndex.has(2), false, "B3 is below the clearing price");
+    assert.equal(byIndex.get(3)!.executedSell, 60n * 10n ** 18n);
+    assert.equal(byIndex.get(4)!.executedSell, 70n * 10n ** 18n);
+    const b1 = byIndex.get(0)!.executedBuy;
+    const b2 = byIndex.get(1)!.executedBuy;
+    assert.equal(b1 + b2 <= 130n * 10n ** 18n, true);
+    // Pro rata to each one's size at the clearing price, so b1/s1 equals b2/s2
+    // up to the one unit each floor can take.
+    const size = (k: number) => (pair.entries[k]!.intent.sellAmount * a.quotePrice) / a.basePrice;
+    const skew = b1 * size(1) - b2 * size(0);
+    const magnitude = skew < 0n ? -skew : skew;
+    assert.ok(magnitude <= size(0) + size(1), `b1 ${b1} b2 ${b2} skew ${skew}`);
+  });
+
+  test("without PARTIAL_FILL a buyer trades completely or not at all", () => {
+    const {pair, ref} = bookOf41(0);
+    const a = allocate(pair, clear(pair, ref)!, ref);
+    for (const f of a.fills) {
+      const i = pair.entries.find((e) => e.index === f.index)!.intent;
+      assert.equal(f.executedSell, i.sellAmount);
+    }
   });
 });
