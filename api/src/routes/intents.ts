@@ -51,6 +51,15 @@ const EIP1271_MAGIC = "0x1626ba7e";
 /** EIP-7702's delegation designator prefix, docs/rencana-backend.md section 3C. */
 const DELEGATION_PREFIX = "0xef0100";
 
+/**
+ * Collection is over once chain time passes collectEnd, which is the batchId.
+ * The same predicate opens Settlement's solution window, so the feed's frozen
+ * flag and the lifecycle's collect_closed can never disagree with the contract.
+ */
+export function isCollectClosed(batchId: bigint, chainTime: bigint): boolean {
+  return chainTime > batchId;
+}
+
 export function intentRoutes(app: FastifyInstance) {
   app.post<{Body: {intent?: unknown; signature?: Hex}}>("/v1/intents", async (request): Promise<SubmitIntentResponse> => {
     const body = request.body;
@@ -373,7 +382,7 @@ export function intentRoutes(app: FastifyInstance) {
         collectEndsAt: Number(collectEnd),
         solveEndsAt: Number(solveEnd),
         chainTime: Number(at.timestamp),
-        frozen: at.timestamp > collectEnd,
+        frozen: isCollectClosed(batchId, at.timestamp),
         intents: getByBatch(batchId),
         oraclePrices,
         oracleUnavailable,
