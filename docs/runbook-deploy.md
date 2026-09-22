@@ -397,6 +397,80 @@ selama demo dan menyalakannya lagi saat keluar, termasuk saat gagal.
 automine, jadi node yang disuruh automine dulu lalu diberi interval nol berhenti
 menambang sama sekali dan setiap transaksi menggantung, bukan revert.
 
+## Gladi resik testnet 46630, kelima, 22 September 2026
+
+Digelar ulang karena `Settlement` berubah, dan `SolverRegistry` sudah berubah
+sehari sebelumnya. Keduanya menyeret kesembilan kontrak, dengan alasan yang sama
+seperti angkatan keempat. Settlement menyimpan alamat registry sebagai `immutable`,
+dan `SolverRegistry.setSettlement` hanya bisa dipanggil sekali.
+
+Perubahannya ada dua. `SolverRegistry` mendapat pelapor kedua supaya `executeCross`
+bisa mencatat kemenangan, tanpa itu setiap cross revert di langkah terakhirnya. Lalu
+`finalize` berhenti me-revert saat satu leg tidak bisa ditarik, karena pemilik yang
+mencabut allowance-nya sendiri bisa membuat solver jujur disita. Keduanya ada di
+`threat-model.md` §3.2.
+
+| Kontrak | Alamat |
+|---|---|
+| `TimelockController` | `0x0Db7578df1bf6c39c516fa8bCE0213dd979C2E95` |
+| `SessionManager` | `0x05f6Ec5619103339EEDE5FDf19FB7e9bF32cAf1D` |
+| `ClearingVerifier` | `0xCff2A5aD94d1cF787199f64F4670DF47D1B1Ac8C` |
+| `PriceOracle` | `0x967aa989480D037591DE52E0c0e052b81aD2c69E` |
+| `SolverRegistry` | `0x43852293D6E32b79f20e51e9F0A727556934d893` |
+| `Settlement` | `0x743ffF999EE907cBc96Ff8b80234fbfB78E25596` |
+| `AuctionHouse` | `0x8d080a20e80BfA0C20DEaA5ADEbF9c52B3887232` |
+| `AgentMandate` | `0x23454B8305057Bf6864dF6E00C7A3aF75C2f7beb` |
+| `UniswapV3Adapter` | `0xcf5783A1deeC2E69613000557240c268A19a11E6` |
+
+| Langkah | Gas | Biaya | Perkiraan script | Rasio |
+|---|---|---|---|---|
+| `Deploy`, 9 kontrak | 20.602.808 | 0,00020603 ETH | 27.294.080 | 75% |
+| `Bootstrap`, 22 panggilan | 4.232.994 | 0,00004233 ETH | 6.064.764 | 70% |
+| `Lock` | 132.025 | 0,00000132 ETH | 169.820 | 78% |
+
+Totalnya 24.967.827 gas dan 0,00024968 ETH. Rasio 70 sampai 78 persen terhadap
+perkiraan bertahan di angkatan kelima, persis seperti keempat.
+
+Bootstrap mengirim 22 panggilan, satu lebih banyak dari angkatan keempat. Yang baru
+adalah `setAuctionHouse` di registry.
+
+Dua kontrak yang kodenya berubah jadi lebih mahal di-deploy. `Settlement` naik dari
+4.742.865 ke **4.838.119**, selisih 95.254 atau 2,0 persen, harga dari `try` di jalur
+tarikan ditambah dua pemeriksaan baru di `submitSolution`. `SolverRegistry` naik dari
+841.032 ke **896.251**, selisih 55.219 atau 6,6 persen, harga dari pelapor kedua.
+Runtime `Settlement` 19.669 byte dari 24.576, jadi marginnya masih 4.907.
+
+Tujuh kontrak sisanya turun sekitar satu persen padahal sumbernya tidak disentuh.
+Itu bukan kesalahan pengukuran. Biaya deploy memuat biaya calldata atas argumen
+konstruktor, byte nol lebih murah daripada byte bukan nol, dan alamat di angkatan
+ini kebetulan memuat lebih banyak byte nol daripada angkatan kemarin. Disebut di sini supaya angka per kontrak tidak
+dibaca sebagai ukuran yang stabil antar angkatan.
+
+**Yang dibuktikan dengan membaca rantai, dan kali ini oleh skrip.** Angkatan ini yang
+pertama memakai `VerifyDeployment`, jadi 41 pemeriksaan dijalankan sekaligus dan
+hasilnya `every check passed`. Sebelumnya hal yang sama dikerjakan satu `cast call`
+per baris, dan hasilnya tidak bisa diulang orang lain.
+
+Yang paling penting di antaranya, `registry auctionHouse` menjawab dan menunjuk
+`0x8d080a20e80BfA0C20DEaA5ADEbF9c52B3887232`. Dijalankan atas deployment lama
+beberapa jam sebelumnya, pemeriksaan yang sama melapor
+
+```
+BAD  registry auctionHouse
+     the deployed contract does not answer this call
+failed checks 1
+```
+
+Itu satu satunya cara membuktikan bahwa perbaikannya benar-benar sampai ke rantai,
+dan bukan sekadar lulus di test.
+
+Sourcify mencatat kesembilannya `match`.
+
+Pemantau melaporkan `M1` sampai `M3` bersih dan `M4` menyala di kelima token, sama
+seperti empat angkatan sebelumnya, karena 46630 tidak punya Chainlink.
+
+`SetFeeds` tidak dijalankan dan memang menolak chain ini.
+
 ## Gladi resik testnet 46630, keempat, 21 September 2026
 
 Digelar ulang karena `PriceOracle` berubah. Aset kuotasi tidak pernah punya feed, dan
