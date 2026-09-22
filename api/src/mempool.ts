@@ -15,7 +15,7 @@ import type {BlockStamp} from "./provenance.ts";
  * to validate anything the contract itself checks.
  */
 const SOLUTION_WINDOW = 10n;
-const FINALIZE_DEADLINE = 300n;
+export const FINALIZE_DEADLINE = 300n;
 
 export interface StoredIntent {
   batchId: bigint;
