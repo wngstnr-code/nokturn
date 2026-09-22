@@ -35,7 +35,8 @@ import {
 } from "../chain.ts";
 import {badRequest, fail, notFound} from "../errors.ts";
 import {canonicalPayload, escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
-import {admit, openWindow, getByBatch, getByHash, sweep} from "../mempool.ts";
+import {publish} from "../events.ts";
+import {admit, counts, openWindow, getByBatch, getByHash, sweep} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp, type BlockStamp} from "../provenance.ts";
 import {SESSION_NAMES} from "./session.ts";
@@ -240,6 +241,14 @@ export function intentRoutes(app: FastifyInstance) {
       receivedAt: Number(at.timestamp),
     };
     admit(hash, signed, lookup.batchId);
+    publish(
+      {
+        type: "batch.intent_added",
+        at: signed.receivedAt,
+        data: {batchId: String(lookup.batchId), intentHash: hash, ...counts(lookup.batchId)},
+      },
+      {owner: intent.owner},
+    );
 
     return {
       intentHash: hash,
