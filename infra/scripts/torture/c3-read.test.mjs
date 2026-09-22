@@ -107,18 +107,19 @@ describe("C3 read routes and the solver feed", () => {
       const feed = await get(g.api, `/v1/batches/${batch.batchId}/intents`);
       assert.equal(feed.status, 200, feed.text);
       const block = feed.body.provenance.blockNumber;
+      // USDG included. Settlement._verify reads refPrice(USDG), so the feed's
+      // quote row has to be that read and not a fixed 1e30. N8.
+      const usdg = feed.body.oraclePrices.find((row) => row.token.toLowerCase() === USDG().address.toLowerCase());
+      assert.ok(usdg, "the feed serves no USDG row");
       const rows = [];
       for (const row of feed.body.oraclePrices) {
-        if (row.token.toLowerCase() === USDG().address.toLowerCase()) {
-          rows.push({symbol: row.symbol, ok: row.price === String(10n ** 30n), price: row.price});
-          continue;
-        }
-        const [price] = await refPriceAt(row.token, block);
+        const [price, updatedAt, healthy] = await refPriceAt(row.token, block);
         const expected = (price * 10n ** 18n) / 10n ** BigInt(row.decimals);
-        rows.push({symbol: row.symbol, ok: row.price === String(expected) && row.refPrice === String(price), price: row.price, expected: String(expected)});
+        const ok = row.price === String(expected) && row.refPrice === String(price) && row.healthy === healthy && row.updatedAt === Number(updatedAt);
+        rows.push({symbol: row.symbol, ok, price: row.price, expected: String(expected)});
       }
       const bad = rows.filter((r) => !r.ok);
-      g.record("C3-3", {outcome: bad.length === 0 ? "pass" : "finding", summary: `${rows.length - bad.length} dari ${rows.length} baris cocok di blok ${block}, USDG ${rows[0].price}`, evidence: {bad}});
+      g.record("C3-3", {outcome: bad.length === 0 ? "pass" : "finding", summary: `${rows.length - bad.length} dari ${rows.length} baris cocok di blok ${block}, USDG ${usdg.price}`, evidence: {bad}});
       assert.deepEqual(bad, []);
     });
   });

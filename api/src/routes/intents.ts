@@ -44,6 +44,9 @@ import {SESSION_NAMES} from "./session.ts";
 /** Settlement.SOLUTION_WINDOW, parameter.md section 6. Fixed across sessions. */
 const SOLUTION_WINDOW = 10n;
 
+/** Wide enough to stay quiet through ordinary Chainlink noise on a stablecoin. */
+const USDG_PEG_WARN_BPS = 200n;
+
 const HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 
 /** EIP-1271, the four bytes a valid contract signature must return. */
@@ -336,9 +339,14 @@ export function intentRoutes(app: FastifyInstance) {
       // take the whole feed down with a 502. It is reported by name instead and
       // the other tokens are still served. A failure that is not a revert is the
       // node, and still fails the request. D10.
+      //
+      // USDG is read like any other token, because Settlement._verify prices the
+      // quote leg from refPrice(USDG) and the row a judge sees has to be the
+      // figure the contract settles against. N8.
       const oracleUnavailable: BatchIntentsResponse["oracleUnavailable"] = [];
+      const rows = [{token: c.quote.address, symbol: "USDG", decimals: c.quote.decimals}, ...c.tokens];
       const priced = await Promise.all(
-        c.tokens.map(async (t): Promise<OraclePriceRow | null> => {
+        rows.map(async (t): Promise<OraclePriceRow | null> => {
           let answer: [bigint, bigint, boolean];
           try {
             answer = await read<[bigint, bigint, boolean]>(c.deployment.oracle, oracleAbi, "refPrice", [t.token], at.number);
@@ -361,27 +369,19 @@ export function intentRoutes(app: FastifyInstance) {
           };
         }),
       );
-      const stockPrices = priced.filter((row): row is OraclePriceRow => row !== null);
+      const oraclePrices = priced.filter((row): row is OraclePriceRow => row !== null);
 
-      // USDG is the numeraire. PriceOracle tracks the stock tokens against it
-      // and never USDG itself, so its row is the fixed peg rather than a read.
-      const quoteRefPrice = 10n ** 18n;
-      const quotePrice = (quoteRefPrice * 10n ** 18n) / 10n ** BigInt(c.quote.decimals);
-      if (c.quote.decimals === 6 && quotePrice !== 10n ** 30n) {
-        throw new Error(`USDG at 6 decimals must price to 1e30, computed ${quotePrice}. parameter.md section 4C`);
+      // A depeg is real data and is served as it is. It is only logged, so an
+      // operator notices before a judge does. parameter.md section 4C.
+      const quoteRow = oraclePrices.find((row) => row.token === c.quote.address);
+      if (quoteRow) {
+        const price = BigInt(quoteRow.price);
+        const peg = 10n ** 30n;
+        const drift = price > peg ? price - peg : peg - price;
+        if (drift * 10_000n > peg * USDG_PEG_WARN_BPS) {
+          request.log.warn({price: quoteRow.price, block: String(at.number)}, "USDG refPrice is more than 2% off 1e30");
+        }
       }
-      const oraclePrices: OraclePriceRow[] = [
-        {
-          token: c.quote.address,
-          symbol: "USDG",
-          decimals: c.quote.decimals,
-          price: String(quotePrice),
-          refPrice: String(quoteRefPrice),
-          healthy: true,
-          updatedAt: Number(at.timestamp),
-        },
-        ...stockPrices,
-      ];
 
       return {
         batchId: String(batchId),
