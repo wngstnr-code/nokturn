@@ -1,0 +1,59 @@
+/*
+ * Connect and account sit in the same slot as the reference wallet button. The
+ * 3px transparent border plus padding-box clip is what keeps the pill the same
+ * height whether or not a background is painted.
+ */
+.connect,
+.account {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 21px;
+  font-size: var(--n-font-large);
+  font-weight: var(--n-weight-semibold);
+  white-space: nowrap;
+  transition:
+    background-color var(--n-duration) var(--n-easing),
+    color var(--n-duration) var(--n-easing);
+}
+
+.connect {
+  background-color: var(--n-primary);
+  color: var(--n-button-text);
+}
+
+.connect:hover:not(:disabled) {
+  background-color: var(--n-primary-lighter);
+}
+
+.connect:disabled {
+  background-color: var(--n-paper-darker);
+  color: var(--n-button-text-disabled);
+  cursor: not-allowed;
+}
+
+.account {
+  background-color: var(--n-paper);
+  color: var(--n-text);
+  font-size: var(--n-font-medium);
+  font-weight: var(--n-weight-medium);
+}
+
+.account:hover {
+  background-color: var(--n-primary);
+  color: var(--n-button-text);
+}
+
+.wrongChain {
+  background-color: var(--n-alert);
+  color: var(--n-button-text);
+}
+
+.wrongChain:hover:not(:disabled) {
+  background-color: var(--n-alert-text);
+}
