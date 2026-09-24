@@ -26,16 +26,27 @@ const FULL_RESET_WINDOW_MS = 10 * 60_000;
  * here multiplies into minutes under a sustained chaos rate rather than the
  * single stray blip it exists to smooth over.
  */
-async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseDelayMs = 150): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseDelayMs = 150, final: (error: unknown) => boolean = () => false): Promise<T> {
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await fn();
     } catch (error) {
-      if (attempt >= attempts) throw error;
+      if (attempt >= attempts || final(error)) throw error;
       await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** (attempt - 1)));
     }
   }
 }
+
+/**
+ * Every read inside step() gets its own retries. A step makes one getBlock per
+ * block holding a log, so without them its chance of finishing is 0.7^k under a
+ * 30 percent error rate, and N10 measured zero progress in 51 minutes. At four
+ * attempts a read fails 0.8 percent of the time, and a step of 30 reads still
+ * lands about four times in five.
+ */
+const READ_ATTEMPTS = 4;
+const read = <T>(fn: () => Promise<T>, final?: (error: unknown) => boolean) => withRetry(fn, READ_ATTEMPTS, 100, final);
+const RANGE_REFUSAL = /range|too many|limit|exceed/i;
 
 export interface Deployment {
   chainId: number;
@@ -157,17 +168,20 @@ export class Ingest {
       cp = await this.checkpoint();
     }
 
-    const head = await this.c.getBlockNumber();
+    const head = await read(() => this.c.getBlockNumber());
     const from = cp.lastBlock + 1n;
     const to = head < cp.lastBlock + MAX_RANGE ? head : cp.lastBlock + MAX_RANGE;
     if (to < from) return {from, to: cp.lastBlock, logs: 0, undecoded: 0, rewoundTo, fullReset};
 
     let raw: Log[];
     try {
-      raw = await this.c.getLogs({address: [...this.d.contracts.keys()] as Address[], fromBlock: from, toBlock: to});
+      raw = await read(
+        () => this.c.getLogs({address: [...this.d.contracts.keys()] as Address[], fromBlock: from, toBlock: to}),
+        (error) => RANGE_REFUSAL.test((error as Error).message),
+      );
     } catch (error) {
       const message = (error as Error).message;
-      if (/range|too many|limit|exceed/i.test(message)) {
+      if (RANGE_REFUSAL.test(message)) {
         throw new RangeRefused(`the node refused getLogs over ${from} to ${to}. this indexer asks for up to ${MAX_RANGE} blocks per call and does not fall back to one block at a time. point it at a node that serves ranges, the local anvil fork does. ${message.split("\n")[0]}`);
       }
       throw error;
@@ -176,7 +190,7 @@ export class Ingest {
     const heights = new Set<bigint>([to, ...raw.map((l) => l.blockNumber!)]);
     const blocks = new Map<bigint, BlockRow>();
     for (const n of heights) {
-      const b = await this.c.getBlock({blockNumber: n});
+      const b = await read(() => this.c.getBlock({blockNumber: n}));
       blocks.set(n, {number: n, hash: b.hash!, parentHash: b.parentHash, timestamp: b.timestamp});
     }
     // A log whose block hash is not the block we just read belongs to a history
@@ -230,7 +244,7 @@ export class Ingest {
     for (const l of closing) {
       if (seen.has(l.txHash)) continue;
       seen.add(l.txHash);
-      const tx = await this.c.getTransaction({hash: l.txHash as Hex});
+      const tx = await read(() => this.c.getTransaction({hash: l.txHash as Hex}));
       let decoded;
       try {
         decoded = decodeFunctionData({abi: settlementAbi, data: tx.input});
