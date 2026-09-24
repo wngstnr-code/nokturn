@@ -653,7 +653,7 @@ selama enam minggu, tercatat di `ForkFixture.sol`.
 | F8 | Validasi pra-terbang yang mencerminkan pemeriksaan kontrak | Semua penolakan §2 keluar sebagai error API yang bisa dibaca, memakai nama error kontrak yang sama |
 | F9 | Penjadwal batch, penyelarasan `batchId`, penanganan guard band dan fase lelang | Batch terbuka dan tertutup sendiri melintasi pergantian sesi, dan tidak ada batch yang lahir di guard band. Terpasang 22 September 2026, grup torture `f9` lulus sepuluh dari sepuluh |
 | F10 | Umpan solver, REST dan WebSocket | Dua solver menerima isi batch yang sama pada detik yang sama. Terpasang 22 September 2026, grup torture `f10` lulus sepuluh dari sepuluh, dengan selisih terima `collect_closed` antara dua klien 0 ms |
-| F11 | API struk batch, disajikan dari indexer | Nabil bisa merender layar utama dan layar gagal sepenuhnya dari API |
+| F11 | API struk batch, disajikan dari indexer | Nabil bisa merender layar utama dan layar gagal sepenuhnya dari API. **Selesai 25 September 2026.** `GET /v1/batches` dan `GET /v1/batches/:batchId` nyata. Struk `settled` (M2), `passthrough` (I6), dan `expired` (I7) semuanya lahir dari chain. Database mati berarti 503 `COORDINATOR_UPSTREAM_DOWN` di dua rute itu, sementara health tetap 200 (I4). `postman-api` 105 dari 105 |
 | F12 | API baca sesi dan allowlist untuk frontend | Layar sesi dan layar gerbang allowlist tidak memanggil chain sendiri |
 | F13 | `packages/shared/api-types.ts` | Skema dibekukan dan Nabil coding terhadapnya sebelum implementasinya selesai |
 | F14 | Jalur kabur anti-sensor, `submitIntentOnchain` | API menerbitkan payload yang bisa dikirim pengguna sendiri kalau coordinator menolaknya |
@@ -697,10 +697,10 @@ produksi hidup, dan gerbang differential berlaku penuh atas port itu.
 
 | # | Fitur | Selesai kalau |
 |---|---|---|
-| F24 | Konsumsi event, keberhasilan dan **kegagalan** | `SolutionRejected`, `BatchPassthrough`, `ClosingPrintWithheld`, `AuctionAborted`, `CommitmentDropped`, `OracleStale`, `OracleDisagreement` semuanya masuk tabel |
-| F25 | Skema tabel sesuai `interfaces.md` §10 | Sembilan tabel terisi dari event, tidak ada kolom yang diisi tebakan |
-| F26 | Kolom provenansi di setiap baris struk | Chain id, nomor blok chain ini, hash transaksi, log index, alamat pool, dan payload `eth_call` untuk menghitung ulang baseline |
-| F27 | Metrik turunan | `savings_bps`, `netting_ratio`, `improvement_vs_venue`, `uptime`, dihitung dari event dan bukan dari klaim solver |
+| F24 | Konsumsi event, keberhasilan dan **kegagalan** | `SolutionRejected`, `BatchPassthrough`, `ClosingPrintWithheld`, `AuctionAborted`, `CommitmentDropped`, `OracleStale`, `OracleDisagreement` semuanya masuk tabel. **Selesai 25 September 2026.** Semua event itu, ditambah `IntentCollectionFailed`, ter-decode di unit test dari ABI asli. Di fork, I6 mengisi `collection_failures` dan I7 mengisi `SolverSlashed` di `solvers`. Satu keterbatasan tertulis di `project.ts`. `SolutionRejected("savings mismatch")` terbit lalu langsung di-revert, jadi tidak pernah sampai ke chain dan tidak pernah muncul di struk |
+| F25 | Skema tabel sesuai `interfaces.md` §10 | Sembilan tabel terisi dari event, tidak ada kolom yang diisi tebakan. **Selesai 25 September 2026.** `indexer/sql/001_init.sql` memuat sembilan tabel §10 dan tiga tabel pendukung. Semuanya membawa `chain_id`, `block_number`, `tx_hash`, dan `log_index`. Nilai uint256 disimpan sebagai `numeric(78,0)`. I1 menghitung 143 log, sama persis dengan `getLogs` langsung ke anvil |
+| F26 | Kolom provenansi di setiap baris struk | Chain id, nomor blok chain ini, hash transaksi, log index, alamat pool, dan payload `eth_call` untuk menghitung ulang baseline. **Selesai 25 September 2026.** Di M2, tiga dari tiga `castCommand` dijalankan lewat `cast` dan hasilnya sama persis dengan `baselineBuy`. Di I8, tiga fill dihitung ulang dengan `quoteFromState`, dan selisihnya nol |
+| F27 | Metrik turunan | `savings_bps`, `netting_ratio`, `improvement_vs_venue`, `uptime`, dihitung dari event dan bukan dari klaim solver. **Selesai 25 September 2026.** `indexer/src/metrics.ts`, keempatnya dihitung dari tabel dan diuji terhadap contoh yang dihitung tangan. `uptime` versi ini tidak menghitung batch kosong, dan alasannya tertulis di kode |
 | F28 | Kedalaman konfirmasi dan rekonsiliasi | Angka indexer cocok dengan pembacaan langsung kontrak pada blok yang sama |
 
 Catatan F26. Ini yang membuat layar Nabil lolos audit provenansi §11. Tanpa payload
@@ -875,6 +875,50 @@ Tiga belas pemeriksaan lulus, termasuk `totals` sama persis dengan field
 benar, dan **tiga dari tiga** `verifyBaseline.castCommand` dijalankan sungguhan
 lewat `cast` dan hasilnya sama persis dengan `baselineBuy` di event. Struk
 disimpan di `infra/.torture/m2-receipt.json` (gitignored) untuk Nabil.
+
+**Diulang 25 September 2026 di fork yang di-deploy ulang.** Alamat Settlement sama,
+`0xeF70f91c4bF752a197bc454399d8E501Ed5CdCB1`. Batch 1789897680, `finalize`
+`0x6322d630119d8e0c034ee2c86d714725b922061372e27045f8ff80ad78497ce1` di blok
+67802589. Angkanya identik dengan run pertama (`nettingRatioBps` 7894, savings
+150145992818052994), dan tiga belas pemeriksaan lulus lagi.
+
+**Test fork indexer, 25 September 2026.** `pnpm -C indexer test:fork`, setiap kasus
+sekali.
+
+| ID | Hasil |
+|---|---|
+| I1 | Lulus. 143 log, sama dengan `getLogs` langsung, dan jumlah baris identik setelah rentang diindeks ulang |
+| I2 | Lulus. Indexer dibunuh setelah langkah pertama, dijalankan ulang, dan tidak ada lubang atau baris ganda |
+| I3 | Lulus. Log dari blok yang di-revert hilang setelah `evm_revert` |
+| I4 | Lulus. Database mati 30 detik, enam kali backoff, rute struk 503, health 200, lalu indexer menyusul |
+| I5 | Lulus setelah N10 diperbaiki. 20 error disuntikkan, 143 log dari 143, selesai dalam 12 detik |
+| I6 | Lulus. Batch 1789898040, solver mencatat `finalized_passthrough`, struk `passthrough` dengan kode `IntentCollectionFailed` dan pemilik `0x14e9...a0ab` disebut |
+| I7 | Lulus. Batch 1789897320, `expireBatch` dari akun lain, struk `expired`, slash 50 USDG "failed finalize" tercatat |
+| I8 | Lulus. Tiga fill, selisih `verifyBaseline` nol |
+| I9 | Dilewati sebagian (N11). Dua batch demo terindeks sebagai `settled`, tapi `fork-demo.sh` tidak menerbitkan event lelang maupun closing print |
+
+Gerbang lain di run yang sama juga hijau. Torture `c3` 9 dari 9, `check-permit2` 3 dari 3,
+`check-batch` 41 dari 41, `postman-api` 105 dari 105.
+
+**Temuan baru.**
+
+- **N10, diperbaiki di `88b71b2`.** Satu langkah ingest memanggil `getBlock` sekali
+  untuk setiap blok yang memuat log, tanpa retry per panggilan. Dengan error 30 persen,
+  peluang satu langkah selesai adalah 0,7 pangkat k, dan I5 tidak mengindeks satu log
+  pun selama 51 menit. Sekarang setiap bacaan dicoba empat kali, kecuali penolakan
+  rentang `getLogs` yang langsung final.
+- **N11, belum ditangani.** `tools/fork-demo.sh` hanya menjalankan satu batch netted
+  dan satu batch routed. Tabel `auctions`, `indicative`, dan `closing_prints` belum
+  pernah terisi dari event asli. Butuh skrip lelang dari Wangsit, paling lambat
+  Hari 7 saat keeper lelang dikerjakan.
+- **N12, diamati.** drpc sesekali menjawab "Unknown state. First available state is 1"
+  untuk blok patokan, padahal panggilan langsung ke blok yang sama berhasil. `make
+  deploy` gagal dua kali lalu berhasil di percobaan ketiga. `make fund` dan satu quote
+  di `postman-api` juga sempat gagal sekali saat anvil mengambil state yang belum
+  ada di fork. Ini menguatkan alasan membeli RPC berbayar.
+- **Catatan lingkungan.** Port 5433 bisa bentrok dengan Postgres proyek lain di
+  Docker. `NOKTURN_DB_PORT` dan `NOKTURN_DATABASE_URL` sudah cukup untuk
+  memindahkannya. Run ini memakai 5440.
 
 ### Hari 6, 25 September. Replay dan batch gagal
 
