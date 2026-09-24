@@ -19,9 +19,14 @@ const FULL_RESET_WINDOW_MS = 10 * 60_000;
  * throw from getBlock, and only one of them means the chain reorged. I5 found
  * that treating every failure as "not found" turns a flaky node into a false
  * revert, and under sustained chaos, into a false second full reset. This
- * gives a getBlock used for that judgment a few tries before it is believed.
+ * gives a getBlock used for that judgment one extra try before it is believed.
+ *
+ * Kept to two attempts on purpose. rewind() calls this once per candidate,
+ * sequentially, for up to MAX_REWIND candidates, so a generous retry budget
+ * here multiplies into minutes under a sustained chaos rate rather than the
+ * single stray blip it exists to smooth over.
  */
-async function withRetry<T>(fn: () => Promise<T>, attempts = 4, baseDelayMs = 200): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseDelayMs = 150): Promise<T> {
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await fn();
