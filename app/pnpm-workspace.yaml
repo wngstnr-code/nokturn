@@ -1,0 +1,11 @@
+# pnpm refuses to run any dependency install script that is not named here.
+# sharp is the image pipeline Next uses in production builds, unrs-resolver is the
+# native resolver behind the eslint import plugin, and the three below arrive with
+# wagmi. keccak and the two ws helpers all ship prebuilt fallbacks, so they are
+# allowed to build rather than required to.
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
+  keccak: true
+  bufferutil: true
+  utf-8-validate: true

@@ -1,0 +1,61 @@
+.app {
+  display: flex;
+  flex-flow: column;
+  align-items: flex-start;
+  min-height: 100vh;
+  height: 100%;
+  position: relative;
+}
+
+/*
+ * The slab the whole app sits on. Pulled up by the height of the menu bar so the
+ * bar floats over it, and down by the corner radius so the footer shows through.
+ *
+ * page-backdrop.svg is background-cowswap-darkmode.svg from the cowswap repo,
+ * which is GPL-3.0 while this repo is MIT. Attribution is unresolved.
+ */
+.body {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 1 1 auto;
+  z-index: 2;
+  color: inherit;
+  padding: 150px 16px 176px;
+  margin: calc(var(--n-header-offset) * -1) auto calc(var(--n-slab-radius) * -1);
+  border-bottom-left-radius: var(--n-slab-radius);
+  border-bottom-right-radius: var(--n-slab-radius);
+  background: var(--n-slab) url("/page-backdrop.svg") no-repeat bottom -1px center / contain;
+}
+
+.main {
+  width: 100%;
+}
+
+@media (max-width: 960px) {
+  .body {
+    padding: 150px 16px 150px;
+    flex: none;
+    min-height: calc(100vh - 200px);
+    background-size: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .body {
+    padding: 90px 16px 200px;
+    min-height: calc(100vh - 100px);
+    background-size: auto;
+  }
+}
+
+.footerSlot {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
