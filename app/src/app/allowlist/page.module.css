@@ -1,0 +1,136 @@
+.page {
+  width: 100%;
+  max-width: var(--n-page-width);
+  margin: 0 auto;
+  display: flex;
+  flex-flow: column wrap;
+  gap: 20px;
+}
+
+.hero {
+  width: 100%;
+  padding: var(--n-padding-normal);
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+  color: var(--n-text);
+}
+
+.eyebrow {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 18ch;
+  margin-top: 12px;
+  font-size: 32px;
+  font-weight: var(--n-weight-semibold);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  text-shadow:
+    0 0 26px var(--n-text-o10),
+    0 0 28px var(--n-text-o25);
+}
+
+.lead {
+  max-width: 62ch;
+  margin-top: 16px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-medium);
+  line-height: var(--n-line-medium);
+}
+
+.provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  width: 100%;
+  padding: 16px var(--n-padding-normal);
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+}
+
+.item {
+  font-size: var(--n-font-small-plus);
+  color: var(--n-text-o50);
+}
+
+.item strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--n-text);
+  font-size: var(--n-font-normal);
+  font-weight: var(--n-weight-medium);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(358px, 1fr));
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sectionLabel::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--n-text-o10);
+}
+
+.footnote {
+  max-width: 72ch;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  line-height: 1.6;
+}
+
+.failure {
+  width: 100%;
+  padding: var(--n-padding-normal);
+  background: var(--n-danger-bg);
+  border-radius: 16px;
+}
+
+.failure h2 {
+  font-size: var(--n-font-large);
+  font-weight: var(--n-weight-semibold);
+}
+
+.failure p {
+  margin-top: 8px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-small-plus);
+  line-height: var(--n-line-small);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .title {
+    font-size: 24px;
+  }
+
+  .lead {
+    font-size: var(--n-font-normal);
+  }
+}
