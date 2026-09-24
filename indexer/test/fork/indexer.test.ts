@@ -7,10 +7,26 @@
 
 import assert from "node:assert/strict";
 import {execFileSync, spawn} from "node:child_process";
+import {mkdtempSync, readFileSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import {after, before, describe, test} from "node:test";
 import pg from "pg";
-import {encodeFunctionData, type Address, type Hex, type PublicClient} from "viem";
+import {encodeFunctionData, erc20Abi, type Address, type Hex, type PublicClient} from "viem";
+import type {HDAccount} from "viem/accounts";
+import type {CurrentBatchResponse, NonceResponse} from "../../../packages/shared/api-types.ts";
+import {STOCK_TOKENS, USDG} from "../../../packages/shared/addresses.ts";
+import {solverAccount} from "../../../solver/src/account.ts";
+import {quote} from "../../../solver/src/baseline.ts";
+import {contracts, type Contracts} from "../../../solver/src/chain.ts";
+import {feed, solveAt} from "../../../solver/src/feed.ts";
+import {finalizeWon, untilBlock} from "../../../solver/src/finalize.ts";
+import {submit} from "../../../solver/src/send.ts";
+import {PARTIAL_FILL, type Intent, type Solution} from "../../../solver/src/solution.ts";
+import {Store} from "../../../solver/src/store.ts";
+import {intentFor, sign, users} from "../../../solver/test/fork/lib.ts";
 import {REPO_ROOT, loadAbi} from "../../src/abi.ts";
+import {buildReceipt, loadFacts, type ReceiptContext} from "../../src/receipt.ts";
 
 const ADMIN_URL = process.env.NOKTURN_DATABASE_ADMIN_URL ?? "postgres://nokturn:nokturn@127.0.0.1:5433/nokturn";
 const TEST_DB = "nokturn_fork_test";
@@ -101,10 +117,105 @@ async function getJson(path: string): Promise<{status: number; body: any}> {
   return {status: res.status, body: await res.json()};
 }
 
+// I6 and I7 place a batch through the coordinator and solve it with the
+// solver's own code, the same path as the lifecycle tests in solver/test/fork.
+const QUOTE = USDG as Address;
+const NVDA = STOCK_TOKENS.NVDA as Address;
+let k: Contracts;
+let who: HDAccount[];
+let lastBatch = 0n;
+
+/** The first batch after any an earlier case used, with 25 seconds of collection left. */
+function freshBatch(): Promise<CurrentBatchResponse> {
+  return new Promise((resolve, reject) => {
+    const unwatch = c.watchBlocks({
+      emitOnBegin: true,
+      pollingInterval: 500,
+      onBlock: async () => {
+        try {
+          const b = (await getJson("/v1/batches/current")).body as CurrentBatchResponse;
+          if (b.batchId !== null && BigInt(b.batchId) > lastBatch && b.collectEndsAt - b.chainTime >= 25) {
+            unwatch();
+            lastBatch = BigInt(b.batchId);
+            resolve(b);
+          }
+        } catch (error) {
+          unwatch();
+          reject(error);
+        }
+      },
+    });
+  });
+}
+
+async function venue(tokenIn: Address, tokenOut: Address, amount: bigint): Promise<bigint> {
+  const q = await quote(c, k.baselineAdapter, tokenIn, tokenOut, amount, await c.getBlockNumber());
+  if (!q.ok) throw new Error(q.error);
+  return q.out;
+}
+
+async function post(account: HDAccount, batch: CurrentBatchResponse, fields: Pick<Intent, "sellToken" | "buyToken" | "sellAmount" | "minBuyAmount" | "flags">): Promise<void> {
+  const nonce = BigInt(((await getJson(`/v1/nonces/${account.address}`)).body as NonceResponse).next);
+  const intent = intentFor(account.address, {...fields, validAfter: batch.chainTime - 60, validUntil: batch.collectEndsAt + 3600, allowedSessions: 1 << batch.session, nonce});
+  const signature = await sign(c, k.settlement, account, intent);
+  const payload = Object.fromEntries(Object.entries(intent).map(([key, v]) => [key, typeof v === "bigint" ? String(v) : v]));
+  const res = await fetch(`${API}/v1/intents`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({intent: payload, signature})});
+  const body = (await res.json()) as {batchId?: string; code?: string; message?: string};
+  if (!res.ok) throw new Error(`POST /v1/intents answered ${res.status} ${body.code}: ${body.message}`);
+  assert.equal(body.batchId, batch.batchId, "a boundary fell between the submissions");
+}
+
+async function placeNetted(): Promise<bigint> {
+  const batch = await freshBatch();
+  const sell = 200n * 10n ** 6n;
+  const askOut = await venue(QUOTE, NVDA, sell);
+  const bidOut = await venue(NVDA, QUOTE, askOut);
+  const buyNvda = (askOut * 2n * sell) / (sell + bidOut);
+  await post(who[0]!, batch, {sellToken: QUOTE, buyToken: NVDA, sellAmount: sell, minBuyAmount: buyNvda, flags: PARTIAL_FILL});
+  await post(who[1]!, batch, {sellToken: NVDA, buyToken: QUOTE, sellAmount: buyNvda, minBuyAmount: (await venue(NVDA, QUOTE, buyNvda)) + 1n, flags: PARTIAL_FILL});
+  return BigInt(batch.batchId!);
+}
+
+async function solveClosed(batchId: bigint): Promise<Solution> {
+  await untilBlock(c, (ts) => ts > batchId, batchId + 10n);
+  const {signed} = await feed(batchId);
+  const {plan} = await solveAt(c, k, batchId, signed, solverAccount().address, await c.getBlockNumber());
+  assert.ok(plan.solution.executions.length > 0, `batch ${batchId} solved to nothing: ${plan.pairs.map((p) => p.reason).join("; ")}`);
+  return plan.solution;
+}
+
+/** The receipt the API would serve, built here against this suite's own database. */
+async function receiptOf(batchId: bigint) {
+  const sessions = [...deployment.contracts].find(([, key]) => key === "sessions")![0] as Address;
+  const sessionAbi = loadAbi("SessionManager");
+  const session = (await c.readContract({address: sessions, abi: sessionAbi, functionName: "sessionAt", args: [batchId]})) as number;
+  const pinned = JSON.parse(readFileSync(`${REPO_ROOT}/infra/pinned-block.json`, "utf8")) as {chainId: number; block: number; timestamp: number};
+  const ctx: ReceiptContext = {
+    chainId: deployment.chainId,
+    source: {kind: "fork", forkedFrom: pinned.chainId, pinnedBlock: String(pinned.block), pinnedAt: pinned.timestamp},
+    tokens: new Map(),
+    quoteToken: QUOTE,
+    explorer: "",
+    rpcUrl: "http://127.0.0.1:8545",
+    baselineAdapter: k.baselineAdapter,
+    session: session as ReceiptContext["session"],
+    sessionName: String(session) as ReceiptContext["sessionName"],
+    batchDurationSeconds: Number(await c.readContract({address: sessions, abi: sessionAbi, functionName: "batchDuration", args: [session]})),
+    maxDeviationBps: Number(await c.readContract({address: sessions, abi: sessionAbi, functionName: "maxDeviationBps", args: [session]})),
+    quote: async (sellToken, buyToken, amount, blockNumber) => {
+      const q = await quote(c, k.baselineAdapter, sellToken, buyToken, amount, blockNumber);
+      return q.ok ? q.out : null;
+    },
+  };
+  return buildReceipt(batchId, await loadFacts(db(), deployment.settlement, batchId), ctx);
+}
+
 describe("indexer on the fork", () => {
   before(async () => {
     c = client();
     deployment = await loadDeployment(c);
+    k = await contracts(c, deployment.settlement as Address);
+    who = users();
     await resetDb();
   });
 
@@ -252,6 +363,61 @@ describe("indexer on the fork", () => {
       await catchUp();
       const n = async (t: string) => (await db().query(`SELECT count(*)::int AS n FROM ${t}`)).rows[0].n;
       results.I9 = {auctions: await n("auctions"), indicative: await n("indicative"), closingPrints: await n("closing_prints"), withheld: await n("closing_prints_withheld"), tail: out.slice(-600)};
+    } finally {
+      await rpc("evm_revert", [id]);
+    }
+  });
+
+  // I6 and I7 come last because their evm_revert rewinds chain time past
+  // batches the coordinator has already seen.
+  test("I6 an owner moves their sell balance after submit, the receipt names them", async () => {
+    const id = (await rpc("evm_snapshot")) as Hex;
+    try {
+      const batchId = await placeNetted();
+      const s = await solveClosed(batchId);
+      const sent = await submit(c, solverAccount(), k, s, new Store(mkdtempSync(join(tmpdir(), "nokturn-i6-"))));
+      assert.equal(sent.status, "best");
+      const owner = who[1]!.address;
+      const balance = (await c.readContract({address: NVDA, abi: erc20Abi, functionName: "balanceOf", args: [owner]})) as bigint;
+      await sendAs(owner, NVDA, encodeFunctionData({abi: erc20Abi, functionName: "transfer", args: [who[2]!.address, balance]}));
+      const outcome = await finalizeWon(c, solverAccount(), k, s, new Store(mkdtempSync(join(tmpdir(), "nokturn-i6-"))));
+      await catchUp();
+      const failures = (await db().query("SELECT owner, intent_index FROM collection_failures WHERE batch_id = $1", [String(batchId)])).rows;
+      const built = await receiptOf(batchId);
+      results.I6 = {batchId, solverStatus: outcome.status, finalizeTx: outcome.tx, collectionFailures: failures, outcome: built?.receipt.outcome, failure: built?.receipt.failure};
+      assert.equal(outcome.status, "finalized_passthrough", outcome.result);
+      assert.ok(failures.some((f) => String(f.owner).toLowerCase() === owner.toLowerCase()));
+      assert.equal(built?.receipt.outcome, "passthrough");
+      assert.equal(built?.receipt.failure?.code, "IntentCollectionFailed");
+      assert.ok(built!.receipt.failure!.reason.toLowerCase().includes(owner.toLowerCase()), built!.receipt.failure!.reason);
+    } finally {
+      await rpc("evm_revert", [id]);
+    }
+  });
+
+  // A solver killed after its submit and never restarted leaves exactly this on
+  // chain, a best solution and no finalize, so the submit is sent and finalize
+  // is simply never called.
+  test("I7 a winner that never finalizes is expired by another account and slashed", async () => {
+    const id = (await rpc("evm_snapshot")) as Hex;
+    try {
+      const batchId = await placeNetted();
+      const s = await solveClosed(batchId);
+      const sent = await submit(c, solverAccount(), k, s, new Store(mkdtempSync(join(tmpdir(), "nokturn-i7-"))));
+      assert.equal(sent.status, "best");
+      const solveEnd = batchId + 10n;
+      const now = (await c.getBlock()).timestamp;
+      await rpc("evm_increaseTime", [Number(solveEnd + 300n - now + 1n)]);
+      await rpc("evm_mine");
+      const expireTx = await sendAs(who[2]!.address, k.settlement, encodeFunctionData({abi: settlementAbi, functionName: "expireBatch", args: [batchId]}));
+      await catchUp();
+      const slashes = (await db().query("SELECT solver, slash_amount, slash_reason, tx_hash FROM solvers WHERE event = 'slashed' AND lower(tx_hash) = $1", [expireTx.toLowerCase()])).rows;
+      const built = await receiptOf(batchId);
+      results.I7 = {batchId, expireTx, slashes, outcome: built?.receipt.outcome, failure: built?.receipt.failure};
+      assert.equal(built?.receipt.outcome, "expired");
+      assert.equal(built?.receipt.failure?.code, "WinnerNeverFinalized");
+      assert.equal(slashes.length, 1);
+      assert.equal(String(slashes[0].solver).toLowerCase(), solverAccount().address.toLowerCase());
     } finally {
       await rpc("evm_revert", [id]);
     }
