@@ -1,0 +1,49 @@
+name: app
+
+on:
+  push:
+    paths:
+      - "app/**"
+      - "packages/shared/**"
+      - ".github/workflows/app.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - "packages/shared/**"
+      - ".github/workflows/app.yml"
+
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Types
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # The build must not reach the chain. Screens that read mainnet are marked
+      # dynamic, so a green build here says no live reading was baked into a file.
+      - name: Build
+        run: pnpm build
