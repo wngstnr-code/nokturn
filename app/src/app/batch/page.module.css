@@ -1,0 +1,166 @@
+.page {
+  width: 100%;
+  max-width: var(--n-page-width);
+  margin: 0 auto;
+  display: flex;
+  flex-flow: column wrap;
+  gap: 20px;
+}
+
+.head {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  padding: var(--n-padding-normal);
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+  color: var(--n-text);
+}
+
+.eyebrow {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin-top: 8px;
+  font-size: 32px;
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  text-shadow:
+    0 0 26px var(--n-text-o10),
+    0 0 28px var(--n-text-o25);
+}
+
+.window {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  text-align: right;
+}
+
+.window strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--n-text);
+  font-weight: var(--n-weight-medium);
+}
+
+.rows {
+  display: flex;
+  flex-flow: column wrap;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr repeat(3, minmax(120px, auto));
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  padding: 16px;
+  background: var(--n-paper-darker);
+  border-radius: 16px;
+}
+
+.cell {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-normal);
+}
+
+.cell strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--n-text);
+  font-size: var(--n-font-medium);
+  font-weight: var(--n-weight-medium);
+}
+
+.empty {
+  width: 100%;
+  padding: 10px;
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+}
+
+.empty > * {
+  padding: 0 14px;
+}
+
+.empty > *:first-child {
+  padding-top: 30px;
+}
+
+.empty > *:last-child {
+  padding-bottom: 30px;
+}
+
+.emptyTitle {
+  font-size: var(--n-font-large);
+  font-weight: var(--n-weight-semibold);
+}
+
+.emptyBody {
+  max-width: 78ch;
+  margin-top: 12px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-normal);
+  line-height: var(--n-line-medium);
+}
+
+.emptyDetail {
+  margin-top: 16px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  overflow-wrap: anywhere;
+}
+
+.failure {
+  width: 100%;
+  padding: var(--n-padding-normal);
+  background: var(--n-danger-bg);
+  border-radius: 16px;
+}
+
+.failure h2 {
+  font-size: var(--n-font-large);
+  font-weight: var(--n-weight-semibold);
+}
+
+.failure p {
+  margin-top: 8px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-small-plus);
+  line-height: var(--n-line-small);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 960px) {
+  .title {
+    font-size: 24px;
+  }
+
+  .row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Named by IntentCollectionFailed. Settlement says who, never why. */
+.note {
+  display: block;
+  margin-top: 6px;
+  color: var(--n-alert-text);
+  font-size: var(--n-font-small);
+  font-weight: var(--n-weight-normal);
+}
