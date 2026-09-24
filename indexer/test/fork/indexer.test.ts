@@ -350,7 +350,11 @@ describe("indexer on the fork", () => {
     assert.equal(differ.length, 0, JSON.stringify(differ));
   });
 
-  test("I9 auction and closing print events from tools/fork-demo.sh", async () => {
+  // tools/fork-demo.sh settles one netted and one routed batch and never opens an
+  // auction or publishes a closing print, measured 25 September 2026. So the
+  // demo's two batches are asserted, and the auction tables are reported as
+  // skipped with that reason rather than passing on zero rows.
+  test("I9 tools/fork-demo.sh batches, and auction and closing print events", async (t) => {
     const id = (await rpc("evm_snapshot")) as Hex;
     let out = "";
     try {
@@ -358,11 +362,18 @@ describe("indexer on the fork", () => {
         out = execFileSync("bash", [`${REPO_ROOT}/tools/fork-demo.sh`], {cwd: REPO_ROOT, encoding: "utf8", timeout: 600_000});
       } catch (error) {
         results.I9 = {skipped: "tools/fork-demo.sh failed", tail: String((error as {stdout?: string}).stdout ?? (error as Error).message).slice(-1500)};
+        t.skip("tools/fork-demo.sh failed");
         return;
       }
       await catchUp();
-      const n = async (t: string) => (await db().query(`SELECT count(*)::int AS n FROM ${t}`)).rows[0].n;
-      results.I9 = {auctions: await n("auctions"), indicative: await n("indicative"), closingPrints: await n("closing_prints"), withheld: await n("closing_prints_withheld"), tail: out.slice(-600)};
+      const record = JSON.parse(out.slice(out.indexOf("{"))) as {settledBatch: number; passthroughBatch: number};
+      const outcomeOf = async (batchId: number) => (await db().query("SELECT outcome FROM batches WHERE batch_id = $1", [String(batchId)])).rows[0]?.outcome ?? null;
+      const n = async (table: string) => (await db().query(`SELECT count(*)::int AS n FROM ${table}`)).rows[0].n;
+      const auctionRows = {auctions: await n("auctions"), indicative: await n("indicative"), closingPrints: await n("closing_prints"), withheld: await n("closing_prints_withheld")};
+      results.I9 = {settledBatch: record.settledBatch, settled: await outcomeOf(record.settledBatch), routedBatch: record.passthroughBatch, routed: await outcomeOf(record.passthroughBatch), ...auctionRows};
+      assert.equal(await outcomeOf(record.settledBatch), "settled");
+      assert.notEqual(await outcomeOf(record.passthroughBatch), null, "the routed demo batch was not indexed");
+      if (Object.values(auctionRows).every((v) => v === 0)) t.skip("fork-demo.sh emits no auction or closing print events, so those tables have nothing to hold");
     } finally {
       await rpc("evm_revert", [id]);
     }
