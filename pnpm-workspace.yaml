@@ -1,8 +1,11 @@
+# app is deliberately not listed. It installs on its own, with its own lockfile
+# and its own pnpm major, and listing it here made pnpm-lock.yaml claim an
+# importer that is not in it. Committing app would then fail every CI job that
+# installs with a frozen lockfile, backend included.
 packages:
   - "api"
   - "solver"
   - "indexer"
   - "analytics"
   - "infra"
-  - "app"
   - "packages/*"
