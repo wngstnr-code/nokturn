@@ -266,6 +266,7 @@ describe("F21 lifecycle under failure", () => {
       const outcome = await finalizeWon(c, solverAccount(), k, s, store);
       results.E6 = {batchId, move: {tx: moveTx, owner, nvda: balance}, status: outcome.status, result: outcome.result, finalizeTx: outcome.tx, finalizedOnChain: await isFinalized(batchId), events: await eventsFor(batchId, from)};
       assert.notEqual(outcome.status, "abandoned");
+      if (!(results.E6 as {events: string[]}).events.includes("BatchSettled")) assert.equal(outcome.status, "finalized_passthrough");
     } finally {
       await rpc("evm_revert", [id]);
     }
