@@ -375,12 +375,13 @@ describe("indexer on the fork", () => {
     try {
       const batchId = await placeNetted();
       const s = await solveClosed(batchId);
-      const sent = await submit(c, solverAccount(), k, s, new Store(mkdtempSync(join(tmpdir(), "nokturn-i6-"))));
+      const store = new Store(mkdtempSync(join(tmpdir(), "nokturn-i6-")));
+      const sent = await submit(c, solverAccount(), k, s, store);
       assert.equal(sent.status, "best");
       const owner = who[1]!.address;
       const balance = (await c.readContract({address: NVDA, abi: erc20Abi, functionName: "balanceOf", args: [owner]})) as bigint;
       await sendAs(owner, NVDA, encodeFunctionData({abi: erc20Abi, functionName: "transfer", args: [who[2]!.address, balance]}));
-      const outcome = await finalizeWon(c, solverAccount(), k, s, new Store(mkdtempSync(join(tmpdir(), "nokturn-i6-"))));
+      const outcome = await finalizeWon(c, solverAccount(), k, s, store);
       await catchUp();
       const failures = (await db().query("SELECT owner, intent_index FROM collection_failures WHERE batch_id = $1", [String(batchId)])).rows;
       const built = await receiptOf(batchId);
