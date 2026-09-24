@@ -35,6 +35,9 @@ jobs:
       - run: pnpm install --dir packages/shared
       - run: pnpm install --dir api
       - run: pnpm install --dir solver
+      # Before the api compiles, because the receipt routes import indexer/src
+      # and resolve pg from indexer's own node_modules.
+      - run: pnpm install --dir indexer
       - name: shared types compile
         working-directory: packages/shared
         run: npx tsc --noEmit
@@ -48,6 +51,12 @@ jobs:
       # the clearing properties.
       - name: solver unit tests
         run: pnpm -C solver test
+      - name: indexer compiles
+        run: pnpm -C indexer typecheck
+      # Synthetic logs encoded from the real abis against an in memory store.
+      # No database and no chain.
+      - name: indexer unit tests
+        run: pnpm -C indexer test
 
       # The api reads its abis out of packages/shared/abi at boot. A missing one
       # is a five hundred on every request that touches that contract, and it

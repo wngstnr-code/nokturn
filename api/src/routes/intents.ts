@@ -39,6 +39,7 @@ import {publish} from "../events.ts";
 import {admit, counts, openWindow, getByBatch, getByHash, sweep} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp, type BlockStamp} from "../provenance.ts";
+import {fillFor} from "./batches.ts";
 import {SESSION_NAMES} from "./session.ts";
 
 /** Settlement.SOLUTION_WINDOW, parameter.md section 6. Fixed across sessions. */
@@ -200,10 +201,21 @@ export function intentRoutes(app: FastifyInstance) {
           reason: lookup.reason,
         });
       }
-      if (intent.validUntil < Number(lookup.collectEnd) || intent.validAfter > Number(lookup.collectEnd)) {
-        throw badRequest("IntentExpired", "intent is not valid at this batch's collectEnd", {
+      if (intent.validAfter > Number(lookup.collectEnd)) {
+        throw badRequest("IntentExpired", "intent is not valid yet at this batch's collectEnd", {
           validAfter: intent.validAfter,
           validUntil: intent.validUntil,
+          collectEnd: String(lookup.collectEnd),
+        });
+      }
+      // Settlement._requireCollectable refuses validUntil <= solveEnd since
+      // 0067794, so an intent that expires inside the solving window would be
+      // accepted here and then sink every solution that includes it.
+      const solveEnd = lookup.collectEnd + SOLUTION_WINDOW;
+      if (intent.validUntil <= Number(solveEnd)) {
+        throw badRequest("IntentExpired", "intent expires before this batch's solving window closes, so no solution could collect it", {
+          validUntil: intent.validUntil,
+          solveEnd: String(solveEnd),
           collectEnd: String(lookup.collectEnd),
         });
       }
@@ -279,15 +291,16 @@ export function intentRoutes(app: FastifyInstance) {
 
       const decoded = validateIntentPayload(stored.signed.intent);
       const hatch = escapeHatchFor(decoded, stored.signed.signature);
+      // From the indexer's IntentSettled row. Without one, or with the database
+      // down, the status stays what the coordinator knows and fill stays null.
+      const fill = await fillFor(stored.signed.intentHash);
 
       return {
         intentHash: stored.signed.intentHash,
-        status: stored.status,
+        status: fill ? (fill.partial ? "partially_settled" : "settled") : stored.status,
         intent: stored.signed.intent,
         batchId: String(stored.batchId),
-        // The indexer is what fills these in. Not written yet, and null is the
-        // honest answer rather than a guess dressed up as data.
-        fill: null,
+        fill,
         rejection: stored.rejection,
         escapeHatch: {to: hatch.to, data: hatch.data, castCommand: hatch.castCommand},
       };

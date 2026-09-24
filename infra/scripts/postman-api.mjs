@@ -292,11 +292,64 @@ const requests = [
   },
 ];
 
-const stubs = [
-  {method: "GET", path: "/v1/batches", needs: "the indexer"},
-  {method: "GET", path: "/v1/batches/1789900000", needs: "the indexer"},
-  {method: "GET", path: "/v1/auctions/1", needs: "an auction"},
-];
+const stubs = [{method: "GET", path: "/v1/auctions/1", needs: "an auction"}];
+
+// GET /v1/batches is real since Hari 5. It answers live, so its shape is
+// checked directly rather than through the 503 stub loop below.
+const batchList = await fetch(`${API}/v1/batches`).then((r) => r.json());
+requests.push({
+  name: "/v1/batches lists real batches, cursor first",
+  method: "GET",
+  path: "/v1/batches",
+  tests: [
+    `pm.test("batches is an array", () => pm.expect(body.batches).to.be.an("array"));`,
+    `pm.test("cursor is a string or null", () => pm.expect(body.cursor === null || typeof body.cursor === "string").to.eql(true));`,
+    `if (body.batches.length) {`,
+    `  pm.test("each batch names an outcome and a real netting ratio", () => {`,
+    `    for (const b of body.batches) {`,
+    `      pm.expect(["settled", "passthrough", "expired"]).to.include(b.outcome);`,
+    `      pm.expect(Number(b.nettingRatioBps)).to.be.at.least(0);`,
+    `    }`,
+    `  });`,
+    `}`,
+  ],
+  why: "The indexer's own tables, not the mempool. No batch settled yet is a real answer, an empty array, not a stub.",
+});
+
+if (batchList.batches?.length) {
+  const settled = batchList.batches.find((b) => b.outcome === "settled") ?? batchList.batches[0];
+  requests.push({
+    name: `/v1/batches/${settled.batchId} is a real receipt`,
+    method: "GET",
+    path: `/v1/batches/${settled.batchId}`,
+    tests: [
+      `pm.test("batchId matches", () => pm.expect(body.batchId).to.eql("${settled.batchId}"));`,
+      `pm.test("outcome matches the list", () => pm.expect(body.outcome).to.eql("${settled.outcome}"));`,
+      `pm.test("provenance names a real block", () => {`,
+      `  pm.expect(body.provenance.chainId).to.be.a("number");`,
+      `  pm.expect(Number(body.provenance.blockNumber)).to.be.above(0);`,
+      `});`,
+      `if (body.fills) {`,
+      `  pm.test("every fill carries a baseline and a verify call", () => {`,
+      `    for (const f of body.fills) {`,
+      `      pm.expect(f.baselineBuy).to.be.a("string");`,
+      `      pm.expect(f.verifyBaseline.castCommand).to.include("quoteFromState");`,
+      `    }`,
+      `  });`,
+      `}`,
+    ],
+    why: `Batch ${settled.batchId} settled on this fork when the collection was generated, docs/rencana-backend.md section 5 Hari 5. Regenerate this collection to pick up whichever batch is settled at the time.`,
+  });
+} else {
+  requests.push({
+    name: "/v1/batches/<no batch settled yet> skipped",
+    method: "GET",
+    path: "/v1/batches/1789900000",
+    expectStatus: 404,
+    tests: [`pm.test("404, an unknown batch, not invented data", () => pm.response.to.have.status(404));`],
+    why: "No batch had settled on this fork when the collection was generated, so there is no real batchId to check a receipt against. Run make solver and make indexer, then regenerate.",
+  });
+}
 
 requests.push({
   name: "/v1/stream without an upgrade is told to use a websocket",

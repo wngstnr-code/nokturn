@@ -17,6 +17,7 @@ export type Status =
   | "best"
   | "not_best"
   | "finalized"
+  | "finalized_passthrough"
   | "finalized_by_other"
   | "finalize_reverted"
   | "abandoned";

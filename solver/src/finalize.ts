@@ -15,7 +15,7 @@ import type {Solution} from "./solution.ts";
 import type {Status, Store} from "./store.ts";
 
 export interface FinalizeOutcome {
-  status: Extract<Status, "not_best" | "finalized" | "finalized_by_other" | "finalize_reverted" | "abandoned">;
+  status: Extract<Status, "not_best" | "finalized" | "finalized_passthrough" | "finalized_by_other" | "finalize_reverted" | "abandoned">;
   tx: Hex | null;
   block: bigint | null;
   /** BatchSettled, or the BatchPassthrough reason, or why nothing was sent. */
@@ -66,7 +66,7 @@ function finalizeData(s: Solution): Hex {
   return encodeFunctionData({abi: settlementAbi(), functionName: "finalize", args: [s.batchId, s]});
 }
 
-async function tryFinalize(c: PublicClient, account: HDAccount, k: Contracts, s: Solution): Promise<{ok: true; tx: Hex; block: bigint; result: string; intentsSettled: number; savingsUsd: bigint} | {ok: false; tx: Hex | null; error: string}> {
+async function tryFinalize(c: PublicClient, account: HDAccount, k: Contracts, s: Solution): Promise<{ok: true; settled: boolean; tx: Hex; block: bigint; result: string; intentsSettled: number; savingsUsd: bigint} | {ok: false; tx: Hex | null; error: string}> {
   const data = finalizeData(s);
   try {
     await c.call({account: account.address, to: k.settlement, data});
@@ -92,7 +92,7 @@ async function tryFinalize(c: PublicClient, account: HDAccount, k: Contracts, s:
     : passthrough
       ? `BatchPassthrough "${passthrough.args.reason}"${failed.length ? `, collection failed for ${failed.join(", ")}` : ""}`
       : "no settlement event";
-  return {ok: true, tx, block: receipt.blockNumber, result, intentsSettled, savingsUsd: settled ? (settled.args.totalSavingsUsd as bigint) : 0n};
+  return {ok: true, settled: settled !== undefined, tx, block: receipt.blockNumber, result, intentsSettled, savingsUsd: settled ? (settled.args.totalSavingsUsd as bigint) : 0n};
 }
 
 export async function finalizeWon(c: PublicClient, account: HDAccount, k: Contracts, s: Solution, store: Store, log: (line: string) => void = () => {}): Promise<FinalizeOutcome> {
@@ -117,7 +117,11 @@ export async function finalizeWon(c: PublicClient, account: HDAccount, k: Contra
     const head = (await c.getBlock()).timestamp;
     if (head > deadline) return done({...none, status: "abandoned", result: `deadline ${deadline} passed before finalize was sent`});
     const r = await tryFinalize(c, account, k, s);
-    if (r.ok) return done({status: "finalized", tx: r.tx, block: r.block, result: r.result, intentsSettled: r.intentsSettled, savingsUsd: r.savingsUsd});
+    // Since 0067794 a failed collection unwinds the batch inside a successful
+    // finalize, with BatchPassthrough and no BatchSettled. A routed batch under
+    // the savings threshold emits both, and its intents did settle, so only a
+    // missing BatchSettled makes this a passthrough.
+    if (r.ok) return done({status: r.settled ? "finalized" : "finalized_passthrough", tx: r.tx, block: r.block, result: r.result, intentsSettled: r.intentsSettled, savingsUsd: r.savingsUsd});
     if (r.error.startsWith("AlreadyFinalized")) return done({...none, tx: r.tx, status: "finalized_by_other", result: r.error});
     log(`  finalize ${s.batchId} attempt ${attempt + 1} reverts ${r.error}`);
     if (attempt === 1) {

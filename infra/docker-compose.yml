@@ -1,0 +1,28 @@
+# Local development only. The credentials below exist on this laptop and
+# nowhere else, and the port is bound to 127.0.0.1 so nothing off the machine
+# can reach it.
+#
+# 5433 rather than 5432, because a developer's own Postgres already sits on 5432
+# and this must never touch it.
+#
+# The first service of F5. The rest of the stack joins later.
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: nokturn
+      POSTGRES_PASSWORD: nokturn
+      POSTGRES_DB: nokturn
+    ports:
+      - "127.0.0.1:${NOKTURN_DB_PORT:-5433}:5432"
+    volumes:
+      - nokturn-pg:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nokturn -d nokturn"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  nokturn-pg:
