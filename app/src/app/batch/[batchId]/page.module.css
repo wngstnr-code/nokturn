@@ -404,3 +404,9 @@
     font-size: 20px;
   }
 }
+
+.failureReason {
+  margin-top: 8px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+}

@@ -117,6 +117,20 @@ function Fill({fill}: {fill: FillReceipt}) {
   );
 }
 
+/*
+ * The reason a batch passed through, said plainly. Settlement carries these as
+ * strings on BatchPassthrough and the indexer names them, and the difference
+ * between them matters. One is an honest zero, the other is an owner walking
+ * away after a solution was already locked.
+ */
+const WHY: Record<string, string> = {
+  SavingsBelowThreshold: "No solution beat the venue by enough to be worth settling",
+  IntentCollectionFailed: "An owner's sell leg could not be pulled when the batch closed",
+  WinnerNeverFinalized: "The winning solver never came back to finalize",
+  BatchPassthrough: "The batch passed through without settling",
+  WorseThanBaseline: "Every solution offered less than the venue would have",
+};
+
 /* Publishes the baseline even though nothing settled. docs/demo.md section 3. */
 function Failure({failure, receipt}: {failure: NonNullable<BatchReceipt["failure"]>; receipt: BatchReceipt}) {
   // A passthrough has no fills, so the token comes off the routed leg.
@@ -125,7 +139,12 @@ function Failure({failure, receipt}: {failure: NonNullable<BatchReceipt["failure
   return (
     <section className={styles.failure}>
       <p className={styles.failureCode}>{failure.code}</p>
-      <h2 className={styles.failureTitle}>{failure.reason}</h2>
+      <h2 className={styles.failureTitle}>{WHY[failure.code] ?? failure.reason}</h2>
+      {WHY[failure.code] === undefined ? null : (
+        <p className={styles.failureReason}>
+          Settlement recorded the reason as <span className="chainvalue">{failure.reason}</span>
+        </p>
+      )}
       <p className={styles.failureBody}>
         Nothing settled, and the fee charged was {failure.feeCharged}. The comparison below was
         published anyway, at the same block, which is the number a batch that never ran would have

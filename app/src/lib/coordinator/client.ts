@@ -2,6 +2,7 @@ import type {
   ApiError,
   ApiErrorCode,
   AuctionResponse,
+  BatchListResponse,
   BatchReceipt,
   CoordinatorHealth,
   CurrentBatchResponse,
@@ -120,4 +121,10 @@ export async function batchReceipt(batchId: string): Promise<Outcome<BatchReceip
 
 export async function auction(auctionId: string): Promise<Outcome<AuctionResponse>> {
   return call<AuctionResponse>(`/v1/auctions/${auctionId}`);
+}
+
+/* Keyset paged, newest first. The cursor is the last batchId of the page. */
+export async function listBatches(cursor?: string): Promise<Outcome<BatchListResponse>> {
+  const query = cursor === undefined ? "" : `?cursor=${cursor}`;
+  return call<BatchListResponse>(`/v1/batches${query}`);
 }
