@@ -57,6 +57,13 @@ jobs:
       # No database and no chain.
       - name: indexer unit tests
         run: pnpm -C indexer test
+      # The replay imports api and solver modules, so it compiles after both
+      # are installed. Its unit tests read no fixture and touch no chain.
+      - run: pnpm install --dir analytics
+      - name: analytics compiles
+        run: pnpm -C analytics typecheck
+      - name: analytics unit tests
+        run: pnpm -C analytics test
 
       # The api reads its abis out of packages/shared/abi at boot. A missing one
       # is a five hundred on every request that touches that contract, and it
