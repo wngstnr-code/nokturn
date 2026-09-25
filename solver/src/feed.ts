@@ -4,6 +4,7 @@
 import type {Address, PublicClient} from "viem";
 import type {BatchIntentsResponse} from "../../packages/shared/api-types.ts";
 import {USDG} from "../../packages/shared/addresses.ts";
+import type {Profile} from "./account.ts";
 import {API, type Contracts} from "./chain.ts";
 import type {Intent} from "./solution.ts";
 import {readInputs, solve, type Plan, type SignedIntent} from "./solve.ts";
@@ -40,7 +41,7 @@ export function tokensOf(signed: SignedIntent[]): Address[] {
   return [...set.values()];
 }
 
-export async function solveAt(c: PublicClient, k: Contracts, batchId: bigint, signed: SignedIntent[], solver: Address, block: bigint): Promise<{plan: Plan; inputs: Awaited<ReturnType<typeof readInputs>>}> {
+export async function solveAt(c: PublicClient, k: Contracts, batchId: bigint, signed: SignedIntent[], solver: Address, block: bigint, profile: Profile = "a"): Promise<{plan: Plan; inputs: Awaited<ReturnType<typeof readInputs>>}> {
   const inputs = await readInputs(c, k, batchId, tokensOf(signed), block);
-  return {plan: await solve(c, k, batchId, signed, USDG as Address, solver, inputs), inputs};
+  return {plan: await solve(c, k, batchId, signed, USDG as Address, solver, inputs, profile), inputs};
 }
