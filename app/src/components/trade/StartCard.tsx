@@ -1,6 +1,7 @@
 "use client";
 
-import {useAccount, useConnect} from "wagmi";
+import {useState} from "react";
+import {WalletPicker} from "@/components/WalletPicker";
 import type {TokenInfo} from "@/lib/tokens";
 import styles from "./StartCard.module.css";
 
@@ -14,17 +15,7 @@ import styles from "./StartCard.module.css";
  * filling space.
  */
 export function StartCard({bases}: {bases: TokenInfo[]}) {
-  const {isConnected} = useAccount();
-  const {connect, connectors, isPending} = useConnect();
-  const injected = connectors[0];
-
-  const label = isConnected
-    ? "Connected"
-    : injected === undefined
-      ? "No wallet found"
-      : isPending
-        ? "Connecting"
-        : "Connect a wallet";
+  const [picking, setPicking] = useState(false);
 
   return (
     <>
@@ -44,14 +35,11 @@ export function StartCard({bases}: {bases: TokenInfo[]}) {
         </div>
       </div>
 
-      <button
-        type="button"
-        className={styles.action}
-        disabled={isPending || injected === undefined}
-        onClick={() => injected && connect({connector: injected})}
-      >
-        {label}
+      <button type="button" className={styles.action} onClick={() => setPicking(true)}>
+        Get started
       </button>
+
+      {picking ? <WalletPicker onClose={() => setPicking(false)} /> : null}
     </>
   );
 }
