@@ -33,8 +33,17 @@ help:
 	@echo "db-down      stop it, keeping the data"
 	@echo "db-reset     delete its volume, asks first"
 	@echo "indexer      start the event indexer, ARGS=\"--duration 10\" bounds it"
+	@echo "demo-fail    one failure receipt, CASE=passthrough|expired|unwound"
+	@echo "expire       expireBatch from another account, BATCH=<batchId>"
 
-.PHONY: db-up db-down db-reset indexer
+.PHONY: db-up db-down db-reset indexer demo-fail expire
+
+# CASE is passthrough, expired or unwound. Stop make solver first.
+demo-fail:
+	@node $(S)/demo-fail.mjs --case $(CASE)
+
+expire:
+	@node $(S)/expire.mjs $(BATCH)
 
 indexer:
 	@$(S)/indexer.sh $(ARGS)
