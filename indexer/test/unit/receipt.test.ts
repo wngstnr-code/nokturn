@@ -118,6 +118,17 @@ describe("receipt", () => {
     assert.equal(r.failure!.code, "WinnerNeverFinalized");
   });
 
+  test("a routed batch that saved nothing stays settled and carries SavingsBelowThreshold", async () => {
+    const f = nettedFacts();
+    f.batch = {...f.batch!, reason: "savings below threshold", netted_usd: "0", routed_usd: "400", savings_usd: "0"};
+    const r = (await buildReceipt(1789893780n, f, ctx()))!.receipt;
+    assert.equal(r.outcome, "settled");
+    assert.equal(r.fills.length, f.fills.length);
+    assert.equal(r.totals.totalSavingsUsd, "0");
+    assert.equal(r.failure!.code, "SavingsBelowThreshold");
+    assert.equal(r.failure!.feeCharged, "0");
+  });
+
   test("an unknown batch has no receipt", async () => {
     assert.equal(await buildReceipt(3n, {...nettedFacts(), batch: null}, ctx()), null);
   });

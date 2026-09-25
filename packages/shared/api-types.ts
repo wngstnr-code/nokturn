@@ -568,9 +568,11 @@ export interface BatchReceipt {
   };
 
   /**
-   * Set when the batch did not settle. Carries the baseline anyway, which is
-   * the whole point of the failure screen. A protocol that publishes nothing on
-   * failure is asking to be trusted that the failure was honest.
+   * Set when the batch did not settle, and on a settled batch that saved
+   * nothing, code SavingsBelowThreshold, whose trades did execute. Carries the
+   * baseline anyway, which is the whole point of the failure screen. A protocol
+   * that publishes nothing on failure is asking to be trusted that the failure
+   * was honest.
    */
   failure: {
     code: ApiErrorCode;

@@ -280,8 +280,12 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
       solverFeeUsd: String(b.solver_fee_usd ?? "0"),
       protocolFeeUsd: String(b.protocol_fee_usd ?? "0"),
     },
+    // A routed batch that saved nothing settles and is flagged in the same
+    // finalize. Its trades happened, so the outcome stays settled, and the flag
+    // is carried as a failure so the failure screen can show it. Decided with
+    // Dharu 26 September 2026.
     failure:
-      outcome === "settled"
+      outcome === "settled" && reason !== "savings below threshold"
         ? null
         : {
             code: FAILURE_CODES[reason ?? ""] ?? "BatchPassthrough",
