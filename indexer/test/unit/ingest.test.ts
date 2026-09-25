@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {describe, test} from "node:test";
 import {stringToHex} from "viem";
+import {confirmationsFor, UnsafeConfirmations} from "../../src/index.ts";
 import {Ingest} from "../../src/ingest.ts";
 import {MemoryStore} from "../../src/store.ts";
 import {ADDR, DEPLOYMENT, FakeChain} from "./fakechain.ts";
@@ -151,5 +152,30 @@ describe("ingest", () => {
     await drain(ingest);
     assert.equal(store.rows("auctions")[0]!.status, "open");
     assert.equal(store.rows("auctions")[0]!.abort_reason, undefined);
+  });
+
+  test("a block is held back until it is confirmations deep", async () => {
+    const chain = new FakeChain();
+    const store = new MemoryStore();
+    const ingest = new Ingest(chain.client(), store, DEPLOYMENT, () => {}, 2n);
+    const at = chain.emit(settledBatch(9n));
+    await ingest.step();
+    assert.equal(store.rows("fills").length, 0);
+    chain.mine();
+    await ingest.step();
+    assert.equal(store.rows("fills").length, 0);
+    chain.mine();
+    const r = await ingest.step();
+    assert.equal(r.to, at);
+    assert.equal(store.rows("fills").length, 1);
+  });
+
+  test("zero confirmations is refused off a fork and allowed on one", async () => {
+    const node = (fork: boolean) => ({request: async () => (fork ? {} : Promise.reject(new Error("method not found")))}) as never;
+    await assert.rejects(confirmationsFor(node(false), 0n), UnsafeConfirmations);
+    await assert.rejects(confirmationsFor(node(false), undefined), UnsafeConfirmations);
+    assert.equal(await confirmationsFor(node(false), 3n), 3n);
+    assert.equal(await confirmationsFor(node(true), undefined), 0n);
+    assert.equal(await confirmationsFor(node(true), 2n), 2n);
   });
 });

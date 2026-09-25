@@ -112,12 +112,22 @@ export class Ingest {
   readonly d: Deployment;
   readonly log: (line: string) => void;
 
-  constructor(c: PublicClient, store: IndexStore, d: Deployment, log: (line: string) => void = () => {}) {
+  /** Blocks below the head a block must be before it is indexed. */
+  readonly confirmations: bigint;
+
+  constructor(c: PublicClient, store: IndexStore, d: Deployment, log: (line: string) => void = () => {}, confirmations = 0n) {
     this.c = c;
     this.store = store;
     this.d = d;
     this.log = log;
+    this.confirmations = confirmations;
     this.decode = decoders(d);
+  }
+
+  /** The highest block deep enough to index. */
+  async safeHead(): Promise<bigint> {
+    const head = await read(() => this.c.getBlockNumber());
+    return head > this.confirmations ? head - this.confirmations : 0n;
   }
 
   private async initial(): Promise<Checkpoint> {
@@ -168,7 +178,7 @@ export class Ingest {
       cp = await this.checkpoint();
     }
 
-    const head = await read(() => this.c.getBlockNumber());
+    const head = await this.safeHead();
     const from = cp.lastBlock + 1n;
     const to = head < cp.lastBlock + MAX_RANGE ? head : cp.lastBlock + MAX_RANGE;
     if (to < from) return {from, to: cp.lastBlock, logs: 0, undecoded: 0, rewoundTo, fullReset};
