@@ -1,0 +1,228 @@
+.card {
+  display: flex;
+  flex-flow: column wrap;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  padding: 10px;
+  position: relative;
+  border: none;
+  box-shadow: none;
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+  color: inherit;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 5px 0 0;
+  margin: 0;
+}
+
+.title {
+  font-size: var(--n-font-large);
+  font-weight: var(--n-weight-semibold);
+  line-height: var(--n-line-normal);
+}
+
+.tabs {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: var(--n-radius-normal);
+  color: var(--n-text);
+  font-size: var(--n-font-normal);
+  font-weight: var(--n-weight-medium);
+  line-height: 1;
+}
+
+.tabActive {
+  background: var(--n-paper-darker);
+}
+
+.empty {
+  display: flex;
+  flex-flow: column wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 28px 16px;
+  background: var(--n-paper-darker);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.emptyTitle {
+  width: 100%;
+  font-size: var(--n-font-medium);
+  font-weight: var(--n-weight-semibold);
+}
+
+.emptyBody {
+  width: 100%;
+  max-width: 62ch;
+  margin: 0 auto;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-normal);
+  font-weight: var(--n-weight-normal);
+  line-height: var(--n-line-medium);
+}
+
+.emptyDetail {
+  width: 100%;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  overflow-wrap: anywhere;
+}
+
+.count {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  background: var(--n-paper-darker);
+  border-radius: 16px;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rowBottom {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.legMain {
+  font-size: var(--n-font-medium);
+  font-weight: var(--n-weight-medium);
+}
+
+.legSub {
+  min-width: 0;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+}
+
+.meta {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  white-space: nowrap;
+}
+
+.badge {
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: var(--n-font-small);
+  font-weight: var(--n-weight-medium);
+  white-space: nowrap;
+}
+
+.pending {
+  background: var(--n-info-bg);
+  color: var(--n-info-text);
+}
+
+.batched {
+  background: var(--n-primary-o25);
+  color: var(--n-primary);
+}
+
+.settled {
+  background: var(--n-success-bg);
+  color: var(--n-success-text);
+}
+
+.gone {
+  background: var(--n-text-o10);
+  color: var(--n-text-o70);
+}
+
+.bad {
+  background: var(--n-danger-bg);
+  color: var(--n-danger-text);
+}
+
+.caveat {
+  padding: 4px 6px 0;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  line-height: var(--n-line-small);
+}
+
+/* Only shown when the socket is actually open, never as decoration. */
+.live {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 16px;
+  background: var(--n-success-bg);
+  color: var(--n-success-text);
+  font-size: var(--n-font-smaller);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Said once, under the title, rather than left for a reader to infer. */
+.scope {
+  padding: 0 6px 2px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  line-height: var(--n-line-small);
+}
+
+.rowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Nothing will change here again, so it steps back from the live rows without
+   being removed. Whether it goes is the reader's call, not the app's. */
+.done {
+  opacity: 0.65;
+}
+
+.dismiss {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-medium);
+  line-height: 1;
+  transition:
+    background var(--n-duration) var(--n-easing),
+    color var(--n-duration) var(--n-easing);
+}
+
+.dismiss:hover {
+  background: var(--n-text-o10);
+  color: var(--n-text);
+}

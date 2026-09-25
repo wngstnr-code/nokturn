@@ -1,0 +1,182 @@
+.page {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  display: flex;
+  flex-flow: column wrap;
+  gap: 20px;
+}
+
+.hero {
+  width: 100%;
+  padding: var(--n-padding-normal);
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+}
+
+.badgeRow {
+  margin-bottom: 16px;
+}
+
+/* Spoken on the screen, not only in the script. demo.md section 3b priority 4. */
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 16px;
+  background: var(--n-alert-bg);
+  color: var(--n-alert-text);
+  font-size: var(--n-font-small);
+  font-weight: var(--n-weight-bold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 22ch;
+  margin-top: 12px;
+  font-size: 32px;
+  font-weight: var(--n-weight-semibold);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  text-shadow:
+    0 0 26px var(--n-text-o10),
+    0 0 28px var(--n-text-o25);
+}
+
+.lead {
+  max-width: 72ch;
+  margin-top: 16px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-medium);
+  line-height: var(--n-line-medium);
+}
+
+.callouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+}
+
+.callout {
+  padding: 16px;
+  background: var(--n-paper-darker);
+  border-radius: 16px;
+}
+
+.calloutLabel {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+}
+
+.calloutValue {
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: var(--n-weight-medium);
+  letter-spacing: -0.02em;
+}
+
+.calloutHint {
+  margin-top: 6px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  line-height: var(--n-line-small);
+}
+
+.method {
+  width: 100%;
+  padding: var(--n-padding-normal);
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+}
+
+.methodTitle {
+  font-size: var(--n-font-large);
+  font-weight: var(--n-weight-semibold);
+}
+
+.methodBody {
+  max-width: 78ch;
+  margin-top: 12px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-normal);
+  line-height: var(--n-line-medium);
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sectionLabel::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--n-text-o10);
+}
+
+.scroller {
+  width: 100%;
+  padding: 10px;
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: 8px 16px 4px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-normal);
+  font-weight: var(--n-weight-medium);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px 16px;
+  border-top: 1px solid var(--n-border);
+  font-size: var(--n-font-normal);
+}
+
+.quoted td {
+  background: var(--n-text-o10);
+}
+
+.footnote {
+  max-width: 78ch;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  line-height: 1.6;
+}
+
+@media (max-width: 720px) {
+  .title {
+    font-size: 24px;
+  }
+
+  .lead {
+    font-size: var(--n-font-normal);
+  }
+}

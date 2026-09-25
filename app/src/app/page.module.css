@@ -1,0 +1,29 @@
+/* The grid moved to TradeLayout, which needs to know whether there is a second
+   column. What stays here is the wrapper and the failure card. */
+.page {
+  width: 100%;
+  max-width: calc(var(--n-widget-width) + var(--n-intents-width) + var(--n-column-gap));
+  margin: 0 auto;
+}
+
+.failure {
+  width: 100%;
+  max-width: var(--n-widget-width);
+  margin: 0 auto;
+  padding: var(--n-padding-normal);
+  background: var(--n-danger-bg);
+  border-radius: 16px;
+}
+
+.failure h2 {
+  font-size: var(--n-font-large);
+  font-weight: var(--n-weight-semibold);
+}
+
+.failure p {
+  margin-top: 8px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-small-plus);
+  line-height: var(--n-line-small);
+  overflow-wrap: anywhere;
+}

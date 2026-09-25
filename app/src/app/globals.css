@@ -1,0 +1,102 @@
+@import "../styles/tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body), Arial, sans-serif;
+  font-size: 16px;
+  font-variant: none;
+  font-variant-ligatures: none;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  color: var(--n-text);
+  background-color: var(--n-paper);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: transparent;
+  font-size: var(--n-font-normal);
+  line-height: var(--n-line-normal);
+  font-feature-settings:
+    "liga" off,
+    "kern" on;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--n-primary);
+  color: var(--n-button-text);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: var(--n-paper-darker);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--n-text-o10);
+  border: 3px solid var(--n-text-o10);
+  border-radius: 14px;
+  background-clip: padding-box;
+}
+
+/* Equal width digits, so a column of numbers lines up. */
+.chainvalue {
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: var(--n-primary);
+  text-decoration: none;
+  transition: color var(--n-duration) var(--n-easing);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 1.5px dotted var(--n-text);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}

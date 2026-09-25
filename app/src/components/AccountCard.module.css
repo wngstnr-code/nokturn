@@ -1,0 +1,177 @@
+.card {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 320px;
+  padding: 12px;
+  border-radius: var(--n-radius-normal);
+  background: var(--n-paper);
+  color: var(--n-text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.addressRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--n-paper-darker);
+}
+
+/* Shown in full and on two lines, because a truncated address proves nothing. */
+.address {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--n-font-small);
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.addressTools {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: var(--n-text-o50);
+  transition:
+    background var(--n-duration) var(--n-easing),
+    color var(--n-duration) var(--n-easing);
+}
+
+.tool:hover {
+  background: var(--n-menu-active);
+  color: var(--n-text);
+}
+
+.copied {
+  margin: 0;
+  min-height: 16px;
+  padding: 2px 12px 0;
+  color: var(--n-success-text);
+  font-size: var(--n-font-small);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  font-size: var(--n-font-small-plus);
+}
+
+.rowLabel {
+  color: var(--n-text-o50);
+}
+
+.network {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--n-text);
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-medium);
+}
+
+.networkId {
+  color: var(--n-menu-fill);
+  font-weight: var(--n-weight-normal);
+}
+
+/* No icon by request. The colour is what says this is not where you should be. */
+.switch {
+  padding: 0;
+  color: var(--n-alert-text);
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-medium);
+  text-align: right;
+}
+
+.switch:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.switch:disabled {
+  color: var(--n-text-o50);
+  cursor: not-allowed;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-medium);
+  white-space: nowrap;
+}
+
+.status:hover {
+  text-decoration: none;
+  filter: brightness(1.15);
+}
+
+.countdown {
+  opacity: 0.75;
+  font-weight: var(--n-weight-normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.open {
+  background: var(--n-success-bg);
+  color: var(--n-success-text);
+}
+
+.auction {
+  background: var(--n-primary-o10);
+  color: var(--n-primary);
+}
+
+.closed {
+  background: var(--n-text-o10);
+  color: var(--n-text-o70);
+}
+
+.protective {
+  background: var(--n-danger-bg);
+  color: var(--n-danger-text);
+}
+
+.offline {
+  background: var(--n-alert-bg);
+  color: var(--n-alert-text);
+}
+
+.disconnect {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin: 6px 0 0;
+  padding: 11px;
+  border-radius: 16px;
+  background: var(--n-paper-darker);
+  color: var(--n-text-o70);
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-medium);
+  transition:
+    background var(--n-duration) var(--n-easing),
+    color var(--n-duration) var(--n-easing);
+}
+
+.disconnect:hover {
+  background: var(--n-danger-bg);
+  color: var(--n-danger-text);
+}

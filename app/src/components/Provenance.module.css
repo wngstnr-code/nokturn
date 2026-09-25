@@ -1,0 +1,24 @@
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  width: 100%;
+  padding: 16px;
+  background: var(--n-paper-darker);
+  border-radius: 16px;
+}
+
+.strip span {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  min-width: 0;
+}
+
+.strip strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--n-text);
+  font-size: var(--n-font-normal);
+  font-weight: var(--n-weight-medium);
+  overflow-wrap: anywhere;
+}

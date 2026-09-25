@@ -1,0 +1,133 @@
+/*
+ * Design tokens.
+ *
+ * Values are taken one to one from CoW Swap's dark theme so the two surfaces
+ * look the same. Source of the numbers: libs/ui/src/colors.ts,
+ * libs/ui/src/consts.ts and libs/ui/src/theme/ThemeColorVars.tsx in the cowswap
+ * repo, cross checked against the resolved values read back from the running
+ * app at swap.cow.fi.
+ *
+ * Nothing here is copied code. CoW Swap is GPL-3.0 and this repo is MIT, so the
+ * components are written from scratch against these numbers.
+ *
+ * When the time comes to stop looking like CoW, this file is the only place
+ * that has to change.
+ */
+
+:root {
+  --n-background: #000000;
+  --n-paper: #18193b;
+  --n-paper-darker: hsla(238, 42%, 9%, 1);
+  --n-paper-darkest: hsla(238, 42%, 6%, 1);
+  --n-paper-gradient: linear-gradient(90deg, rgba(222, 227, 230, 0.1) 0%, rgba(222, 227, 230, 0.2) 100%);
+
+  --n-primary: #65d9ff;
+  --n-primary-lighter: hsla(195, 100%, 80%, 1);
+  --n-primary-darker: hsla(195, 100%, 50%, 1);
+  --n-primary-darkest: hsla(195, 100%, 30%, 1);
+  --n-primary-o80: rgba(101, 217, 255, 0.8);
+  --n-primary-o50: rgba(101, 217, 255, 0.5);
+  --n-primary-o25: rgba(101, 217, 255, 0.25);
+  --n-primary-o10: rgba(101, 217, 255, 0.1);
+
+  --n-text: #dee3e6;
+  --n-text-o70: rgba(222, 227, 230, 0.7);
+  --n-text-o60: rgba(222, 227, 230, 0.6);
+  --n-text-o50: rgba(222, 227, 230, 0.5);
+  --n-text-o25: rgba(222, 227, 230, 0.25);
+  --n-text-o15: rgba(222, 227, 230, 0.15);
+  --n-text-o10: rgba(222, 227, 230, 0.1);
+  --n-secondary-text: rgba(222, 227, 230, 0.4);
+  --n-disabled-text: #86b2dc;
+  --n-button-text: #000000;
+  --n-button-text-disabled: #dee3e6;
+
+  --n-success: #00d897;
+  --n-success-bg: rgba(0, 216, 151, 0.15);
+  --n-success-text: hsla(162, 100%, 46%, 1);
+  --n-danger: #f44336;
+  --n-danger-bg: rgba(244, 67, 54, 0.15);
+  --n-danger-text: hsla(4, 90%, 62%, 1);
+  --n-alert: #ffca4a;
+  --n-alert-bg: rgba(255, 202, 74, 0.15);
+  --n-alert-text: hsla(42, 100%, 71%, 1);
+  --n-warning: #ed6237;
+  --n-warning-bg: rgba(237, 98, 55, 0.15);
+  --n-warning-text: hsla(14, 83%, 61%, 1);
+  --n-info: #428dff;
+  --n-info-bg: rgba(66, 141, 255, 0.15);
+  --n-info-text: hsla(216, 100%, 67%, 1);
+
+  --n-border: var(--n-paper-darker);
+  --n-blue-100: #021e34;
+  --n-blue-200: #1c416e;
+  --n-blue-400: #3f77ff;
+  --n-blue-900: #cae9ff;
+
+  --n-radius-normal: 24px;
+  --n-radius-large: 32px;
+  --n-padding-normal: 24px;
+  --n-clickable-size: 44px;
+
+  --n-shadow: 0 12px 12px rgba(101, 217, 255, 0.06);
+  --n-shadow-2: 0px 4px 8px rgba(101, 217, 255, 0.06);
+  --n-shadow-3: 0px 6px 12px -6px hsla(238, 42%, 12%, 1), 0px 8px 24px -4px hsla(238, 42%, 8%, 1);
+
+  --n-font-smaller: 10px;
+  --n-font-small: 12px;
+  --n-font-small-plus: 13px;
+  --n-font-normal: 14px;
+  --n-font-normal-plus: 15px;
+  --n-font-medium: 16px;
+  --n-font-large: 18px;
+  --n-font-larger: 20px;
+  --n-font-largest: 24px;
+
+  --n-line-small: 18px;
+  --n-line-normal: 20px;
+  --n-line-medium: 22px;
+
+  --n-weight-light: 300;
+  --n-weight-normal: 400;
+  --n-weight-book: 450;
+  --n-weight-medium: 500;
+  --n-weight-semibold: 600;
+  --n-weight-bold: 700;
+
+  --n-icon-tiny: 10px;
+  --n-icon-xsmall: 14px;
+  --n-icon-small: 16px;
+  --n-icon-normal: 20px;
+  --n-icon-large: 36px;
+
+  --n-duration: 0.1s;
+  --n-duration-slow: 0.2s;
+  --n-easing: ease-in-out;
+
+  /* App shell. The slab the widget sits on is a hard coded colour in the
+     reference, not a themed token. */
+  --n-slab: #0e0f2d;
+  --n-slab-radius: 65px;
+  --n-menu-bg: rgb(222 227 230 / 7%);
+  --n-menu-active: #282854;
+  --n-menu-hover: #18193b;
+  --n-menu-fill: rgba(222, 227, 230, 0.4);
+  --n-menu-radius: 28px;
+  --n-menu-height: 56px;
+  --n-footer-bg: #000000;
+  --n-footer-text: #827474;
+  --n-footer-title: #f0dede;
+
+  --n-widget-width: 470px;
+  --n-intents-width: calc(var(--n-widget-width) * 1.25);
+  --n-column-gap: 20px;
+  --n-page-width: 1500px;
+  --n-header-offset: 76px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --n-duration: 0s;
+    --n-duration-slow: 0s;
+  }
+}

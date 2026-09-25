@@ -1,0 +1,114 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  background: var(--n-paper-darker);
+  border-radius: 16px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: var(--n-font-small-plus);
+  color: var(--n-text-o70);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--n-text-o10);
+  stroke-width: 1;
+}
+
+.band {
+  fill: var(--n-text-o10);
+}
+
+.bandText {
+  fill: var(--n-text-o50);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.axisText {
+  fill: var(--n-text-o50);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.axisTitle {
+  fill: var(--n-text-o50);
+  font-size: 12px;
+}
+
+.line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* A 2px ring in the surface colour keeps overlapping marks legible. */
+.dot {
+  stroke: var(--n-paper-darker);
+  stroke-width: 2;
+}
+
+.hit {
+  stroke: var(--n-paper-darker);
+  stroke-width: 2;
+}
+
+.crosshair {
+  stroke: var(--n-text-o25);
+  stroke-width: 1;
+}
+
+.endLabel {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  min-height: 22px;
+  font-size: var(--n-font-small-plus);
+  font-variant-numeric: tabular-nums;
+}
+
+.readoutHint {
+  color: var(--n-text-o50);
+}
+
+.readoutShare {
+  color: var(--n-text);
+  font-weight: var(--n-weight-medium);
+}
+
+.readoutValue {
+  color: var(--n-text-o70);
+}

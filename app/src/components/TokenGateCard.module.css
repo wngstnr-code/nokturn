@@ -1,0 +1,180 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: var(--n-paper-darker);
+  border-radius: 16px;
+}
+
+.rejected {
+  background: linear-gradient(180deg, var(--n-danger-bg) 0%, var(--n-paper-darker) 46%);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.identity {
+  min-width: 0;
+  flex: 1;
+}
+
+.symbol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--n-font-larger);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.quoted {
+  color: var(--n-text-o50);
+  font-weight: var(--n-weight-normal);
+}
+
+.name {
+  margin-top: 2px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-small-plus);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verdict {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border-radius: 16px;
+  font-size: var(--n-font-smaller);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+.admitted {
+  background: var(--n-success-bg);
+  color: var(--n-success-text);
+}
+
+.refused {
+  background: var(--n-danger-bg);
+  color: var(--n-danger-text);
+}
+
+.address {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: var(--n-paper);
+  border: 1px solid var(--n-paper-darker);
+  border-radius: 16px;
+  font-size: var(--n-font-small-plus);
+}
+
+.addressValue {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--n-text-o70);
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.mark {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: var(--n-weight-bold);
+}
+
+.markPass {
+  background: var(--n-success-bg);
+  color: var(--n-success-text);
+}
+
+.markFail {
+  background: var(--n-danger-bg);
+  color: var(--n-danger-text);
+}
+
+.markUnknown {
+  background: var(--n-alert-bg);
+  color: var(--n-alert-text);
+}
+
+.unknownCard {
+  background: linear-gradient(180deg, var(--n-alert-bg) 0%, var(--n-paper-darker) 46%);
+}
+
+.unsure {
+  background: var(--n-alert-bg);
+  color: var(--n-alert-text);
+}
+
+.checkLabel {
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-medium);
+}
+
+.reading,
+.expected {
+  font-size: var(--n-font-small);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.reading {
+  color: var(--n-text-o70);
+}
+
+.expected {
+  color: var(--n-text-o50);
+}
+
+.key {
+  display: block;
+  margin-top: 8px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-smaller);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--n-text-o10);
+  font-size: var(--n-font-small);
+  color: var(--n-text-o50);
+}
+
+.fact strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--n-text);
+  font-weight: var(--n-weight-medium);
+  font-size: var(--n-font-small-plus);
+}
