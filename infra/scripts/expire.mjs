@@ -11,7 +11,7 @@
 import {readFileSync} from "node:fs";
 import {fileURLToPath} from "node:url";
 import {encodeFunctionData} from "viem";
-import {chain, settlementAbi} from "../../api/src/chain.ts";
+import {initChain, settlementAbi} from "../../api/src/chain.ts";
 
 const accounts = JSON.parse(readFileSync(new URL("../accounts.json", import.meta.url), "utf8"));
 /** Wall clock seconds past the deadline's own distance before the wait gives up. */
@@ -51,7 +51,7 @@ function untilChainTime(c, target, backstopMs) {
 }
 
 export async function expire(batchId, {from = accounts.users[3], log = console.log} = {}) {
-  const c = chain();
+  const c = await initChain();
   await requireFork(c);
   const settlement = c.deployment.settlement;
   const read = (functionName, args = []) => c.client.readContract({address: settlement, abi: settlementAbi, functionName, args});
