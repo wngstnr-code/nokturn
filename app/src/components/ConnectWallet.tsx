@@ -1,17 +1,26 @@
 "use client";
 
+import {useEffect, useState} from "react";
 import {useAccount, useConnect, useDisconnect, useSwitchChain} from "wagmi";
 import {CHAIN_ID_TESTNET} from "@shared/addresses";
 import {shortAddress} from "@/lib/format";
 import styles from "./ConnectWallet.module.css";
 
 export function ConnectWallet() {
-  const {address, isConnected, chainId} = useAccount();
+  const [mounted, setMounted] = useState(false);
+  const {address, isConnected, chainId, status} = useAccount();
   const {connect, connectors, isPending} = useConnect();
   const {disconnect} = useDisconnect();
   const {switchChain} = useSwitchChain();
 
+  useEffect(() => setMounted(true), []);
+
   const injectedConnector = connectors[0];
+  const settling = !mounted || status === "connecting" || status === "reconnecting";
+
+  if (settling) {
+    return <span className={styles.settling} aria-label="Reconnecting your wallet" />;
+  }
 
   if (!isConnected) {
     return (

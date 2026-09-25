@@ -429,3 +429,29 @@
     grid-template-columns: repeat(1, auto);
   }
 }
+
+/* Same height as the start card, so nothing jumps when wagmi finishes. */
+.settling {
+  width: 100%;
+  min-height: 305px;
+  border-radius: 16px;
+  background: var(--n-paper-darker);
+  animation: settle 1.4s var(--n-easing) infinite;
+}
+
+@keyframes settle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settling {
+    animation: none;
+  }
+}

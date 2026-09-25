@@ -57,3 +57,30 @@
 .wrongChain:hover:not(:disabled) {
   background-color: var(--n-alert-text);
 }
+
+/* Neither connected nor asking to connect. Holds the slot while wagmi decides. */
+.settling {
+  display: inline-block;
+  width: 152px;
+  min-height: 42px;
+  border-radius: 21px;
+  background: var(--n-text-o10);
+  animation: pulse 1.4s var(--n-easing) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settling {
+    animation: none;
+  }
+}

@@ -50,9 +50,12 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   const [note, setNote] = useState<string | null>(null);
   const [baseline, setBaseline] = useState<BaselineQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const {remember} = useIntents();
-  const {address, isConnected, chainId} = useAccount();
+  const {address, isConnected, chainId, status} = useAccount();
   const {signTypedDataAsync, isPending} = useSignTypedData();
 
   const {data: balance} = useReadContract({
@@ -112,6 +115,13 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
     if (!Number.isFinite(sold) || sold === 0 || !Number.isFinite(got)) return null;
     return (got / sold).toLocaleString("en-US", {maximumFractionDigits: 6});
   }, [estimate, sellAmount, sellToken]);
+
+  /*
+   * A page reload puts wagmi through reconnecting before it reports an account.
+   * Reading that as disconnected flashed the start card at someone who never
+   * left, so the widget waits rather than guessing.
+   */
+  const settling = !mounted || status === "connecting" || status === "reconnecting";
 
   const wrongChain = isConnected && chainId !== context.chainId;
   const canSign =
@@ -207,7 +217,9 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   return (
     <div className={styles.container}>
       <div className={styles.box}>
-        {!isConnected ? (
+        {settling ? (
+          <div className={styles.settling} role="status" aria-label="Reconnecting your wallet" />
+        ) : !isConnected ? (
           <StartCard bases={bases} />
         ) : (
           <>
