@@ -46,8 +46,6 @@ export function SiteHeader({snapshot}: {snapshot: SessionSnapshot}) {
           })}
         </nav>
 
-        <span className={styles.spacer} />
-
         <div className={styles.right}>
           <ConnectWallet snapshot={snapshot} />
         </div>
