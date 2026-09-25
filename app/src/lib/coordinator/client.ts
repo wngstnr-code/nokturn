@@ -16,8 +16,15 @@ import type {
 
 const BASE = process.env.NEXT_PUBLIC_COORDINATOR_URL ?? null;
 
-const NOT_CONFIGURED =
-  "No coordinator endpoint is configured. Set NEXT_PUBLIC_COORDINATOR_URL once the backend publishes one.";
+/*
+ * What a reader sees, and what a developer needs, are different sentences. The
+ * variable name belongs in a console rather than on a product surface.
+ */
+const NOT_CONFIGURED = "This build has no coordinator to talk to";
+
+if (BASE === null && typeof window !== "undefined") {
+  console.warn("Set NEXT_PUBLIC_COORDINATOR_URL to point the app at a running coordinator");
+}
 
 function localError(code: ApiErrorCode, message: string): ApiError {
   return {code, message};

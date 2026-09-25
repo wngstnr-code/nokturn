@@ -1,15 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {formatUnits} from "viem";
+import {useAccount} from "wagmi";
 import {intentStatus} from "@/lib/coordinator/client";
+import {watchBatches} from "@/lib/coordinator/stream";
 import type {ApiError, IntentStatusResponse} from "@/lib/coordinator/types";
 import type {TokenInfo} from "@/lib/tokens";
+import {EscapeHatch} from "./EscapeHatch";
 import {useIntents, type Sent} from "./IntentsProvider";
 import styles from "./MyIntents.module.css";
 
-const POLL_MS = 5000;
+/* Fast enough to follow a 45 second batch when the socket is refused. */
+const POLL_BLIND_MS = 5000;
+
+/* A safety net under the socket, not the way news arrives. */
+const POLL_LIVE_MS = 20000;
 
 type Answer = {sent: Sent; status: IntentStatusResponse | null; error: ApiError | null};
 
@@ -44,51 +51,50 @@ function amount(raw: unknown, token: TokenInfo | undefined): string {
 
 /// The list is built from what this tab sent, because nothing on the frozen
 /// surface answers "every intent this address has open".
-export function MyIntents({
-  detail,
-  reachable,
-  tokens,
-}: {
-  detail: string;
-  reachable: boolean;
-  tokens: TokenInfo[];
-}) {
+export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: TokenInfo[]}) {
   const {sent} = useIntents();
+  const {address} = useAccount();
   const [answers, setAnswers] = useState<Answer[]>([]);
+  const [streaming, setStreaming] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const alive = useRef(true);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
+  const refresh = useCallback(async () => {
     if (sent.length === 0) {
       setAnswers([]);
       return;
     }
+    const next = await Promise.all(
+      sent.map(async (entry): Promise<Answer> => {
+        const result = await intentStatus(entry.hash);
+        return result.ok
+          ? {sent: entry, status: result.value, error: null}
+          : {sent: entry, status: null, error: result.error};
+      }),
+    );
+    if (alive.current) setAnswers(next);
+  }, [sent]);
 
-    let live = true;
-
-    async function refresh() {
-      const next = await Promise.all(
-        sent.map(async (entry): Promise<Answer> => {
-          const result = await intentStatus(entry.hash);
-          return result.ok
-            ? {sent: entry, status: result.value, error: null}
-            : {sent: entry, status: null, error: result.error};
-        }),
-      );
-      if (live) setAnswers(next);
-    }
-
+  useEffect(() => {
+    alive.current = true;
     void refresh();
-    const timer = setInterval(() => void refresh(), POLL_MS);
+    const timer = setInterval(() => void refresh(), streaming ? POLL_LIVE_MS : POLL_BLIND_MS);
     return () => {
-      live = false;
+      alive.current = false;
       clearInterval(timer);
     };
-  }, [sent]);
+  }, [refresh, streaming]);
+
+  // The socket says a batch moved. What moved is then read back, because the
+  // announcement carries a hash and not a status.
+  useEffect(() => {
+    return watchBatches(address, () => void refresh(), (state) => setStreaming(state.live));
+  }, [address, refresh]);
 
   const bySymbol = new Map(tokens.map((token) => [token.address.toLowerCase(), token]));
 
@@ -98,6 +104,7 @@ export function MyIntents({
         <span className={styles.title}>Your intents</span>
         <span className={styles.count}>
           {sent.length === 0 ? "none yet" : `${sent.length} sent from this tab`}
+          {streaming ? <span className={styles.live}>live</span> : null}
         </span>
       </div>
 
@@ -111,7 +118,6 @@ export function MyIntents({
               ? "Sign one and it appears here with the batch it lands in."
               : "Signing still works, because a signed intent is a message rather than a transaction. Submitting it does not, and nothing is shown here that did not come back from the coordinator."}
           </p>
-          <p className={styles.emptyDetail}>{detail}</p>
         </div>
       ) : (
         <div className={styles.rows}>
@@ -159,6 +165,7 @@ export function MyIntents({
                     )}
                   </span>
                 </div>
+                {status === null ? null : <EscapeHatch hatch={status.escapeHatch} />}
               </div>
             );
           })}

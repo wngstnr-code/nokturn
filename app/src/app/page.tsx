@@ -71,7 +71,6 @@ export default async function TradePage() {
           </div>
           <div className={styles.secondary}>
             <MyIntents
-              detail={loaded.context.coordinatorDetail}
               reachable={loaded.context.coordinatorReachable}
               tokens={[...loaded.bases, loaded.quote]}
             />
