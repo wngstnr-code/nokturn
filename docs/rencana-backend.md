@@ -678,7 +678,7 @@ ia bukan fitur opsional.
 | F20 | Simulasi kering lewat `eth_call` ke `submitSolution` sebelum mengirim | Tidak ada transaksi terkirim yang akan revert. Terpasang 22 September 2026, simulasi kering lolos untuk routed dan netted, 35 sampai 71 ms dari tutup collect. Pengiriman belum ada, itu F21 |
 | F21 | Siklus hidup kirim dan finalisasi, jendela 10 detik dan tenggat 300 detik | **Selesai 23 September 2026.** Run satu jam, 60 batch diproses, 60 `finalized`, nol `abandoned`, nol `finalize_reverted`. Diverifikasi dari chain (`f21-check.mjs`, bukan ringkasan solver): 60 `SolutionSubmitted`, 60 `BatchSettled`, nol batch menang yang belum final lewat tenggat. Latensi collect-tutup ke receipt submit p50 907 ms, p99 1150 ms (run 10 menit) dan p99 8260 ms (run satu jam, satu batch tertunda karena kontensi RPC lokal, tetap sebelum tenggat) |
 | F22 | Operasi bonding, 500 USDG di `SolverRegistry` | **Selesai 23 September 2026.** `solver/src/preflight.ts`. `isActive` benar untuk solverA dan solverB, keduanya bond 500 USDG. Akun yang tidak di-bond ditolak dengan pesan yang menyebut `make fund` |
-| F23 | Profil solver kedua untuk demo kompetisi | Dua solver mengajukan, yang savings-nya lebih tinggi menang, keduanya terbit di event |
+| F23 | Profil solver kedua untuk demo kompetisi | Dua solver mengajukan, yang savings-nya lebih tinggi menang, keduanya terbit di event. **Kode selesai 26 September 2026, belum dijalankan di fork.** `--profile a` adalah solverA yang men-netting dulu. `--profile b` adalah solverB yang merutekan setiap arah dari setiap pasangan ke venue, dengan store sendiri. `make demo-compete` dan `solver/test/fork/compete.test.ts` tertulis, dan penolakan "not the best" hanya diperiksa kalau yang kalah datang belakangan (N16) |
 
 Catatan F15, dan ini rekomendasi yang perlu persetujuan tim karena menyentuh titik
 sinkronisasi 4 di `pembagian-tugas.md`. **Jalur produksi sebaiknya memanggil
@@ -701,7 +701,7 @@ produksi hidup, dan gerbang differential berlaku penuh atas port itu.
 | F25 | Skema tabel sesuai `interfaces.md` §10 | Sembilan tabel terisi dari event, tidak ada kolom yang diisi tebakan. **Selesai 25 September 2026.** `indexer/sql/001_init.sql` memuat sembilan tabel §10 dan tiga tabel pendukung. Semuanya membawa `chain_id`, `block_number`, `tx_hash`, dan `log_index`. Nilai uint256 disimpan sebagai `numeric(78,0)`. I1 menghitung 143 log, sama persis dengan `getLogs` langsung ke anvil |
 | F26 | Kolom provenansi di setiap baris struk | Chain id, nomor blok chain ini, hash transaksi, log index, alamat pool, dan payload `eth_call` untuk menghitung ulang baseline. **Selesai 25 September 2026.** Di M2, tiga dari tiga `castCommand` dijalankan lewat `cast` dan hasilnya sama persis dengan `baselineBuy`. Di I8, tiga fill dihitung ulang dengan `quoteFromState`, dan selisihnya nol |
 | F27 | Metrik turunan | `savings_bps`, `netting_ratio`, `improvement_vs_venue`, `uptime`, dihitung dari event dan bukan dari klaim solver. **Selesai 25 September 2026.** `indexer/src/metrics.ts`, keempatnya dihitung dari tabel dan diuji terhadap contoh yang dihitung tangan. `uptime` versi ini tidak menghitung batch kosong, dan alasannya tertulis di kode |
-| F28 | Kedalaman konfirmasi dan rekonsiliasi | Angka indexer cocok dengan pembacaan langsung kontrak pada blok yang sama |
+| F28 | Kedalaman konfirmasi dan rekonsiliasi | Angka indexer cocok dengan pembacaan langsung kontrak pada blok yang sama. **Kode selesai 26 September 2026, belum dijalankan di fork.** `--confirmations` menolak nol di chain yang bukan fork. `--reconcile` membandingkan hasil batch, pemenang, jumlah fill, total savings, skor kedua solver, allowlist, dan 10 baseline sampel, lalu keluar 1 kalau ada satu saja yang beda. Ambang selisih savings 0 wei, karena kontrak membagi per suku dengan cara yang sama di kedua jalur. SQL-nya sudah diuji ke Postgres sungguhan dengan baris sintetis. I10 sampai I12 tertulis, tapi belum berjalan (N13) |
 
 Catatan F26. Ini yang membuat layar Nabil lolos audit provenansi §11. Tanpa payload
 verifikasi yang bisa disalin, tombol salin panggilan verifikasi di `demo.md` §2 tidak
@@ -711,7 +711,7 @@ punya isi, dan angkanya jadi angka yang harus dipercaya.
 
 | # | Fitur | Selesai kalau |
 |---|---|---|
-| F29 | Ekstraksi arus Agustus 2026 jadi fixture replay | Intent replay lahir dari kueri Dune `8595251` dan `8595303`, dengan nomor kueri tercatat di file keluarannya |
+| F29 | Ekstraksi arus Agustus 2026 jadi fixture replay | Intent replay lahir dari kueri Dune per trade `data/dune-queries/13-replay-flow-august.sql`, dengan nomor kuerinya tercatat di file keluarannya. `8595251` dan `8595303` menjadi pembanding agregat, bukan sumber trade (N15, diputuskan Dharu 26 September 2026). **Kode selesai 26 September 2026.** Ekstraktor dan harness replay ada, beserta unit test-nya. Fixture belum ada, karena kueri 13 belum dijalankan di Dune dan belum diekspor |
 | F30 | Kurva netting lawan pangsa, berlabel BACKTEST **di data** | Kolom label ikut di CSV dan di respons API, bukan hanya di narasi UI |
 | F31 | Rekonsiliasi setelah demo | Angka yang tampil di layar bisa dilacak balik ke event dan ke kueri, satu per satu |
 
@@ -935,6 +935,114 @@ menghasilkan `WorseThanBaseline`, atau membiarkan seluruh batch tanpa solusi seh
 F23, lalu keeper lelang kalau waktunya cukup. Keeper lelang memanggil `openAuction`,
 `publishIndicative` tiap blok, `freeze`, dan `executeCross`. Ini kandidat potong
 pertama, lihat §9.
+
+**Hasil Hari 6 dan Hari 7, dikerjakan 26 September 2026.** Rencananya di
+`docs/rencana-hari6-7.md`. Semua kode ditulis, lulus typecheck, dan lulus test unit.
+Tidak ada satu pun yang sudah berjalan di fork, karena fork tidak bisa dinyalakan
+(N13). Jadi tidak ada angka terukur di bagian ini, dan tidak ada yang boleh disebut
+selesai sebelum test fork-nya hijau.
+
+| Bagian | Keadaan |
+|---|---|
+| A1 `--confirmations` | Selesai dan diuji unit. Blok ditahan sampai cukup dalam, dan nol ditolak di luar fork |
+| A2 `--reconcile` | Selesai. SQL diuji ke Postgres sungguhan, dan satu ubahan 1 wei tertangkap dengan nama kolomnya |
+| A3 I10 sampai I12 | Tertulis, belum berjalan |
+| B `make demo-fail` | Tertulis untuk `passthrough`, `expired`, dan `unwound`, dengan `make expire` terpisah. Belum berjalan |
+| C fixture F29 | Kueri 13 dan ekstraktornya selesai. Menunggu ekspor dari Dune |
+| D `make replay` | Tertulis dan diuji unit. Menunggu fixture dan fork |
+| F `make demo-compete` | Tertulis, belum berjalan |
+| G keeper lelang | **Dihentikan setelah G1**, tanpa kode keeper (N17) |
+
+**Satu keputusan yang mengubah bentuk struk.** Batch yang dirutekan penuh dan
+menghemat nol menerbitkan `BatchPassthrough("savings below threshold")` dan
+`BatchSettled` di satu `finalize`. Tradenya tetap terjadi. Struknya kini tetap
+`settled`, tapi `failure` diisi kode `SavingsBelowThreshold` dengan `feeCharged` nol,
+supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
+26 September 2026.
+
+**Catatan G1, aturan `AuctionHouse` yang dibaca dari kontraknya.**
+
+- `openAuction` boleh dipanggil siapa saja, hanya saat `sessionAt(now)` sama dengan
+  `AUCTION_OPEN` atau `AUCTION_CLOSE` sesuai jenisnya. Fungsi ini tidak memeriksa
+  `auctionTokenAllowed`, yang hanya diperiksa `commitAuctionIntent`.
+- `crossAt` adalah transisi sesi berikutnya dari sesi lelang. `freezeAt` sama dengan
+  `crossAt` dikurangi 300 detik. `referenceAt` sama dengan `crossAt` ditambah 300 detik
+  untuk pembukaan, dan sama dengan `crossAt` untuk penutupan.
+- `freeze` boleh dipanggil siapa saja di antara `freezeAt` dan `crossAt`, lalu menarik
+  escrow.
+- `submitCross` hanya untuk solver aktif, setelah `referenceAt`, dengan harga di dalam
+  collar dan bond 500 USDG.
+- `challenge` terbuka 120 detik setelah cross masuk. `executeCross` boleh dipanggil
+  siapa saja setelah jendela itu lewat.
+- `extend` paling banyak 3 kali, masing-masing 300 detik setelah `referenceAt` dan
+  perpanjangan sebelumnya, dan collar melebar 50 bps tiap kali.
+- `abortAuction` boleh dipanggil siapa saja. Alasannya "multiplier moved", "market did
+  not open", atau "no cross in time" setelah `referenceAt` ditambah 1.200 detik.
+
+**Temuan baru, tidak diperbaiki.**
+
+- **N13, memblokir semua test fork.** Sejak 26 September 2026, `robinhood.drpc.org`
+  menjawab "Unknown state. First available state is 1" untuk `eth_getBalance` di blok
+  mana pun selain `latest`. Blok patokan 67.798.044 ditolak, begitu juga 72.351.744
+  yang hanya sekitar 54 ribu blok di belakang head. `make fork` gagal membuat genesis
+  dua kali. Job fork nightly di CI juga akan gagal dengan cara yang sama, karena anvil
+  meminta state di blok yang dipatok, bukan di `latest`. Jalan keluarnya RPC archive
+  berbayar di `NOKTURN_RPC_MAINNET`.
+- **N14, handle Dune saling bertentangan.** `data/dune-queries/README.md` menulis tim
+  `passchick` sudah diarsipkan pada 2 Agustus dan kuerinya pindah ke `wngstnrs7119`.
+  `CLAUDE.md` §6 menulis dashboard Agustus terbit di `passchick`. Salah satunya basi.
+  Kode baru sengaja tidak menautkan handle mana pun sampai ini dicek.
+- **N15, sudah diputuskan.** `8595251` dan `8595303` hanya berisi agregat per sesi dan
+  per titik kurva, sehingga tidak bisa menjadi fixture. Kueri 13 memakai kaki trade
+  yang sama dan mengambil satu jam off-hours hari kerja di Agustus, yaitu jam dengan
+  jumlah trade median. Jam tersibuk sengaja tidak dipilih, karena akan membuat netting
+  replay tampak lebih baik dari kenyataan.
+- **N16, `solutions[].accepted` bisa menyesatkan.** Solusi yang kalah tapi datang lebih
+  dulu sempat menjadi best, lalu diganti tanpa event penolakan. Proyeksi `solutions`
+  menandainya `accepted` benar, jadi struk memuat dua solusi berstatus diterima padahal
+  hanya satu yang menang. Pemenang yang benar tetap terbaca dari `solver` di struk.
+- **N17, keeper lelang tidak bisa diuji di fork demo.** Daftar aksi keeper tidak memuat
+  `submitCross`, padahal K1 mensyaratkan `CrossExecuted`, dan backend belum punya logika
+  merakit cross. Lebih mendasar lagi, header `ForkAuction.s.sol` milik Wangsit mencatat
+  bahwa cross penutupan butuh fork sendiri di blok 66.491.729, karena warp dari fork
+  akhir pekan ke jam penutupan membuat semua feed basi. Fase G dihentikan setelah G1
+  sesuai aturan rencana.
+- **N18, health API masih melapor indexer mati.** `api/src/routes/config.ts` masih
+  mengembalikan `indexerLagBlocks` "0" dan status `indexer` serta `database` "down",
+  dengan komentar "No indexer yet". Indexer dan database sudah ada sejak Hari 5.
+- **Diperbaiki di `537da15`.** `make` di root gagal untuk semua target di laptop Dharu,
+  karena `make.exe` ada di path yang mengandung spasi. Delegasinya juga belum memuat
+  `solver`, `indexer`, target database, `torture`, dan tidak meneruskan `CASE`,
+  `BATCH`, atau `GROUP`.
+
+**Yang harus dijalankan begitu RPC ada**, masing-masing sekali, berurutan.
+
+```bash
+make fork
+```
+
+```bash
+make deploy fund
+```
+
+```bash
+make db-up api
+```
+
+```bash
+node infra/scripts/m2.mjs
+```
+
+```bash
+pnpm -C indexer test:fork
+```
+
+```bash
+pnpm -C solver test:fork
+```
+
+Setelah itu `make demo-fail` untuk ketiga kasus, `make demo-compete ARGS="--batches 3"`,
+dan terakhir `make replay ARGS="--duration 5 --speed 12"` setelah fixture ada.
 
 ### Hari 8, 27 September. M3, feature freeze
 
