@@ -1,5 +1,5 @@
 import type {Metadata} from "next";
-import {IBM_Plex_Mono, Inter} from "next/font/google";
+import {Inter} from "next/font/google";
 import {SiteFooter} from "@/components/SiteFooter";
 import {SiteHeader} from "@/components/SiteHeader";
 import {WalletProvider} from "@/components/WalletProvider";
@@ -10,12 +10,6 @@ import {CHAIN_ID_TESTNET} from "@shared/addresses";
 import "./globals.css";
 
 const body = Inter({subsets: ["latin"], variable: "--font-body", display: "swap"});
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-mono",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Nokturn",
@@ -42,7 +36,7 @@ export default async function RootLayout({children}: {children: React.ReactNode}
   const snapshot = await headerSnapshot();
 
   return (
-    <html lang="en" className={`${body.variable} ${mono.variable}`}>
+    <html lang="en" className={body.variable}>
       <body>
         <WalletProvider>
           <div className={shell.app}>

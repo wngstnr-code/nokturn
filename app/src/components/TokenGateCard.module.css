@@ -156,7 +156,6 @@
   display: block;
   margin-top: 8px;
   color: var(--n-text-o50);
-  font-family: var(--font-body), sans-serif;
   font-size: var(--n-font-smaller);
   letter-spacing: 0.1em;
   text-transform: uppercase;

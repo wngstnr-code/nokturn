@@ -47,11 +47,9 @@ body {
   background-clip: padding-box;
 }
 
-/* Anything read off a chain is set in mono. Anything we wrote is not. */
+/* Equal width digits, so a column of numbers lines up. */
 .chainvalue {
-  font-family: var(--font-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
 }
 
 a {
