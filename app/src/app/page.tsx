@@ -73,6 +73,7 @@ export default async function TradePage() {
             <MyIntents
               detail={loaded.context.coordinatorDetail}
               reachable={loaded.context.coordinatorReachable}
+              tokens={[...loaded.bases, loaded.quote]}
             />
           </div>
         </IntentsProvider>

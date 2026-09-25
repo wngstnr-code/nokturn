@@ -7,21 +7,29 @@ import type {Hex} from "@/lib/coordinator/types";
  * Nothing on the frozen surface lists intents by owner, so a screen that wants
  * them has to remember what it sent and ask about each one.
  */
+export type Sent = {hash: Hex; sentAt: number};
+
 type Store = {
-  hashes: Hex[];
+  sent: Sent[];
   remember(hash: Hex): void;
 };
 
 const IntentsContext = createContext<Store | null>(null);
 
 export function IntentsProvider({children}: {children: ReactNode}) {
-  const [hashes, setHashes] = useState<Hex[]>([]);
+  const [sent, setSent] = useState<Sent[]>([]);
 
   const remember = useCallback((hash: Hex) => {
-    setHashes((current) => (current.includes(hash) ? current : [hash, ...current]));
+    setSent((current) =>
+      current.some((entry) => entry.hash === hash)
+        ? current
+        : // This tab's own clock, and it only ever labels when this tab sent
+          // something. No chain fact is derived from it.
+          [{hash, sentAt: Date.now()}, ...current],
+    );
   }, []);
 
-  const value = useMemo(() => ({hashes, remember}), [hashes, remember]);
+  const value = useMemo(() => ({sent, remember}), [sent, remember]);
 
   return <IntentsContext.Provider value={value}>{children}</IntentsContext.Provider>;
 }

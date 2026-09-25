@@ -1,12 +1,24 @@
+/*
+ * The pair is sized to its contents rather than to the page, so the two cards
+ * stay centred together instead of drifting to the outer edges.
+ */
 .page {
   width: 100%;
-  max-width: var(--n-page-width);
+  max-width: calc(var(--n-widget-width) + var(--n-intents-width) + var(--n-column-gap));
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: auto;
   grid-template-areas: "primary" "secondary";
-  gap: 20px;
+  gap: var(--n-column-gap);
+}
+
+@media (min-width: 1140px) {
+  .page {
+    grid-template-columns: var(--n-widget-width) var(--n-intents-width);
+    grid-template-areas: "primary secondary";
+    align-items: start;
+  }
 }
 
 .primary {
@@ -25,7 +37,8 @@
   display: flex;
   flex-flow: column nowrap;
   width: 100%;
-  flex: 1;
+  max-width: var(--n-intents-width);
+  margin: 0 auto;
   min-height: 200px;
 }
 

@@ -1,12 +1,10 @@
 .card {
   display: flex;
-  flex-flow: column nowrap;
+  flex-flow: column wrap;
+  gap: 10px;
   width: 100%;
-  height: 100%;
-  min-height: 0;
-  flex: 1;
-  padding: 0;
-  overflow: hidden;
+  max-width: 100%;
+  padding: 10px;
   position: relative;
   border: none;
   box-shadow: none;
@@ -20,7 +18,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px;
+  padding: 0 5px 0 0;
+  margin: 0;
 }
 
 .title {
@@ -51,15 +50,16 @@
 }
 
 .empty {
-  flex: 1;
   display: flex;
   flex-flow: column wrap;
   align-content: center;
   justify-content: center;
-  gap: 10px;
-  padding: 40px var(--n-padding-normal);
+  gap: 8px;
+  width: 100%;
+  padding: 28px 16px;
+  background: var(--n-paper-darker);
+  border-radius: 16px;
   text-align: center;
-  border-top: 1px solid var(--n-border);
 }
 
 .emptyTitle {
@@ -94,31 +94,55 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 0 10px 10px;
+  width: 100%;
 }
 
 .row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 6px;
   padding: 16px;
   background: var(--n-paper-darker);
   border-radius: 16px;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rowBottom {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.legMain {
+  font-size: var(--n-font-medium);
+  font-weight: var(--n-weight-medium);
+}
+
+.legSub {
+  min-width: 0;
+  color: var(--n-text-o50);
   font-size: var(--n-font-small-plus);
 }
 
-.hash {
-  color: var(--n-text-o70);
+.meta {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  white-space: nowrap;
 }
 
 .badge {
-  padding: 4px 6px;
+  padding: 4px 8px;
   border-radius: 16px;
-  font-size: var(--n-font-smaller);
-  font-weight: var(--n-weight-semibold);
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
+  font-size: var(--n-font-small);
+  font-weight: var(--n-weight-medium);
+  white-space: nowrap;
 }
 
 .pending {
@@ -146,13 +170,8 @@
   color: var(--n-danger-text);
 }
 
-.batch {
-  margin-left: auto;
-  color: var(--n-text-o50);
-}
-
 .caveat {
-  padding: 0 6px;
+  padding: 4px 6px 0;
   color: var(--n-text-o50);
   font-size: var(--n-font-small);
   line-height: var(--n-line-small);

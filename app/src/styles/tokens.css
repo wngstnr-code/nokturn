@@ -119,6 +119,8 @@
   --n-footer-title: #f0dede;
 
   --n-widget-width: 470px;
+  --n-intents-width: calc(var(--n-widget-width) * 1.25);
+  --n-column-gap: 20px;
   --n-page-width: 1500px;
   --n-header-offset: 76px;
 }
