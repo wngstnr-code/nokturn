@@ -26,9 +26,9 @@ export type TradeContext = {
   permit2: Address;
   signingOk: boolean;
   signingProblem: string | null;
-  sessionName: string;
-  batchDuration: number;
-  maxDeviationBps: number;
+  sessionName: string | null;
+  batchDuration: number | null;
+  maxDeviationBps: number | null;
   coordinatorDetail: string;
   coordinatorReachable: boolean;
 };
@@ -40,6 +40,16 @@ interface TradeWidgetProps {
 }
 
 const VALID_FOR_SECONDS = 15 * 60;
+
+/* Read from the chain, so either can be missing while the rest of the card works. */
+function window_(seconds: number | null): string {
+  if (seconds === null) return "unavailable";
+  return seconds === 0 ? "auction" : `${seconds}s`;
+}
+
+function band(bps: number | null): string {
+  return bps === null ? "unavailable" : `${bps} bps`;
+}
 
 export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   const [mode, setMode] = useState<Mode>("spot");
@@ -242,7 +252,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
                 </button>
               </div>
               <Link className={styles.headRight} href="/session">
-                {context.sessionName}
+                {context.sessionName ?? "Session unavailable"}
               </Link>
             </div>
 
@@ -331,9 +341,9 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
                 )}
               </span>
               <span className={`${styles.deckMeta} chainvalue`}>
-                {context.batchDuration === 0 ? "auction" : `${context.batchDuration}s`}
+                {window_(context.batchDuration)}
                 {" . "}
-                {context.maxDeviationBps} bps
+                {band(context.maxDeviationBps)}
               </span>
               <ChevronIcon size={16} className={styles.deckChevron} />
             </summary>
@@ -342,12 +352,12 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
             <div className={styles.row}>
               <span className={styles.rowLabel}>Batch window</span>
               <span className={`${styles.rowValue} chainvalue`}>
-                {context.batchDuration === 0 ? "auction" : `${context.batchDuration}s`}
+                {window_(context.batchDuration)}
               </span>
             </div>
             <div className={styles.row}>
               <span className={styles.rowLabel}>Session price band</span>
-              <span className={`${styles.rowValue} chainvalue`}>{context.maxDeviationBps} bps</span>
+              <span className={`${styles.rowValue} chainvalue`}>{band(context.maxDeviationBps)}</span>
             </div>
             <div className={styles.row}>
               <span className={styles.rowLabel}>Your tolerance</span>

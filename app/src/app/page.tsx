@@ -20,12 +20,18 @@ async function load(): Promise<Loaded> {
   const deployment = deploymentFor(CHAIN);
   if (deployment === null) throw new Error(`Nokturn is not deployed on chain ${CHAIN}`);
 
-  const [bases, quote, session, coordinator, signing] = await Promise.all([
+  /*
+   * The tokens are the card. Without them there is nothing to draw, so they stay
+   * fatal. The session only fills three lines, and losing an endpoint for a moment
+   * is not a reason to take the whole page away, so it is allowed to come back
+   * empty and say so.
+   */
+  const [bases, quote, signing, session, coordinator] = await Promise.all([
     baseTokens(CHAIN),
     quoteToken(CHAIN),
-    readSession(CHAIN, []),
-    health(),
     signingContext(CHAIN, deployment.settlement, deployment.permit2),
+    readSession(CHAIN, []).catch(() => null),
+    health(),
   ]);
 
   return {
@@ -37,9 +43,9 @@ async function load(): Promise<Loaded> {
       permit2: deployment.permit2,
       signingOk: signing.ok,
       signingProblem: signing.problem,
-      sessionName: SESSION_NAMES[session.session],
-      batchDuration: session.batchDuration,
-      maxDeviationBps: session.maxDeviationBps,
+      sessionName: session === null ? null : SESSION_NAMES[session.session],
+      batchDuration: session === null ? null : session.batchDuration,
+      maxDeviationBps: session === null ? null : session.maxDeviationBps,
       coordinatorDetail: coordinator.detail,
       coordinatorReachable: coordinator.reachable,
     },
