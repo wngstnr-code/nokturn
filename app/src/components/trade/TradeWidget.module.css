@@ -71,8 +71,19 @@
   flex-direction: row;
   gap: 5px;
   align-items: center;
+  padding: 5px 10px;
+  border-radius: var(--n-radius-normal);
   color: var(--n-text-o60);
   font-size: var(--n-font-small-plus);
+  transition:
+    background var(--n-duration) var(--n-easing),
+    color var(--n-duration) var(--n-easing);
+}
+
+.headRight:hover {
+  background: var(--n-paper-darker);
+  color: var(--n-text);
+  text-decoration: none;
 }
 
 /* Currency panel. Padding, min height and radius follow the reference widget. */
@@ -87,7 +98,7 @@
   border: none;
   border-radius: 16px;
   color: inherit;
-  min-height: 106px;
+  min-height: 136px;
   max-width: 100%;
 }
 
@@ -193,9 +204,48 @@
 }
 
 .settledNote {
-  font-size: 20px;
+  font-size: 28px;
   font-weight: var(--n-weight-medium);
   color: var(--n-text-o50);
+}
+
+.topNote {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+}
+
+/*
+ * Its own row rather than an input row, because break-all there splits a block
+ * number down the middle and half a number is worse than none.
+ */
+.estimateRow {
+  width: 100%;
+}
+
+/* Said next to the figure, because the figure is not what you will receive. */
+.estimate {
+  max-width: 44ch;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  line-height: var(--n-line-small);
+}
+
+.rateRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 6px;
+  font-size: var(--n-font-small-plus);
+}
+
+.rateLabel {
+  color: var(--n-text-o50);
+}
+
+.rateValue {
+  color: var(--n-text);
+  font-weight: var(--n-weight-medium);
 }
 
 /* Arrow separator. 26px puck, pulled into the gap between the two panels. */
@@ -340,14 +390,24 @@
 }
 
 .toleranceInput {
-  width: 52px;
-  background: transparent;
-  border: none;
+  width: 56px;
+  padding: 2px 8px;
+  background: var(--n-paper);
+  border: 1px solid var(--n-text-o10);
+  border-radius: 8px;
   outline: none;
   color: inherit;
   font: inherit;
   text-align: right;
-  padding: 0;
+  transition: border-color var(--n-duration) var(--n-easing);
+}
+
+.toleranceInput:hover {
+  border-color: var(--n-text-o25);
+}
+
+.toleranceInput:focus {
+  border-color: var(--n-primary);
 }
 
 @media (max-width: 720px) {

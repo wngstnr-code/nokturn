@@ -27,6 +27,9 @@
 
 .button:disabled {
   cursor: default;
+  background: transparent;
+  box-shadow: none;
+  padding-right: 4px;
 }
 
 .symbol {

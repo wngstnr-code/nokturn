@@ -1,6 +1,7 @@
 "use client";
 
-import {useMemo, useState} from "react";
+import Link from "next/link";
+import {useEffect, useMemo, useState} from "react";
 import {erc20Abi, formatUnits, parseUnits, type Address} from "viem";
 import {useAccount, useReadContract, useSignTypedData} from "wagmi";
 import {Button} from "@/components/ui/Button";
@@ -9,7 +10,9 @@ import {useIntents} from "./IntentsProvider";
 import {StartCard} from "./StartCard";
 import {buildIntent, serializeIntent} from "@/lib/intent";
 import {permit2Domain, permitWitnessMessage, PERMIT2_WITNESS_TYPES} from "@/lib/permit2";
-import {currentBatch, nextNonce, submitIntent} from "@/lib/coordinator/client";
+import {currentBatch, nextNonce, quote as fetchBaseline, submitIntent} from "@/lib/coordinator/client";
+import type {BaselineQuote} from "@/lib/coordinator/types";
+import {units} from "@/lib/format";
 import type {TokenInfo} from "@/lib/tokens";
 import {IntentKind} from "@shared/types";
 import styles from "./TradeWidget.module.css";
@@ -45,6 +48,8 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   const [partialFill, setPartialFill] = useState(true);
   const [signature, setSignature] = useState<`0x${string}` | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [baseline, setBaseline] = useState<BaselineQuote | null>(null);
+  const [quoting, setQuoting] = useState(false);
 
   const {remember} = useIntents();
   const {address, isConnected, chainId} = useAccount();
@@ -67,6 +72,46 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
       return null;
     }
   }, [amount, sellToken]);
+
+  useEffect(() => {
+    if (sellAmount === null || sellToken === undefined) {
+      setBaseline(null);
+      setQuoting(false);
+      return;
+    }
+
+    let live = true;
+    setQuoting(true);
+
+    const timer = setTimeout(async () => {
+      const result = await fetchBaseline({
+        sellToken: sellToken.address,
+        buyToken: quote.address,
+        sellAmount: sellAmount.toString(),
+      });
+      if (!live) return;
+      setBaseline(result.ok ? result.value : null);
+      setQuoting(false);
+    }, 400);
+
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [sellAmount, sellToken, quote.address]);
+
+  /// Only a baseline the adapter actually answered is treated as a number.
+  const estimate = baseline !== null && baseline.unavailable === null ? baseline : null;
+
+  const rate = useMemo(() => {
+    if (estimate === null || sellToken === undefined || sellAmount === null || sellAmount === 0n) {
+      return null;
+    }
+    const sold = Number(formatUnits(sellAmount, sellToken.decimals));
+    const got = Number(formatUnits(BigInt(estimate.baselineBuy), estimate.buyDecimals));
+    if (!Number.isFinite(sold) || sold === 0 || !Number.isFinite(got)) return null;
+    return (got / sold).toLocaleString("en-US", {maximumFractionDigits: 6});
+  }, [estimate, sellAmount, sellToken]);
 
   const wrongChain = isConnected && chainId !== context.chainId;
   const canSign =
@@ -162,30 +207,32 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   return (
     <div className={styles.container}>
       <div className={styles.box}>
-        <div className={styles.head}>
-          <div className={styles.tabs}>
-            <button
-              type="button"
-              className={`${styles.tab} ${mode === "spot" ? styles.tabActive : ""}`}
-              onClick={() => setMode("spot")}
-            >
-              Spot
-            </button>
-            <button
-              type="button"
-              className={`${styles.tab} ${mode === "auction" ? styles.tabActive : ""}`}
-              onClick={() => setMode("auction")}
-            >
-              Auction
-            </button>
-          </div>
-          <div className={styles.headRight}>{context.sessionName}</div>
-        </div>
-
         {!isConnected ? (
           <StartCard bases={bases} />
         ) : (
           <>
+            <div className={styles.head}>
+              <div className={styles.tabs}>
+                <button
+                  type="button"
+                  className={`${styles.tab} ${mode === "spot" ? styles.tabActive : ""}`}
+                  onClick={() => setMode("spot")}
+                >
+                  Spot
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.tab} ${mode === "auction" ? styles.tabActive : ""}`}
+                  onClick={() => setMode("auction")}
+                >
+                  Auction
+                </button>
+              </div>
+              <Link className={styles.headRight} href="/session">
+                {context.sessionName}
+              </Link>
+            </div>
+
           <label className={styles.panel}>
             <div className={styles.topRow}>
               <span className={styles.topLabel}>Sell</span>
@@ -232,12 +279,41 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
           <div className={`${styles.panel} ${styles.panelReadonly}`}>
             <div className={styles.topRow}>
               <span className={styles.topLabel}>Receive</span>
+              <span className={styles.topNote}>at the price the batch clears at</span>
             </div>
             <div className={styles.inputRow}>
-              <span className={styles.settledNote}>At the clearing price</span>
+              <span className={styles.settledNote}>
+                {sellAmount === null
+                  ? "Enter an amount"
+                  : quoting
+                    ? "Reading the venue"
+                    : baseline === null
+                      ? "No estimate available"
+                      : baseline.unavailable !== null
+                        ? "The venue could not answer"
+                        : units(BigInt(baseline.baselineBuy), baseline.buyDecimals, 4)}
+              </span>
               <TokenSelect token={quote} />
             </div>
+            {estimate === null ? null : (
+              <div className={styles.estimateRow}>
+                <span className={styles.estimate}>
+                  About this much if you went to the venue alone, at block{" "}
+                  <span className="chainvalue">{estimate.provenance.blockNumber}</span>. A batch can
+                  only beat it.
+                </span>
+              </div>
+            )}
           </div>
+
+          {rate === null || sellToken === undefined ? null : (
+            <div className={styles.rateRow}>
+              <span className={styles.rateLabel}>Venue rate now</span>
+              <span className={`${styles.rateValue} chainvalue`}>
+                1 {sellToken.symbol} = {rate} {quote.symbol}
+              </span>
+            </div>
+          )}
 
           <div className={styles.rows}>
             <div className={styles.row}>
