@@ -4,6 +4,7 @@
 //   node indexer/src/index.ts --duration <min>    stops after that many chain minutes
 //   node indexer/src/index.ts                     runs as a service, for the demo
 //   --confirmations <n>                           indexes only to head - n, required above 0 off a fork
+//   node indexer/src/index.ts --reconcile [--at-block <n>]   rows against the chain, exit 1 on any difference
 //
 // Steps are driven by new blocks, never by a timer. A failed step backs off from
 // one second, doubling, to at most thirty, and a refused getLogs range stops the
@@ -12,10 +13,11 @@
 import {readFileSync} from "node:fs";
 import {join} from "node:path";
 import {fileURLToPath} from "node:url";
-import {createPublicClient, http, type PublicClient} from "viem";
-import {INDEXED, REPO_ROOT, type ContractKey} from "./abi.ts";
-import {closeDb, migrate} from "./db.ts";
+import {createPublicClient, http, type Address, type PublicClient} from "viem";
+import {INDEXED, REPO_ROOT, loadAbi, type ContractKey} from "./abi.ts";
+import {closeDb, db, migrate} from "./db.ts";
 import {Ingest, RangeRefused, type Deployment} from "./ingest.ts";
+import {reconcile, report, viemReader} from "./reconcile.ts";
 import {PgStore, type IndexStore} from "./store.ts";
 
 export const RPC = process.env.NOKTURN_INDEXER_RPC ?? "http://127.0.0.1:8545";
@@ -157,6 +159,26 @@ export async function run(opts: RunOptions = {}): Promise<{lastBlock: bigint; st
   return {lastBlock, steps, logs};
 }
 
+/**
+ * Prints the reconciliation and answers 1 when any check differs. The block is
+ * the checkpoint unless one is named, and a block above the checkpoint is
+ * refused, because rows the indexer has not reached would read as missing.
+ */
+export async function reconcileCommand(atBlock?: bigint, log: (line: string) => void = (l) => console.log(l)): Promise<number> {
+  const c = client();
+  const d = await loadDeployment(c);
+  const cp = await new PgStore().checkpoint(d.chainId, d.settlement);
+  if (!cp) throw new Error(`nothing indexed yet for ${d.settlement}. run the indexer first`);
+  const at = atBlock ?? cp.lastBlock;
+  if (at > cp.lastBlock) throw new Error(`block ${at} is above the checkpoint ${cp.lastBlock}. reconcile at or below what is indexed`);
+  const adapter = (await c.readContract({address: d.settlement as Address, abi: loadAbi("Settlement"), functionName: "baselineAdapter", blockNumber: at})) as Address;
+  const accounts = JSON.parse(readFileSync(join(REPO_ROOT, "infra", "accounts.json"), "utf8")) as {solverA?: string; solverB?: string};
+  const checks = await reconcile(db(), viemReader(c, d, at, adapter), d.settlement, at, {solvers: [accounts.solverA, accounts.solverB].filter((s): s is string => Boolean(s))});
+  log(`reconciling ${d.settlement} on chain ${d.chainId} at block ${at}`);
+  log(report(checks));
+  return checks.some((ch) => ch.status === "differ") ? 1 : 0;
+}
+
 /** Resolves on the first block above `after`. */
 function nextBlock(c: PublicClient, after: bigint): Promise<void> {
   return new Promise((resolve) => {
@@ -188,10 +210,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const until = flag("--until-block");
   const duration = flag("--duration");
   const depth = flag("--confirmations");
-  run({untilBlock: until === undefined ? undefined : BigInt(until), durationMinutes: duration === undefined ? undefined : Number(duration), confirmations: depth === undefined ? undefined : BigInt(depth)})
-    .then(async () => {
+  const at = flag("--at-block");
+  const job: Promise<number> = argv.includes("--reconcile")
+    ? reconcileCommand(at === undefined ? undefined : BigInt(at))
+    : run({untilBlock: until === undefined ? undefined : BigInt(until), durationMinutes: duration === undefined ? undefined : Number(duration), confirmations: depth === undefined ? undefined : BigInt(depth)}).then(() => 0);
+  job
+    .then(async (code) => {
       await closeDb();
-      process.exitCode = 0;
+      process.exitCode = code;
     })
     .catch(async (error) => {
       console.error(`indexer failed\n  ${(error as Error).message}`);
