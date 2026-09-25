@@ -132,7 +132,9 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
    * Reading that as disconnected flashed the start card at someone who never
    * left, so the widget waits rather than guessing.
    */
-  const settling = !mounted || status === "connecting" || status === "reconnecting";
+  // Matches ConnectWallet. A connect the person started keeps the card they were
+  // looking at, because the picker is already covering it.
+  const settling = !mounted || status === "reconnecting";
 
   const wrongChain = isConnected && chainId !== context.chainId;
   const canSign =
