@@ -23,7 +23,7 @@
   flex: 1 1 auto;
   z-index: 2;
   color: inherit;
-  padding: 150px 16px 176px;
+  padding: 96px 16px 120px;
   margin: calc(var(--n-header-offset) * -1) auto calc(var(--n-slab-radius) * -1);
   border-bottom-left-radius: var(--n-slab-radius);
   border-bottom-right-radius: var(--n-slab-radius);
@@ -36,7 +36,7 @@
 
 @media (max-width: 960px) {
   .body {
-    padding: 150px 16px 150px;
+    padding: 96px 16px 96px;
     flex: none;
     min-height: calc(100vh - 200px);
     background-size: auto;
