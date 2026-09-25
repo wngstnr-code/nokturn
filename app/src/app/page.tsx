@@ -1,4 +1,5 @@
 import {IntentsProvider} from "@/components/trade/IntentsProvider";
+import {TradeLayout} from "@/components/trade/TradeLayout";
 import {MyIntents} from "@/components/trade/MyIntents";
 import {TradeWidget, type TradeContext} from "@/components/trade/TradeWidget";
 import {health} from "@/lib/coordinator/client";
@@ -66,15 +67,17 @@ export default async function TradePage() {
 
       {loaded === null ? null : (
         <IntentsProvider>
-          <div className={styles.primary}>
-            <TradeWidget bases={loaded.bases} quote={loaded.quote} context={loaded.context} />
-          </div>
-          <div className={styles.secondary}>
-            <MyIntents
-              reachable={loaded.context.coordinatorReachable}
-              tokens={[...loaded.bases, loaded.quote]}
-            />
-          </div>
+          <TradeLayout
+            widget={
+              <TradeWidget bases={loaded.bases} quote={loaded.quote} context={loaded.context} />
+            }
+            intents={
+              <MyIntents
+                reachable={loaded.context.coordinatorReachable}
+                tokens={[...loaded.bases, loaded.quote]}
+              />
+            }
+          />
         </IntentsProvider>
       )}
     </div>

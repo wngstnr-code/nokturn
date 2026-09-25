@@ -1,49 +1,12 @@
-/*
- * The pair is sized to its contents rather than to the page, so the two cards
- * stay centred together instead of drifting to the outer edges.
- */
+/* The grid moved to TradeLayout, which needs to know whether there is a second
+   column. What stays here is the wrapper and the failure card. */
 .page {
   width: 100%;
   max-width: calc(var(--n-widget-width) + var(--n-intents-width) + var(--n-column-gap));
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: auto;
-  grid-template-areas: "primary" "secondary";
-  gap: var(--n-column-gap);
-}
-
-@media (min-width: 1140px) {
-  .page {
-    grid-template-columns: var(--n-widget-width) var(--n-intents-width);
-    grid-template-areas: "primary secondary";
-    align-items: start;
-  }
-}
-
-.primary {
-  grid-area: primary;
-  display: flex;
-  flex-flow: column wrap;
-  gap: 16px;
-  width: 100%;
-  max-width: var(--n-widget-width);
-  margin: 0 auto;
-  color: inherit;
-}
-
-.secondary {
-  grid-area: secondary;
-  display: flex;
-  flex-flow: column nowrap;
-  width: 100%;
-  max-width: var(--n-intents-width);
-  margin: 0 auto;
-  min-height: 200px;
 }
 
 .failure {
-  grid-column: 1 / -1;
   width: 100%;
   max-width: var(--n-widget-width);
   margin: 0 auto;
