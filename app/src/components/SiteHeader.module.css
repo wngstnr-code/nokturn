@@ -100,64 +100,8 @@
   height: 100%;
 }
 
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 42px;
-  padding: 6px 12px;
-  background: transparent;
-  border: 2px solid transparent;
-  border-radius: var(--n-menu-radius);
-  color: var(--n-text);
-  font-size: var(--n-font-medium);
-  font-weight: var(--n-weight-normal);
-  white-space: nowrap;
-  transition: border var(--n-duration) var(--n-easing);
-}
-
-.pill:hover {
-  border: 2px solid rgba(222, 227, 230, 0.3);
-}
-
-.pillStrong {
-  color: var(--n-text);
-  font-weight: var(--n-weight-medium);
-}
-
-.pillMuted {
-  color: var(--n-menu-fill);
-  font-size: var(--n-font-normal);
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--n-success);
-  flex-shrink: 0;
-}
-
-.dotAlert {
-  background: var(--n-alert);
-}
-
-.dotDanger {
-  background: var(--n-danger);
-}
-
-@media (max-width: 1280px) {
-  .sessionPill {
-    display: none;
-  }
-}
-
 @media (max-width: 960px) {
   .nav {
-    display: none;
-  }
-
-  .networkPill {
     display: none;
   }
 }

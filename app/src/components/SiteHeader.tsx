@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {ConnectWallet} from "./ConnectWallet";
-import {SessionClock, type SessionSnapshot} from "./SessionClock";
+import type {SessionSnapshot} from "./SessionClock";
 import styles from "./SiteHeader.module.css";
 
 /*
@@ -49,15 +49,7 @@ export function SiteHeader({snapshot}: {snapshot: SessionSnapshot}) {
         <span className={styles.spacer} />
 
         <div className={styles.right}>
-          <span className={styles.sessionPill}>
-            <SessionClock snapshot={snapshot} />
-          </span>
-          <span className={`${styles.pill} ${styles.networkPill}`}>
-            <span className={styles.dot} aria-hidden="true" />
-            <span className={styles.pillStrong}>Testnet</span>
-            <span className={`${styles.pillMuted} chainvalue`}>46630</span>
-          </span>
-          <ConnectWallet />
+          <ConnectWallet snapshot={snapshot} />
         </div>
       </div>
     </header>

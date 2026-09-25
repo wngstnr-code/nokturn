@@ -1,67 +1,73 @@
+.anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /*
- * Connect and account sit in the same slot as the reference wallet button. The
- * 3px transparent border plus padding-box clip is what keeps the pill the same
- * height whether or not a background is painted.
+ * One min-width for both states, so the navbar does not jump the moment a wallet
+ * connects and the label goes from a sentence to an address.
  */
 .connect,
 .account {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 176px;
   min-height: 42px;
   padding: 0 16px;
-  border: 3px solid transparent;
-  background-clip: padding-box;
   border-radius: 21px;
-  font-size: var(--n-font-large);
+  font-size: var(--n-font-medium);
   font-weight: var(--n-weight-semibold);
   white-space: nowrap;
   transition:
     background-color var(--n-duration) var(--n-easing),
+    border-color var(--n-duration) var(--n-easing),
     color var(--n-duration) var(--n-easing);
 }
 
 .connect {
+  border: 3px solid transparent;
+  background-clip: padding-box;
   background-color: var(--n-primary);
   color: var(--n-button-text);
+  font-size: var(--n-font-large);
 }
 
-.connect:hover:not(:disabled) {
+.connect:hover {
   background-color: var(--n-primary-lighter);
 }
 
-.connect:disabled {
-  background-color: var(--n-paper-darker);
-  color: var(--n-button-text-disabled);
-  cursor: not-allowed;
-}
-
+/* The ring is darker than the bar behind it, so the pill reads as set into it. */
 .account {
+  border: 3px solid var(--n-paper-darker);
   background-color: var(--n-paper);
   color: var(--n-text);
-  font-size: var(--n-font-medium);
   font-weight: var(--n-weight-medium);
 }
 
 .account:hover {
+  border-color: var(--n-paper-darker);
   background-color: var(--n-primary);
   color: var(--n-button-text);
 }
 
-.wrongChain {
-  background-color: var(--n-alert);
-  color: var(--n-button-text);
-}
-
-.wrongChain:hover:not(:disabled) {
-  background-color: var(--n-alert-text);
+.warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--n-alert-text);
 }
 
 /* Neither connected nor asking to connect. Holds the slot while wagmi decides. */
 .settling {
   display: inline-block;
-  width: 152px;
+  width: 176px;
   min-height: 42px;
   border-radius: 21px;
   background: var(--n-text-o10);
