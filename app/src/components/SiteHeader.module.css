@@ -13,9 +13,8 @@
 .bar {
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  position: relative;
   padding: 6px 22px;
   gap: 6px;
   height: var(--n-menu-height);
@@ -52,20 +51,13 @@
   box-shadow: 0 0 0 4px var(--n-primary-o10);
 }
 
-/*
- * Taken out of the flow and centred on the bar, so the links stay in the middle
- * whatever the brand on one side and the wallet pill on the other happen to
- * measure.
- */
 .nav {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
-  flex-flow: row nowrap;
+  flex-flow: row wrap;
+  justify-content: flex-start;
   align-items: stretch;
   gap: 4px;
-  margin: 0;
+  margin: 0 0 0 20px;
   padding: 0;
 }
 
@@ -92,6 +84,10 @@
 
 .active {
   background: var(--n-menu-active);
+}
+
+.spacer {
+  flex: 1;
 }
 
 .right {
