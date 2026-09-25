@@ -77,6 +77,20 @@ export function IntentsProvider({children}: {children: ReactNode}) {
     setSent(load());
   }, []);
 
+  // A tab left open past the retention window would otherwise keep showing a
+  // row until something else made the list change.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSent((current) => {
+        const next = prune(current, Date.now());
+        if (next.length === current.length) return current;
+        save(next);
+        return next;
+      });
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const remember = useCallback((entry: Sent) => {
     setSent((current) => {
       if (current.some((held) => held.hash === entry.hash)) return current;

@@ -197,3 +197,32 @@
   font-size: var(--n-font-small);
   line-height: var(--n-line-small);
 }
+
+.rowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Nothing will change here again, so it steps back from the live rows without
+   being removed. Whether it goes is the reader's call, not the app's. */
+.done {
+  opacity: 0.65;
+}
+
+.dismiss {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-medium);
+  line-height: 1;
+  transition:
+    background var(--n-duration) var(--n-easing),
+    color var(--n-duration) var(--n-easing);
+}
+
+.dismiss:hover {
+  background: var(--n-text-o10);
+  color: var(--n-text);
+}

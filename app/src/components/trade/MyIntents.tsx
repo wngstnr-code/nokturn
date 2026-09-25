@@ -52,7 +52,7 @@ function amount(raw: unknown, token: TokenInfo | undefined): string {
 /// The list is built from what this tab sent, because nothing on the frozen
 /// surface answers "every intent this address has open".
 export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: TokenInfo[]}) {
-  const {sent} = useIntents();
+  const {sent, forget} = useIntents();
   const {address} = useAccount();
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [streaming, setStreaming] = useState(false);
@@ -158,11 +158,25 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
                       ? "the window closed before a batch opened"
                       : `for ${buyToken?.symbol ?? "the quote token"} at the clearing price`;
 
+            const finished =
+              status !== null && ["settled", "partially_settled", "expired", "cancelled", "rejected"].includes(status.status);
+
             return (
-              <div key={entry.hash} className={styles.row}>
+              <div key={entry.hash} className={`${styles.row} ${finished ? styles.done : ""}`}>
                 <div className={styles.rowTop}>
                   <span className={`${styles.legMain} chainvalue`}>{sold}</span>
-                  <span className={`${styles.badge} ${look.tone ?? ""}`}>{look.label}</span>
+                  <span className={styles.rowActions}>
+                    <span className={`${styles.badge} ${look.tone ?? ""}`}>{look.label}</span>
+                    <button
+                      type="button"
+                      className={styles.dismiss}
+                      title="Remove from this list. The intent itself is not cancelled"
+                      aria-label="Remove from this list"
+                      onClick={() => forget(entry.hash)}
+                    >
+                      &times;
+                    </button>
+                  </span>
                 </div>
                 <div className={styles.rowBottom}>
                   <span className={styles.legSub}>{line}</span>
