@@ -2,6 +2,7 @@ import type {
   ApiError,
   ApiErrorCode,
   AuctionResponse,
+  BaselineQuote,
   BatchListResponse,
   BatchReceipt,
   CoordinatorHealth,
@@ -40,7 +41,12 @@ async function call<T>(path: string, init?: RequestInit): Promise<Outcome<T>> {
   try {
     response = await fetch(`${BASE}${path}`, {
       ...init,
-      headers: {"content-type": "application/json", ...(init?.headers ?? {})},
+      // Only a request with a body needs the content type, and setting it on a
+      // GET makes the browser send a preflight before every read.
+      headers:
+        init?.body === undefined
+          ? init?.headers
+          : {"content-type": "application/json", ...(init.headers ?? {})},
     });
   } catch (error) {
     return {
@@ -134,4 +140,18 @@ export async function auction(auctionId: string): Promise<Outcome<AuctionRespons
 export async function listBatches(cursor?: string): Promise<Outcome<BatchListResponse>> {
   const query = cursor === undefined ? "" : `?cursor=${cursor}`;
   return call<BatchListResponse>(`/v1/batches${query}`);
+}
+
+/*
+ * What the venue would pay for this size at this block. Indicative only. The
+ * price a batch clears at is not known until it closes, and the unavailable
+ * field carries the venue's own reason when the adapter cannot answer at all.
+ */
+export async function quote(args: {
+  sellToken: string;
+  buyToken: string;
+  sellAmount: string;
+}): Promise<Outcome<BaselineQuote>> {
+  const query = new URLSearchParams(args).toString();
+  return call<BaselineQuote>(`/v1/quote?${query}`);
 }
