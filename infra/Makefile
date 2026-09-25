@@ -35,8 +35,14 @@ help:
 	@echo "indexer      start the event indexer, ARGS=\"--duration 10\" bounds it"
 	@echo "demo-fail    one failure receipt, CASE=passthrough|expired|unwound"
 	@echo "expire       expireBatch from another account, BATCH=<batchId>"
+	@echo "replay       play the august fixture through the live stack, ARGS=\"--duration 5\" required"
 
-.PHONY: db-up db-down db-reset indexer demo-fail expire
+.PHONY: db-up db-down db-reset indexer demo-fail expire replay
+
+# ARGS="--duration 5 --speed 12" plays the fixture's hour in five chain minutes.
+# Needs make api, make solver and make indexer running.
+replay:
+	@node ../analytics/src/replay.ts $(ARGS)
 
 # CASE is passthrough, expired or unwound. Stop make solver first.
 demo-fail:
