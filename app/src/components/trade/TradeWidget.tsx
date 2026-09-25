@@ -6,6 +6,7 @@ import {useAccount, useReadContract, useSignTypedData} from "wagmi";
 import {Button} from "@/components/ui/Button";
 import {TokenSelect} from "./TokenSelect";
 import {useIntents} from "./IntentsProvider";
+import {StartCard} from "./StartCard";
 import {buildIntent, serializeIntent} from "@/lib/intent";
 import {permit2Domain, permitWitnessMessage, PERMIT2_WITNESS_TYPES} from "@/lib/permit2";
 import {currentBatch, nextNonce, submitIntent} from "@/lib/coordinator/client";
@@ -181,115 +182,121 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
           <div className={styles.headRight}>{context.sessionName}</div>
         </div>
 
-        <label className={styles.panel}>
-          <div className={styles.topRow}>
-            <span className={styles.topLabel}>Sell</span>
-          </div>
-          <div className={styles.inputRow}>
-            <input
-              className={styles.input}
-              inputMode="decimal"
-              placeholder="0"
-              value={amount}
-              onChange={(event) => {
-                setSignature(null);
-                setNote(null);
-                setAmount(event.target.value.replace(/[^0-9.]/g, ""));
-              }}
-            />
-            {sellToken === undefined ? null : (
-              <TokenSelect token={sellToken} options={bases} onSelect={setSellToken} />
-            )}
-          </div>
-          {balanceLabel === null || sellToken === undefined ? null : (
+        {!isConnected ? (
+          <StartCard bases={bases} />
+        ) : (
+          <>
+          <label className={styles.panel}>
+            <div className={styles.topRow}>
+              <span className={styles.topLabel}>Sell</span>
+            </div>
             <div className={styles.inputRow}>
-              <span />
-              <span className={styles.balance}>
-                Balance <span className="chainvalue">{balanceLabel}</span>
-                <button
-                  type="button"
-                  className={styles.maxButton}
-                  onClick={() => balance !== undefined && setAmount(formatUnits(balance, sellToken.decimals))}
-                >
-                  Max
-                </button>
+              <input
+                className={styles.input}
+                inputMode="decimal"
+                placeholder="0"
+                value={amount}
+                onChange={(event) => {
+                  setSignature(null);
+                  setNote(null);
+                  setAmount(event.target.value.replace(/[^0-9.]/g, ""));
+                }}
+              />
+              {sellToken === undefined ? null : (
+                <TokenSelect token={sellToken} options={bases} onSelect={setSellToken} />
+              )}
+            </div>
+            {balanceLabel === null || sellToken === undefined ? null : (
+              <div className={styles.inputRow}>
+                <span />
+                <span className={styles.balance}>
+                  Balance <span className="chainvalue">{balanceLabel}</span>
+                  <button
+                    type="button"
+                    className={styles.maxButton}
+                    onClick={() => balance !== undefined && setAmount(formatUnits(balance, sellToken.decimals))}
+                  >
+                    Max
+                  </button>
+                </span>
+              </div>
+            )}
+          </label>
+
+          <div className={styles.separator}>
+            <div className={styles.separatorPuck} aria-hidden="true">
+              &#8595;
+            </div>
+          </div>
+
+          <div className={`${styles.panel} ${styles.panelReadonly}`}>
+            <div className={styles.topRow}>
+              <span className={styles.topLabel}>Receive</span>
+            </div>
+            <div className={styles.inputRow}>
+              <span className={styles.settledNote}>At the clearing price</span>
+              <TokenSelect token={quote} />
+            </div>
+          </div>
+
+          <div className={styles.rows}>
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>Batch window</span>
+              <span className={`${styles.rowValue} chainvalue`}>
+                {context.batchDuration === 0 ? "auction" : `${context.batchDuration}s`}
               </span>
             </div>
-          )}
-        </label>
-
-        <div className={styles.separator}>
-          <div className={styles.separatorPuck} aria-hidden="true">
-            &#8595;
-          </div>
-        </div>
-
-        <div className={`${styles.panel} ${styles.panelReadonly}`}>
-          <div className={styles.topRow}>
-            <span className={styles.topLabel}>Receive</span>
-          </div>
-          <div className={styles.inputRow}>
-            <span className={styles.settledNote}>At the clearing price</span>
-            <TokenSelect token={quote} />
-          </div>
-        </div>
-
-        <div className={styles.rows}>
-          <div className={styles.row}>
-            <span className={styles.rowLabel}>Batch window</span>
-            <span className={`${styles.rowValue} chainvalue`}>
-              {context.batchDuration === 0 ? "auction" : `${context.batchDuration}s`}
-            </span>
-          </div>
-          <div className={styles.row}>
-            <span className={styles.rowLabel}>Session price band</span>
-            <span className={`${styles.rowValue} chainvalue`}>{context.maxDeviationBps} bps</span>
-          </div>
-          <div className={styles.row}>
-            <span className={styles.rowLabel}>Your tolerance</span>
-            <span className={styles.rowValue}>
-              <input
-                className={`${styles.toleranceInput} chainvalue`}
-                inputMode="numeric"
-                value={tolerance}
-                onChange={(event) => setTolerance(Number(event.target.value.replace(/\D/g, "")) || 0)}
-              />
-              {" bps"}
-            </span>
-          </div>
-          <div className={styles.row}>
-            <span className={styles.rowLabel}>Partial fill</span>
-            <button type="button" className={styles.toggle} onClick={() => setPartialFill((on) => !on)}>
-              <span className={`${styles.switch} ${partialFill ? styles.switchOn : ""}`}>
-                <span className={styles.knob} />
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>Session price band</span>
+              <span className={`${styles.rowValue} chainvalue`}>{context.maxDeviationBps} bps</span>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>Your tolerance</span>
+              <span className={styles.rowValue}>
+                <input
+                  className={`${styles.toleranceInput} chainvalue`}
+                  inputMode="numeric"
+                  value={tolerance}
+                  onChange={(event) => setTolerance(Number(event.target.value.replace(/\D/g, "")) || 0)}
+                />
+                {" bps"}
               </span>
-              {partialFill ? "Allowed" : "All or nothing"}
-            </button>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>Partial fill</span>
+              <button type="button" className={styles.toggle} onClick={() => setPartialFill((on) => !on)}>
+                <span className={`${styles.switch} ${partialFill ? styles.switchOn : ""}`}>
+                  <span className={styles.knob} />
+                </span>
+                {partialFill ? "Allowed" : "All or nothing"}
+              </button>
+            </div>
           </div>
-        </div>
 
-        {signature === null ? null : (
-          <div className={styles.signed}>
-            Intent signed. Nothing moved and no transaction was sent.
-            <span className={`${styles.signedValue} chainvalue`}>{signature}</span>
-          </div>
+          {signature === null ? null : (
+            <div className={styles.signed}>
+              Intent signed. Nothing moved and no transaction was sent.
+              <span className={`${styles.signedValue} chainvalue`}>{signature}</span>
+            </div>
+          )}
+
+          {note === null ? null : <div className={styles.notice}>{note}</div>}
+
+          {context.signingOk ? null : (
+            <div className={styles.notice}>
+              {context.signingProblem ?? "The signing context could not be read from the chain."}
+            </div>
+          )}
+
+          {context.coordinatorReachable ? null : (
+            <div className={`${styles.notice} ${styles.noticeInfo}`}>{context.coordinatorDetail}</div>
+          )}
+
+            <Button disabled={!canSign || isPending} onClick={sign}>
+              {action}
+            </Button>
+          </>
         )}
-
-        {note === null ? null : <div className={styles.notice}>{note}</div>}
-
-        {context.signingOk ? null : (
-          <div className={styles.notice}>
-            {context.signingProblem ?? "The signing context could not be read from the chain."}
-          </div>
-        )}
-
-        {context.coordinatorReachable ? null : (
-          <div className={`${styles.notice} ${styles.noticeInfo}`}>{context.coordinatorDetail}</div>
-        )}
-
-        <Button disabled={!canSign || isPending} onClick={sign}>
-          {action}
-        </Button>
       </div>
     </div>
   );
