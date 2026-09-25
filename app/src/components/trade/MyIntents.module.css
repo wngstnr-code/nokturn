@@ -189,3 +189,11 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* Said once, under the title, rather than left for a reader to infer. */
+.scope {
+  padding: 0 6px 2px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  line-height: var(--n-line-small);
+}

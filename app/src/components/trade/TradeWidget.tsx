@@ -120,7 +120,12 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
 
       const result = await submitIntent({intent: serializeIntent(intent), signature: signed});
       if (result.ok) {
-        remember(result.value.intentHash);
+        remember({
+          hash: result.value.intentHash,
+          sentAt: Date.now(),
+          sold: `${formatUnits(sellAmount, sellToken.decimals)} ${sellToken.symbol}`,
+          buySymbol: quote.symbol,
+        });
         setNote(`Accepted into batch ${result.value.batchId}. Collection closes at ${result.value.collectEndsAt}`);
       } else {
         setNote(`${result.error.code}. ${result.error.message}`);

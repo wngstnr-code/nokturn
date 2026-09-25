@@ -103,10 +103,15 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
       <div className={styles.head}>
         <span className={styles.title}>Your intents</span>
         <span className={styles.count}>
-          {sent.length === 0 ? "none yet" : `${sent.length} sent from this tab`}
+          {sent.length === 0 ? "none yet" : `${sent.length} in the last day`}
           {streaming ? <span className={styles.live}>live</span> : null}
         </span>
       </div>
+
+      <p className={styles.scope}>
+        An intent is a signed instruction, not a transaction. Nothing leaves your wallet until a
+        batch clears. This list holds what you sent from this browser over the last day.
+      </p>
 
       {answers.length === 0 ? (
         <div className={styles.empty}>
@@ -122,21 +127,29 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
       ) : (
         <div className={styles.rows}>
           {answers.map(({sent: entry, status, error}) => {
+            const forgotten = status === null && error?.message.startsWith("no intent known") === true;
+
             const look =
-              status === null
-                ? {label: error?.code ?? "Unreadable", tone: styles.bad}
-                : (LOOK[status.status] ?? {label: status.status, tone: styles.pending});
+              status !== null
+                ? (LOOK[status.status] ?? {label: status.status, tone: styles.pending})
+                : forgotten
+                  ? {label: "No longer held", tone: styles.gone}
+                  : {label: "Not reachable", tone: styles.bad};
 
             const payload = status?.intent as Record<string, unknown> | undefined;
             const sellToken = bySymbol.get(String(payload?.sellToken ?? "").toLowerCase());
             const buyToken = bySymbol.get(String(payload?.buyToken ?? "").toLowerCase());
 
+            // What this tab recorded is the fallback, so a restarted coordinator
+            // does not make a row disappear as though it never happened.
             const sold =
-              status === null ? "Not accepted" : amount(payload?.sellAmount, sellToken);
+              status === null ? entry.sold : amount(payload?.sellAmount, sellToken);
 
             const line =
               status === null
-                ? (error?.message ?? "")
+                ? forgotten
+                  ? `for ${entry.buySymbol}. The coordinator restarted and no longer holds it`
+                  : `for ${entry.buySymbol}. Its status cannot be read right now`
                 : status.rejection !== null
                   ? status.rejection.message
                   : status.fill !== null
@@ -171,8 +184,8 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
           })}
 
           <p className={styles.caveat}>
-            This is what this tab sent, not a full history. The coordinator keeps its mempool in
-            memory, so a restart clears it and the escape hatch is the way round that.
+            This is what you sent from this browser, not a full history. The coordinator keeps its
+            mempool in memory, so a restart clears it and the escape hatch is the way round that.
           </p>
         </div>
       )}
