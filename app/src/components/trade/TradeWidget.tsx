@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useEffect, useMemo, useState} from "react";
 import {erc20Abi, formatUnits, parseUnits, type Address} from "viem";
 import {useAccount, useReadContract, useSignTypedData} from "wagmi";
+import {ChevronIcon} from "@/components/Icons";
 import {Button} from "@/components/ui/Button";
 import {TokenSelect} from "./TokenSelect";
 import {useIntents} from "./IntentsProvider";
@@ -318,16 +319,26 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
             )}
           </div>
 
-          {rate === null || sellToken === undefined ? null : (
-            <div className={styles.rateRow}>
-              <span className={styles.rateLabel}>Venue rate now</span>
-              <span className={`${styles.rateValue} chainvalue`}>
-                1 {sellToken.symbol} = {rate} {quote.symbol}
+          <details className={styles.deck}>
+            <summary className={styles.deckSummary}>
+              <span className={styles.deckHeadline}>
+                {rate === null || sellToken === undefined ? (
+                  "Batch and limits"
+                ) : (
+                  <span className="chainvalue">
+                    1 {sellToken.symbol} = {rate} {quote.symbol}
+                  </span>
+                )}
               </span>
-            </div>
-          )}
+              <span className={`${styles.deckMeta} chainvalue`}>
+                {context.batchDuration === 0 ? "auction" : `${context.batchDuration}s`}
+                {" . "}
+                {context.maxDeviationBps} bps
+              </span>
+              <ChevronIcon size={16} className={styles.deckChevron} />
+            </summary>
 
-          <div className={styles.rows}>
+            <div className={styles.rows}>
             <div className={styles.row}>
               <span className={styles.rowLabel}>Batch window</span>
               <span className={`${styles.rowValue} chainvalue`}>
@@ -359,7 +370,8 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
                 {partialFill ? "Allowed" : "All or nothing"}
               </button>
             </div>
-          </div>
+            </div>
+          </details>
 
           {signature === null ? null : (
             <div className={styles.signed}>

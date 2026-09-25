@@ -230,22 +230,58 @@
   line-height: var(--n-line-small);
 }
 
-.rateRow {
+/*
+ * The four protocol rows used to sit open all the time and pushed the backdrop off
+ * the fold. Folded away they keep the widget near the reference height, and the
+ * summary still names the batch window and the band, which are the two numbers a
+ * person cannot change.
+ */
+.deck {
+  width: 100%;
+}
+
+.deckSummary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 6px;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  list-style: none;
+  cursor: pointer;
   font-size: var(--n-font-small-plus);
+  transition: background var(--n-duration) var(--n-easing);
 }
 
-.rateLabel {
-  color: var(--n-text-o50);
+.deckSummary::-webkit-details-marker {
+  display: none;
 }
 
-.rateValue {
+.deckSummary:hover {
+  background: var(--n-paper-darker);
+}
+
+.deckHeadline {
   color: var(--n-text);
   font-weight: var(--n-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deckMeta {
+  margin: 0 0 0 auto;
+  color: var(--n-text-o50);
+  white-space: nowrap;
+}
+
+.deckChevron {
+  flex-shrink: 0;
+  color: var(--n-text-o50);
+  transition: transform var(--n-duration) var(--n-easing);
+}
+
+.deck[open] .deckChevron {
+  transform: rotate(180deg);
 }
 
 /* Arrow separator. 26px puck, pulled into the gap between the two panels. */
@@ -286,7 +322,7 @@
   width: 100%;
   margin: 0;
   gap: 7px;
-  padding: 6px;
+  padding: 10px 6px 4px;
   font-size: var(--n-font-small-plus);
   font-weight: var(--n-weight-medium);
 }
