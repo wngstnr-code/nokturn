@@ -428,13 +428,19 @@ describe("C2 POST /v1/intents", () => {
     assert.ok(!lateAdmit, "admitted into a frozen batch");
   });
 
-  test("C2-19 validUntil and validAfter exactly at collectEnd", async () => {
+  // Settlement refuses validUntil <= solveEnd since 0067794, so the edge the
+  // API accepts is solveEnd + 1, and collectEnd and solveEnd are both refused.
+  test("C2-19 validUntil at collectEnd, solveEnd and solveEnd + 1, validAfter at collectEnd", async () => {
     const batch = await freshWindow(g.api, 20);
     const collectEnd = String(batch.collectEndsAt);
-    const untilEdge = await submit(g.api, await signed(users[0], {validUntil: collectEnd}));
+    const solveEnd = String(batch.solveEndsAt);
+    const atCollect = await submit(g.api, await signed(users[0], {validUntil: collectEnd}));
+    const atSolve = await submit(g.api, await signed(users[0], {validUntil: solveEnd}));
+    const past = await submit(g.api, await signed(users[0], {validUntil: String(batch.solveEndsAt + 1)}));
     const afterEdge = await submit(g.api, await signed(users[0], {validAfter: collectEnd}));
-    const ok = untilEdge.status === 200 && afterEdge.status === 200 && untilEdge.body.batchId === collectEnd && afterEdge.body.batchId === collectEnd;
-    g.record("C2-19", {outcome: ok ? "pass" : "finding", summary: `validUntil = collectEnd ${untilEdge.status}, validAfter = collectEnd ${afterEdge.status}`});
+    const refused = (r) => r.status === 400 && r.body.code === "IntentExpired";
+    const ok = refused(atCollect) && refused(atSolve) && atSolve.body.detail?.solveEnd === solveEnd && past.status === 200 && afterEdge.status === 200 && afterEdge.body.batchId === collectEnd;
+    g.record("C2-19", {outcome: ok ? "pass" : "finding", summary: `validUntil = collectEnd ${atCollect.status}, = solveEnd ${atSolve.status}, = solveEnd + 1 ${past.status}, validAfter = collectEnd ${afterEdge.status}`});
     assert.ok(ok);
   });
 

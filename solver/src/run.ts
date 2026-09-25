@@ -28,6 +28,7 @@ const TASK_BACKSTOP_MS = Number(SOLUTION_WINDOW + FINALIZE_DEADLINE + 30n) * 1_0
 
 export type Outcome =
   | "finalized"
+  | "finalized_passthrough"
   | "finalized_by_other"
   | "finalize_reverted"
   | "abandoned"

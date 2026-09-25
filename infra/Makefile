@@ -29,6 +29,24 @@ help:
 	@echo "torture-soak the two hour soak, run it in the background"
 	@echo "lock         raise the timelock delay to 48h, opt in, freezes parameters"
 	@echo "clean        remove the fork deployment record and the snapshot id"
+	@echo "db-up        start the indexer postgres on 127.0.0.1:5433"
+	@echo "db-down      stop it, keeping the data"
+	@echo "db-reset     delete its volume, asks first"
+	@echo "indexer      start the event indexer, ARGS=\"--duration 10\" bounds it"
+
+.PHONY: db-up db-down db-reset indexer
+
+indexer:
+	@$(S)/indexer.sh $(ARGS)
+
+db-up:
+	@$(S)/db.sh up
+
+db-down:
+	@$(S)/db.sh down
+
+db-reset:
+	@$(S)/db.sh reset
 
 pin:
 	@$(S)/pin-block.sh

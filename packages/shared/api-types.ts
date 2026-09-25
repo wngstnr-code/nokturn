@@ -125,6 +125,12 @@ export type ApiErrorCode =
   | "LiquidityExhausted"
   | "TooManyTickCrossings"
   | "DynamicFeeUnsupported"
+  // the reason string of Settlement's BatchPassthrough, which has no error name
+  // of its own. Only ever set on BatchReceipt.failure
+  | "WinnerNeverFinalized"
+  | "IntentCollectionFailed"
+  | "SavingsBelowThreshold"
+  | "BatchPassthrough"
   // the coordinator's own
   | "COORDINATOR_BAD_SIGNATURE"
   | "COORDINATOR_INVALID_REQUEST"
