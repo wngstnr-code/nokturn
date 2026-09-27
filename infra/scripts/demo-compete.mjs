@@ -21,6 +21,7 @@ import {mkdirSync, mkdtempSync, readFileSync, writeFileSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {fileURLToPath} from "node:url";
+import {hexToString} from "viem";
 import {settlementAbi} from "../../api/src/chain.ts";
 import {accounts, batchLogs, c, freshBatch, logsOf, onBlocks, pin, placeNetted, placeSameSide, receiptOf, requireStack, settlement, start} from "./demo-lib.mjs";
 
@@ -28,6 +29,8 @@ const registryAbi = JSON.parse(readFileSync(new URL("../../packages/shared/abi/S
 const A = accounts.solverA.toLowerCase();
 const B = accounts.solverB.toLowerCase();
 const name = (a) => (a.toLowerCase() === A ? "solverA" : a.toLowerCase() === B ? "solverB" : a);
+// SolutionRejected carries its reason as bytes32, right padded with zeros.
+const reasonOf = (l) => hexToString(l.args.reason, {size: 32});
 
 async function oneBatch(after, sameSide, log) {
   const batch = await freshBatch(after);
@@ -76,9 +79,9 @@ function verify(r, sameSide) {
   const loser = submits.find((s) => s.args.solver.toLowerCase() !== winner);
   const loserCameSecond = loser && submits.indexOf(loser) === 1;
   if (loserCameSecond) {
-    check('the loser, arriving second, got SolutionRejected("not the best")', rejected.some((l) => l.args.solver.toLowerCase() === loser.args.solver.toLowerCase() && l.args.reason === "not the best"), rejected.map((l) => `${name(l.args.solver)} ${l.args.reason}`));
+    check('the loser, arriving second, got SolutionRejected("not the best")', rejected.some((l) => l.args.solver.toLowerCase() === loser.args.solver.toLowerCase() && reasonOf(l) === "not the best"), rejected.map((l) => `${name(l.args.solver)} ${reasonOf(l)}`));
   } else {
-    check("the loser arrived first and was replaced, which emits no rejection", rejected.length === 0, {order, rejected: rejected.map((l) => `${name(l.args.solver)} ${l.args.reason}`)});
+    check("the loser arrived first and was replaced, which emits no rejection", rejected.length === 0, {order, rejected: rejected.map((l) => `${name(l.args.solver)} ${reasonOf(l)}`)});
   }
   const listed = r.receipt.solutions.map((s) => s.solver.toLowerCase());
   check("solutions[] carries both, with claimedSavingsUsd", solvers.size === 2 && [...solvers].every((s) => listed.includes(s)) && r.receipt.solutions.every((s) => s.claimedSavingsUsd !== undefined), r.receipt.solutions.map((s) => `${name(s.solver)} ${s.claimedSavingsUsd} accepted ${s.accepted}`));
