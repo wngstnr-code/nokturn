@@ -1,7 +1,10 @@
 // The reference solver.
 //
 //   node solver/src/index.ts --once
-//   node solver/src/index.ts --run [--duration <minutes>]
+//   node solver/src/index.ts --run [--duration <minutes>] [--profile a|b]
+//
+// --profile a is solverA, netting first. --profile b is solverB, which routes
+// every intent to the venue, the honest aggregator profile a competes against.
 //
 // --once follows one batch through WS /v1/stream and asks every check that can
 // refuse the solution through eth_call, without sending anything. --run is the
@@ -156,7 +159,7 @@ export function describeReport(r: Report): string {
   ].join("\n");
 }
 
-const USAGE = "usage: node solver/src/index.ts --once | --run [--duration <minutes>]";
+const USAGE = "usage: node solver/src/index.ts --once | --run [--duration <minutes>] [--profile a|b]";
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const argv = process.argv.slice(2);
@@ -173,7 +176,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       console.error(`--duration needs a positive number of minutes\n${USAGE}`);
       process.exit(2);
     }
-    run({durationMinutes}).then((s) => {
+    const p = argv.indexOf("--profile");
+    const profile = p >= 0 ? argv[p + 1] : "a";
+    if (profile !== "a" && profile !== "b") {
+      console.error(`--profile is a or b\n${USAGE}`);
+      process.exit(2);
+    }
+    run({durationMinutes, profile}).then((s) => {
       console.log(describeSummary(s));
       process.exit(0);
     }, fail);

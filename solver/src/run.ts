@@ -9,7 +9,7 @@ import type {Hex, PublicClient} from "viem";
 import type {HDAccount} from "viem/accounts";
 import type {StreamEvent} from "../../packages/shared/api-types.ts";
 import {settlementAbi} from "./abi.ts";
-import {solverAccount} from "./account.ts";
+import {solverAccount, type Profile} from "./account.ts";
 import {API, client, contracts, settlementAddress, type Contracts} from "./chain.ts";
 import {feed, solveAt} from "./feed.ts";
 import {finalizeWon, untilBlock} from "./finalize.ts";
@@ -80,7 +80,7 @@ async function usable(c: PublicClient, k: Contracts, signed: SignedIntent[], sol
   return {keep, dropped};
 }
 
-async function processBatch(c: PublicClient, account: HDAccount, k: Contracts, store: Store, batchId: bigint, closedAt: number, log: (line: string) => void): Promise<BatchLine> {
+async function processBatch(c: PublicClient, account: HDAccount, k: Contracts, store: Store, batchId: bigint, closedAt: number, log: (line: string) => void, profile: Profile): Promise<BatchLine> {
   const line: BatchLine = {batchId, intents: 0, status: "error", submitTx: null, finalizeTx: null, savingsUsd: 0n, closeToSubmitMs: null, detail: ""};
   const solveEnd = batchId + SOLUTION_WINDOW;
 
@@ -93,7 +93,7 @@ async function processBatch(c: PublicClient, account: HDAccount, k: Contracts, s
   if (keep.length === 0) return {...line, status: "infeasible", detail: `every intent dropped, ${dropped.join("; ")}`};
 
   const block = await c.getBlockNumber();
-  const {plan, inputs} = await solveAt(c, k, batchId, keep, account.address, block);
+  const {plan, inputs} = await solveAt(c, k, batchId, keep, account.address, block, profile);
   const s = plan.solution;
   if (s.executions.length === 0) {
     return {...line, status: "infeasible", detail: plan.pairs.map((p) => `${p.base} ${p.mode}${p.reason ? ` (${p.reason})` : ""}`).join("; ") || "no pair"};
@@ -146,16 +146,18 @@ export function describeLine(l: BatchLine): string {
     .join(" | ");
 }
 
-export async function run(opts: {durationMinutes?: number; log?: (line: string) => void} = {}): Promise<Summary> {
+export async function run(opts: {durationMinutes?: number; profile?: Profile; log?: (line: string) => void} = {}): Promise<Summary> {
   const log = opts.log ?? ((line: string) => console.log(line));
+  const profile = opts.profile ?? "a";
   const c = client();
-  const account = solverAccount();
+  const account = solverAccount(profile);
   const settlement = settlementAddress();
   const k = await contracts(c, settlement);
   const ready = await assertReady(c, k, account.address);
   const chainId = await c.getChainId();
-  const store = new Store(storeDir(chainId, settlement));
-  log(`solver ${account.address}, bond ${ready.bonded}, settlement ${settlement}, store ${store.dir}`);
+  // Two profiles never share a store, or one would finalize the other's solution.
+  const store = new Store(storeDir(chainId, settlement) + (profile === "a" ? "" : `-${profile}`));
+  log(`solver ${account.address}, profile ${profile}, bond ${ready.bonded}, settlement ${settlement}, store ${store.dir}`);
 
   const summary: Summary = {processed: 0, counts: {}, lines: [], reconnects: 0};
   const inflight = new Map<bigint, Promise<void>>();
@@ -208,7 +210,7 @@ export async function run(opts: {durationMinutes?: number; log?: (line: string) 
       record({batchId, intents: f.data.intentCount, status: "abandoned", submitTx: null, finalizeTx: null, savingsUsd: 0n, closeToSubmitMs: null, detail: `${MAX_TRACKED} batches already in flight`});
       return;
     }
-    track(batchId, processBatch(c, account, k, store, batchId, performance.now(), log));
+    track(batchId, processBatch(c, account, k, store, batchId, performance.now(), log, profile));
   };
 
   let delay = 1_000;

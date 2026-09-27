@@ -2,7 +2,9 @@
 # docs/pembagian-tugas.md section 3 promises. The real targets live in
 # infra/Makefile and are owned by Dharu.
 
-.PHONY: help pin fork deploy fund status prewarm snapshot revert check-fork check-batch check-permit2 api sign-intent postman postman-run postman-resilience postman-api lock clean
+TARGETS := help pin fork deploy fund status prewarm snapshot revert check-fork check-batch check-permit2 api solver sign-intent postman postman-run postman-resilience postman-api torture torture-soak lock clean db-up db-down db-reset indexer demo-fail demo-compete expire replay
 
-help pin fork deploy fund status prewarm snapshot revert check-fork check-batch check-permit2 api sign-intent postman postman-run postman-resilience postman-api lock clean:
-	@$(MAKE) -C infra $@ ARGS="$(ARGS)"
+.PHONY: $(TARGETS)
+
+$(TARGETS):
+	@"$(MAKE)" -C infra $@ ARGS="$(ARGS)" CASE="$(CASE)" BATCH="$(BATCH)" GROUP="$(GROUP)"

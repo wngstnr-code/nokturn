@@ -9,6 +9,7 @@
 
 import {erc20Abi, type Address, type Hex, type PublicClient} from "viem";
 import {oracleAbi, sessionAbi} from "./abi.ts";
+import type {Profile} from "./account.ts";
 import {quote} from "./baseline.ts";
 import type {Contracts} from "./chain.ts";
 import {allocate, clear, pairsOf, route, type Fill, type Pair, type Reference} from "./clearing.ts";
@@ -75,7 +76,7 @@ function oracleOf(inputs: Inputs, token: Address): OracleRow | null {
   return row;
 }
 
-export async function solve(c: PublicClient, k: Contracts, batchId: bigint, signed: readonly SignedIntent[], quoteToken: Address, solver: Address, inputs: Inputs): Promise<Plan> {
+export async function solve(c: PublicClient, k: Contracts, batchId: bigint, signed: readonly SignedIntent[], quoteToken: Address, solver: Address, inputs: Inputs, profile: Profile = "a"): Promise<Plan> {
   const intents = signed.map((s) => s.intent);
   const {pairs, unsupported} = pairsOf(intents, quoteToken);
   const outcomes: PairOutcome[] = [];
@@ -88,6 +89,10 @@ export async function solve(c: PublicClient, k: Contracts, batchId: bigint, sign
       continue;
     }
     const ref: Reference = {quotePrice: q.price, basePrice: b.price, maxDeviationBps: inputs.maxDeviationBps};
+    if (profile === "b") {
+      outcomes.push(await routeEverything(c, k, pair, ref, inputs.block));
+      continue;
+    }
     const netted = await tryNetted(c, k, pair, ref, inputs.block);
     if (netted.mode === "netted") {
       outcomes.push(netted);
@@ -204,6 +209,39 @@ async function tryRouted(c: PublicClient, k: Contracts, pair: Pair, ref: Referen
     return {base: pair.base, mode: "routed", fills, baselines, basePrice, venueCalls};
   }
   return skipped(pair, "every intent's limit is above what the venue gives");
+}
+
+/**
+ * Profile b. Each direction of the pair goes to the venue on its own, so every
+ * intent is routed and none is netted, which is what an aggregator does with
+ * the same flow. Not a solver made to lose. It is the honest baseline the
+ * netting solver has to beat.
+ *
+ * The two directions carry their own implied prices, and the batch has one
+ * price per token. Buyers need it at or below the lowest price they paid, and
+ * sellers at or above the highest they received, so the buy side's price works
+ * for both whenever the venue's ask sits at or above its bid.
+ */
+async function routeEverything(c: PublicClient, k: Contracts, pair: Pair, ref: Reference, block: bigint): Promise<PairOutcome> {
+  const buys = pair.entries.filter((e) => same(e.intent.sellToken, pair.quote));
+  const sells = pair.entries.filter((e) => !same(e.intent.sellToken, pair.quote));
+  const sides = await Promise.all([buys, sells].filter((s) => s.length > 0).map((entries) => tryRouted(c, k, {...pair, entries}, ref, block)));
+  const routed = sides.filter((o) => o.mode === "routed");
+  if (routed.length === 0) return skipped(pair, sides.map((o) => o.reason).join("; "));
+  if (routed.length === 1) return routed[0]!;
+
+  const [buy, sell] = routed as [PairOutcome, PairOutcome];
+  const price = buy.basePrice;
+  const fills = [...buy.fills, ...sell.fills];
+  for (const f of fills) {
+    const selling = sells.some((e) => e.index === f.index);
+    const [sp, bp] = selling ? [price, ref.quotePrice] : [ref.quotePrice, price];
+    if (!uniformPriceHolds(f.executedSell, f.executedBuy, sp, bp)) {
+      // No single price covers both directions, so the larger side is routed alone.
+      return buy.venueCalls[0]!.amountIn * ref.quotePrice >= sell.venueCalls[0]!.amountIn * ref.basePrice ? buy : sell;
+    }
+  }
+  return {base: pair.base, mode: "routed", fills, baselines: new Map([...buy.baselines, ...sell.baselines]), basePrice: price, venueCalls: [...buy.venueCalls, ...sell.venueCalls]};
 }
 
 function assemble(batchId: bigint, signed: readonly SignedIntent[], quoteToken: Address, solver: Address, inputs: Inputs, outcomes: PairOutcome[]): Solution {

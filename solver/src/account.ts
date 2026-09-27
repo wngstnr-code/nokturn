@@ -12,24 +12,30 @@ import type {Address, PublicClient} from "viem";
 import {mnemonicToAccount, type HDAccount} from "viem/accounts";
 import {REPO_ROOT} from "./abi.ts";
 
-/** Found by deriving indices 0 to 20 and matching infra/accounts.json solverA. */
+/** Found by deriving indices 0 to 20 and matching infra/accounts.json solverA and solverB. */
 export const SOLVER_A_INDEX = 4;
+export const SOLVER_B_INDEX = 5;
+
+/** a nets first and routes the rest. b routes every intent, the way an aggregator does. */
+export type Profile = "a" | "b";
 
 interface AccountsFile {
   _mnemonic: string;
   solverA: Address;
+  solverB: Address;
 }
 
 function accountsFile(): AccountsFile {
   return JSON.parse(readFileSync(join(REPO_ROOT, "infra", "accounts.json"), "utf8")) as AccountsFile;
 }
 
-export function solverAccount(): HDAccount {
+export function solverAccount(profile: Profile = "a"): HDAccount {
   const file = accountsFile();
   const mnemonic = process.env.NOKTURN_FORK_MNEMONIC ?? file._mnemonic;
-  const account = mnemonicToAccount(mnemonic, {addressIndex: SOLVER_A_INDEX});
-  if (account.address.toLowerCase() !== file.solverA.toLowerCase()) {
-    throw new Error(`index ${SOLVER_A_INDEX} derives ${account.address}, but infra/accounts.json names ${file.solverA} as solverA`);
+  const [index, name] = profile === "a" ? [SOLVER_A_INDEX, "solverA" as const] : [SOLVER_B_INDEX, "solverB" as const];
+  const account = mnemonicToAccount(mnemonic, {addressIndex: index});
+  if (account.address.toLowerCase() !== file[name].toLowerCase()) {
+    throw new Error(`index ${index} derives ${account.address}, but infra/accounts.json names ${file[name]} as ${name}`);
   }
   return account;
 }
