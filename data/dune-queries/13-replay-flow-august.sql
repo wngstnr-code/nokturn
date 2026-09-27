@@ -8,7 +8,7 @@
 -- because the busiest hour would flatter the netting the replay measures.
 -- Off hours uses the backtest's own boundary, NYSE open 13:30 to 20:00 UTC,
 -- which is right for August under EDT.
--- Dune query id: not yet saved. Record it in analytics/src/extract.ts output.
+-- Dune query id: 8846173, saved public and permanent on 27 September 2026.
 -- Visualization: table
 
 WITH toks AS (
