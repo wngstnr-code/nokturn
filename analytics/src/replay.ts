@@ -73,6 +73,16 @@ export function due(queue: FixtureTrade[], elapsed: number): FixtureTrade[] {
   return queue.splice(0, n);
 }
 
+/**
+ * One chain batch has to hold exactly one fixture window. A faster speed packs
+ * several windows into one batch, which both breaks the cap the fixture was
+ * scaled under and nets trades that never shared a batch.
+ */
+export function windowMismatch(fixtureBatchSeconds: number, chainBatchSeconds: number, speed: number): string | null {
+  if (chainBatchSeconds * speed === fixtureBatchSeconds) return null;
+  return `one ${chainBatchSeconds}s chain batch at speed ${speed} covers ${chainBatchSeconds * speed}s of fixture, but the fixture was cut into ${fixtureBatchSeconds}s windows. extract again against this fork, or use --speed ${fixtureBatchSeconds / chainBatchSeconds}`;
+}
+
 /** Receipts only, so the number comes from what settled on chain, never from what was sent. */
 export function nettingOf(receipts: BatchReceipt[]): {netted: bigint; routed: bigint; ratioBps: bigint; netting: number} {
   let netted = 0n;
@@ -108,13 +118,21 @@ export async function replay(opts: ReplayOptions): Promise<Summary> {
 
   const fixture = JSON.parse(readFileSync(opts.fixturePath ?? join(REPO_ROOT, "data", "replay", "august-2026.json"), "utf8")) as Fixture;
   const sign = (await import("../../infra/scripts/sign-intent.mjs" as string)) as {buildSignedIntent: (o: object) => Promise<{intent: Record<string, string>; signature: string}>};
-  const {chain} = await import("../../api/src/chain.ts");
+  const {chain, read, sessionAbi} = await import("../../api/src/chain.ts");
   const {quote} = await import("../../solver/src/baseline.ts");
   const c = chain();
   try {
     await c.client.request({method: "anvil_nodeInfo" as never, params: [] as never});
   } catch {
     throw new Error("replay signs with local keys and only runs against an anvil fork, anvil_nodeInfo failed");
+  }
+  const head = await c.client.getBlock();
+  const session = await read<number>(c.deployment.sessions, sessionAbi, "sessionAt", [head.timestamp], head.number);
+  const chainBatchSeconds = Number(await read<number>(c.deployment.sessions, sessionAbi, "batchDuration", [session], head.number));
+  const mismatch = windowMismatch(fixture.batchSeconds, chainBatchSeconds, speed);
+  if (mismatch) throw new Error(mismatch);
+  if (fixture.scale.session !== null && fixture.scale.session !== Number(session)) {
+    throw new Error(`the fixture was scaled for session ${fixture.scale.session} but the fork is in session ${session}. extract again against this fork`);
   }
 
   const accounts = JSON.parse(readFileSync(join(REPO_ROOT, "infra", "accounts.json"), "utf8")) as {_mnemonic: string; users: string[]};

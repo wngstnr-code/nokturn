@@ -2,12 +2,19 @@ import assert from "node:assert/strict";
 import {describe, test} from "node:test";
 import type {BatchReceipt} from "../../../packages/shared/api-types.ts";
 import type {FixtureTrade} from "../../src/extract.ts";
-import {due, HARNESS_FAULTS, nettingOf} from "../../src/replay.ts";
+import {due, HARNESS_FAULTS, nettingOf, windowMismatch} from "../../src/replay.ts";
 
 const trade = (at: number): FixtureTrade => ({at, window: 0, sym: "NVDA", side: "buy", usdMicro: "1", usdMicroOriginal: "1", trader: 0, txHash: "0x", logIndex: 0});
 const receipt = (netted: string, routed: string) => ({totals: {nettedVolumeUsd: netted, routedVolumeUsd: routed}}) as BatchReceipt;
 
 describe("replay", () => {
+  test("a chain batch must cover exactly one fixture window", () => {
+    assert.equal(windowMismatch(60, 60, 1), null);
+    assert.equal(windowMismatch(60, 10, 6), null);
+    assert.match(windowMismatch(60, 60, 12)!, /covers 720s of fixture/);
+    assert.match(windowMismatch(45, 60, 1)!, /extract again/);
+  });
+
   test("a trade is played once its offset is reached, in order, and only once", () => {
     const q = [trade(0), trade(5), trade(5), trade(9)];
     assert.deepEqual(due(q, 4).map((t) => t.at), [0]);
