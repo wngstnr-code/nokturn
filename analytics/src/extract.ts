@@ -1,7 +1,12 @@
 // F29. One hour of real August 2026 trades, exported from Dune query 13, into
 // the fixture the replay harness signs again with local keys.
 //
-//   node analytics/src/extract.ts --csv data/replay/<export>.csv --query-id <id> [--cap-usd <n>] [--batch-seconds 45]
+//   node analytics/src/extract.ts --csv data/replay/<export>.csv --query-id <id> [--cap-usd <n> --batch-seconds <n>]
+//
+// With the fork up, the batch cap and the batch length are read from it for the
+// session the fork is in now, so the fixture fits the batches it will be played
+// into. --cap-usd and --batch-seconds are for when no fork is running, and then
+// the cap given is taken as the cap one batch actually has.
 //
 // Nothing is generated. Every trade in the fixture is a row of the export, in
 // its order, with its time offset, side, token and size, and carries its tx hash
@@ -17,8 +22,10 @@ export const SQL_FILE = "data/dune-queries/13-replay-flow-august.sql";
 /** The aggregate queries the replay's netting is compared against, never the source of a trade. */
 export const AGGREGATE_QUERIES = ["8595251", "8595303"];
 export const ALLOWLIST = ["NVDA", "AAPL", "TSLA", "GOOGL"] as const;
-/** The backtest's off-hours batch length, so a replay window lines up with the backtest's. */
+/** The backtest's off-hours batch length, used only when no fork says otherwise. */
 export const DEFAULT_BATCH_SECONDS = 45;
+/** Session.CLOSED_WEEKEND, HOLIDAY and PROTECTIVE in contracts/src/types/Types.sol. */
+const HALVED_SESSIONS = new Set([6, 7, 8]);
 /**
  * The busiest window is scaled to this share of capPerBatchUsd rather than to
  * the cap itself, because prices move between extraction and replay and a batch
@@ -53,7 +60,12 @@ export interface Fixture {
     statement: string;
   };
   scale: {
+    /** The cap one batch has in `session`, which is what the busiest window is scaled under. */
     capPerBatchUsdMicro: string;
+    /** capPerBatchUsd() before the session halves it. Null when no fork was read. */
+    fullCapPerBatchUsdMicro: string | null;
+    /** The fork's session at extraction. Null when no fork was read. */
+    session: number | null;
     headroomBps: string;
     busiestWindowUsdMicro: string;
     numerator: string;
@@ -121,7 +133,21 @@ export function toMicro(s: string): bigint {
 
 const REQUIRED = ["block_time", "tx_hash", "evt_index", "sym", "side", "amount_usd", "taker", "window_start"];
 
-export function extract(rows: Record<string, string>[], opts: {queryId: string; capPerBatchUsdMicro: bigint; batchSeconds?: number; extractedAt?: string}): Fixture {
+/** Settlement._capScale applied to capPerBatchUsd, in 6 decimals. */
+export function batchCapUsdMicro(fullCapUsdMicro: bigint, session: number): bigint {
+  return HALVED_SESSIONS.has(session) ? fullCapUsdMicro / 2n : fullCapUsdMicro;
+}
+
+export interface ExtractOptions {
+  queryId: string;
+  capPerBatchUsdMicro: bigint;
+  batchSeconds?: number;
+  fullCapPerBatchUsdMicro?: bigint;
+  session?: number;
+  extractedAt?: string;
+}
+
+export function extract(rows: Record<string, string>[], opts: ExtractOptions): Fixture {
   if (rows.length === 0) throw new Error("the export has no rows");
   const missing = REQUIRED.filter((k) => !(k in rows[0]!));
   if (missing.length) throw new Error(`the export lacks ${missing.join(", ")}. is it query 13`);
@@ -173,6 +199,8 @@ export function extract(rows: Record<string, string>[], opts: {queryId: string; 
     },
     scale: {
       capPerBatchUsdMicro: String(opts.capPerBatchUsdMicro),
+      fullCapPerBatchUsdMicro: opts.fullCapPerBatchUsdMicro === undefined ? null : String(opts.fullCapPerBatchUsdMicro),
+      session: opts.session ?? null,
       headroomBps: String(CAP_HEADROOM_BPS),
       busiestWindowUsdMicro: String(busiest),
       numerator: String(num),
@@ -185,14 +213,26 @@ export function extract(rows: Record<string, string>[], opts: {queryId: string; 
   };
 }
 
-async function capFromFork(): Promise<bigint> {
+interface ForkLimits {
+  capPerBatchUsdMicro: bigint;
+  fullCapPerBatchUsdMicro: bigint;
+  session: number;
+  batchSeconds: number;
+}
+
+async function limitsFromFork(): Promise<ForkLimits> {
   const {createPublicClient, http} = await import("viem");
-  const record = JSON.parse(readFileSync(join(REPO_ROOT, "infra", "fork-deployment.json"), "utf8")) as {settlement: `0x${string}`};
-  const abi = JSON.parse(readFileSync(join(REPO_ROOT, "packages", "shared", "abi", "Settlement.json"), "utf8"));
+  const record = JSON.parse(readFileSync(join(REPO_ROOT, "infra", "fork-deployment.json"), "utf8")) as {settlement: `0x${string}`; sessions: `0x${string}`};
+  const abi = (name: string) => JSON.parse(readFileSync(join(REPO_ROOT, "packages", "shared", "abi", `${name}.json`), "utf8"));
   const c = createPublicClient({transport: http(process.env.NOKTURN_FORK_RPC ?? "http://127.0.0.1:8545")});
-  const cap = (await c.readContract({address: record.settlement, abi, functionName: "capPerBatchUsd"})) as bigint;
+  const block = await c.getBlock();
+  const at = {blockNumber: block.number};
   // 1e18 USD in the contract, 1e6 here.
-  return cap / 10n ** 12n;
+  const full = ((await c.readContract({address: record.settlement, abi: abi("Settlement"), functionName: "capPerBatchUsd", ...at})) as bigint) / 10n ** 12n;
+  const session = Number(await c.readContract({address: record.sessions, abi: abi("SessionManager"), functionName: "sessionAt", args: [block.timestamp], ...at}));
+  const batchSeconds = Number(await c.readContract({address: record.sessions, abi: abi("SessionManager"), functionName: "batchDuration", args: [session], ...at}));
+  if (batchSeconds === 0) throw new Error(`the fork is in auction session ${session}, which runs no ordinary batch. extract again once it has moved on`);
+  return {capPerBatchUsdMicro: batchCapUsdMicro(full, session), fullCapPerBatchUsdMicro: full, session, batchSeconds};
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -203,18 +243,21 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   };
   const csv = flag("--csv");
   const queryId = flag("--query-id");
-  if (!csv || !queryId || !/^\d+$/.test(queryId)) {
-    console.error("usage: node analytics/src/extract.ts --csv <export.csv> --query-id <dune id> [--cap-usd <n>] [--batch-seconds 45]");
-    process.exit(2);
-  }
   const capUsd = flag("--cap-usd");
   const batchSeconds = flag("--batch-seconds");
-  (capUsd ? Promise.resolve(BigInt(capUsd) * 1_000_000n) : capFromFork())
-    .then((cap) => {
-      const fixture = extract(parseCsv(readFileSync(csv, "utf8")), {queryId, capPerBatchUsdMicro: cap, batchSeconds: batchSeconds ? Number(batchSeconds) : undefined});
+  if (!csv || !queryId || !/^\d+$/.test(queryId) || Boolean(capUsd) !== Boolean(batchSeconds)) {
+    console.error("usage: node analytics/src/extract.ts --csv <export.csv> --query-id <dune id> [--cap-usd <n> --batch-seconds <n>]");
+    process.exit(2);
+  }
+  const limits: Promise<Pick<ExtractOptions, "capPerBatchUsdMicro" | "batchSeconds" | "fullCapPerBatchUsdMicro" | "session">> =
+    capUsd && batchSeconds ? Promise.resolve({capPerBatchUsdMicro: BigInt(capUsd) * 1_000_000n, batchSeconds: Number(batchSeconds)}) : limitsFromFork();
+  limits
+    .then((l) => {
+      const fixture = extract(parseCsv(readFileSync(csv, "utf8")), {queryId, ...l});
       const out = join(REPO_ROOT, "data", "replay", "august-2026.json");
       writeFileSync(out, JSON.stringify(fixture, null, 2) + "\n");
-      console.log(`${fixture.trades.length} trades from query ${queryId}, ${fixture.traders} traders, window ${fixture.source.windowStart}, scale ${fixture.scale.factor}, written to ${relative(REPO_ROOT, out)}`);
+      const where = l.session === undefined ? "given on the command line" : `session ${l.session} on the fork`;
+      console.log(`${fixture.trades.length} trades from query ${queryId}, ${fixture.traders} traders, window ${fixture.source.windowStart}, batch cap ${Number(l.capPerBatchUsdMicro) / 1e6} usd over ${fixture.batchSeconds}s from ${where}, scale ${fixture.scale.factor}, written to ${relative(REPO_ROOT, out)}`);
     })
     .catch((error) => {
       console.error(`extract failed\n  ${(error as Error).message}`);
