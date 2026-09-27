@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import {describe, test} from "node:test";
-import {extract, parseCsv, toMicro} from "../../src/extract.ts";
+import {batchCapUsdMicro, extract, parseCsv, toMicro} from "../../src/extract.ts";
 
 const HEAD = "block_time,block_number,tx_hash,evt_index,sym,token,side,amount_usd,stock_raw,usdg_raw,taker,window_start,window_trades,off_hours_hours";
 const row = (t: string, tx: string, sym: string, side: string, usd: string, taker: string) => `2026-08-12 ${t}.000 UTC,1,${tx},0,${sym},0xtok,${side},${usd},1,1,${taker},2026-08-12 03:00:00.000 UTC,4,300`;
@@ -42,6 +42,25 @@ describe("extract", () => {
     assert.equal(f.scale.factor, "0.450000");
     assert.deepEqual(f.trades.map((t) => t.usdMicro), ["450000000", "450000000", "45000000"]);
     assert.deepEqual(f.trades.map((t) => t.usdMicroOriginal), ["1000000000", "1000000000", "100000000"]);
+  });
+
+  test("weekend, holiday and protective halve the batch cap, like Settlement._capScale", () => {
+    const full = 5_000_000_000n;
+    assert.deepEqual([0, 1, 3, 5, 6, 7, 8].map((s) => batchCapUsdMicro(full, s)), [full, full, full, full, full / 2n, full / 2n, full / 2n]);
+  });
+
+  test("a weekend fork scales the busiest window under the halved cap and records why", () => {
+    // Two trades 50 s apart fall in one 60 s weekend batch, the 45 s default would have split them.
+    const csv = [HEAD, row("03:00:01", "0xa", "NVDA", "buy", "2000", "0xT1"), row("03:00:51", "0xb", "TSLA", "sell", "2000", "0xT2")].join("\n");
+    const full = 5_000_000_000n;
+    const f = extract(parseCsv(csv), {queryId: "1", capPerBatchUsdMicro: batchCapUsdMicro(full, 6), fullCapPerBatchUsdMicro: full, session: 6, batchSeconds: 60});
+    assert.deepEqual(f.trades.map((t) => t.window), [0, 0]);
+    assert.equal(f.scale.busiestWindowUsdMicro, "4000000000");
+    assert.equal(f.scale.capPerBatchUsdMicro, "2500000000");
+    assert.equal(f.scale.fullCapPerBatchUsdMicro, "5000000000");
+    assert.equal(f.scale.session, 6);
+    // 2500 at 90 percent over 4000
+    assert.equal(f.scale.factor, "0.562500");
   });
 
   test("a token outside allowlist v1.0 or a row outside the hour is refused, not dropped", () => {
