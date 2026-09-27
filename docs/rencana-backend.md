@@ -711,7 +711,7 @@ punya isi, dan angkanya jadi angka yang harus dipercaya.
 
 | # | Fitur | Selesai kalau |
 |---|---|---|
-| F29 | Ekstraksi arus Agustus 2026 jadi fixture replay | Intent replay lahir dari kueri Dune per trade `data/dune-queries/13-replay-flow-august.sql`, dengan nomor kuerinya tercatat di file keluarannya. `8595251` dan `8595303` menjadi pembanding agregat, bukan sumber trade (N15, diputuskan Dharu 26 September 2026). **Kode selesai 26 September 2026.** Ekstraktor dan harness replay ada, beserta unit test-nya. Fixture belum ada, karena kueri 13 belum dijalankan di Dune dan belum diekspor |
+| F29 | Ekstraksi arus Agustus 2026 jadi fixture replay | Intent replay lahir dari kueri Dune per trade `data/dune-queries/13-replay-flow-august.sql`, dengan nomor kuerinya tercatat di file keluarannya. `8595251` dan `8595303` menjadi pembanding agregat, bukan sumber trade (N15, diputuskan Dharu 26 September 2026). **Kode selesai 26 September 2026.** Ekstraktor dan harness replay ada, beserta unit test-nya. **Fixture selesai 27 September 2026.** Kueri 13 tersimpan publik sebagai `8846173`. Jam yang terpilih adalah 5 Agustus 2026 00:00 sampai 01:00 UTC, median dari 378 jam off-hours hari kerja, berisi 728 trade dari 78 taker senilai $110.143. Ekspornya `data/replay/query-8846173.csv`, fixture-nya `data/replay/august-2026.json`. Cap dan panjang batch dibaca dari fork. Blok patokan jatuh di hari Minggu, jadi sesi 6 memberi cap batch $2.500 dan batch 60 detik, dan skalanya 0,2539 (N19). Replay penuh dijalankan 28 September 2026 |
 | F30 | Kurva netting lawan pangsa, berlabel BACKTEST **di data** | Kolom label ikut di CSV dan di respons API, bukan hanya di narasi UI |
 | F31 | Rekonsiliasi setelah demo | Angka yang tampil di layar bisa dilacak balik ke event dan ke kueri, satu per satu |
 
@@ -948,7 +948,7 @@ selesai sebelum test fork-nya hijau.
 | A2 `--reconcile` | Selesai. SQL diuji ke Postgres sungguhan, dan satu ubahan 1 wei tertangkap dengan nama kolomnya |
 | A3 I10 sampai I12 | Tertulis, belum berjalan |
 | B `make demo-fail` | Tertulis untuk `passthrough`, `expired`, dan `unwound`, dengan `make expire` terpisah. Belum berjalan |
-| C fixture F29 | Kueri 13 dan ekstraktornya selesai. Menunggu ekspor dari Dune |
+| C fixture F29 | Selesai 27 September 2026. Kueri `8846173`, 728 trade, `data/replay/august-2026.json` |
 | D `make replay` | Tertulis dan diuji unit. Menunggu fixture dan fork |
 | F `make demo-compete` | Tertulis, belum berjalan |
 | G keeper lelang | **Dihentikan setelah G1**, tanpa kode keeper (N17) |
@@ -988,6 +988,10 @@ supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
   dua kali. Job fork nightly di CI juga akan gagal dengan cara yang sama, karena anvil
   meminta state di blok yang dipatok, bukan di `latest`. Jalan keluarnya RPC archive
   berbayar di `NOKTURN_RPC_MAINNET`.
+  **Teratasi 27 September 2026.** Alchemy tier gratis menyajikan state di blok patokan.
+  `make fork`, `deploy`, `fund`, dan `status` lulus. Jaringan harus diaktifkan per app
+  di dashboard Alchemy, dan selama sekitar dua menit setelahnya sebagian panggilan
+  masih dijawab 403.
 - **N14, handle Dune saling bertentangan.** `data/dune-queries/README.md` menulis tim
   `passchick` sudah diarsipkan pada 2 Agustus dan kuerinya pindah ke `wngstnrs7119`.
   `CLAUDE.md` §6 menulis dashboard Agustus terbit di `passchick`. Salah satunya basi.
@@ -1010,6 +1014,29 @@ supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
 - **N18, health API masih melapor indexer mati.** `api/src/routes/config.ts` masih
   mengembalikan `indexerLagBlocks` "0" dan status `indexer` serta `database` "down",
   dengan komentar "No indexer yet". Indexer dan database sudah ada sejak Hari 5.
+- **N19, fixture replay diskalakan ke cap yang salah.** Replay pertama, 27 September
+  2026, `--duration 5`, mengirim 72 trade ke 6 batch. Semuanya diterima, dengan nol
+  harness fault, dan 5 batch settle. Netting terukur 6,27 persen. Batch 1789893840
+  berisi 24 intent ditolak preflight solver, karena nilainya $2.508 sedangkan batasnya
+  $2.500. Ekstraktor menskalakan jendela 45 detik tersibuk ke 90 persen dari cap penuh
+  $5.000. Padahal blok patokan jatuh di hari Minggu, sehingga fork berjalan di sesi 6
+  dan `_capScale` membagi dua cap menjadi $2.500. Batch di fork juga panjangnya 60 detik,
+  bukan 45. Warp ke hari kerja bukan jalan keluar, karena membuat feed basi (N17).
+  **Diperbaiki 28 September 2026.** Ekstraktor kini membaca `sessionAt`,
+  `batchDuration`, dan `capPerBatchUsd` dari fork, lalu mencatat sesi dan cap penuh
+  di fixture. Replay menolak jalan kalau satu batch chain tidak sama dengan satu
+  jendela fixture, karena `--speed 12` memasukkan dua belas jendela ke satu batch.
+  Replay penuh di speed 1 memutar 728 dari 728 trade ke 61 batch. Semuanya diterima,
+  dengan nol harness fault. 50 batch settle, 23 di antaranya netting, dan netting
+  terukur **6,91 persen** ($1.360 netted, $18.300 dirutekan). Angka ini hasil replay
+  di fork dengan empat kunci lokal, bukan backtest 27 sampai 33 persen.
+- **N20, belum ditangani. Baseline solver sedikit di bawah venue.** Di replay yang
+  sama, 11 dari 61 batch gagal di simulasi dengan `BaselineBelowVenue`, lalu tidak
+  dikirim. Selisihnya 0,04 sampai 3,5 ppm dari kuotasi venue, di NVDA, AAPL, GOOGL,
+  dan di sisi USDG. Polanya cocok dengan baseline yang dihitung di blok yang berbeda
+  dari blok yang dibaca kontrak, atau pembulatan yang berpihak ke arah yang salah.
+  Intent di batch itu tidak dieksekusi sama sekali, jadi netting di atas dihitung
+  dari 50 batch saja.
 - **Diperbaiki di `537da15`.** `make` di root gagal untuk semua target di laptop Dharu,
   karena `make.exe` ada di path yang mengandung spasi. Delegasinya juga belum memuat
   `solver`, `indexer`, target database, `torture`, dan tidak meneruskan `CASE`,
