@@ -946,12 +946,13 @@ selesai sebelum test fork-nya hijau.
 |---|---|
 | A1 `--confirmations` | Selesai dan diuji unit. Blok ditahan sampai cukup dalam, dan nol ditolak di luar fork |
 | A2 `--reconcile` | Selesai. SQL diuji ke Postgres sungguhan, dan satu ubahan 1 wei tertangkap dengan nama kolomnya |
-| A3 I10 sampai I12 | Tertulis, belum berjalan |
-| B `make demo-fail` | Tertulis untuk `passthrough`, `expired`, dan `unwound`, dengan `make expire` terpisah. Belum berjalan |
+| A3 I10 sampai I12 | Di fork 28 September 2026. I10 dan I11 lulus, dan rekonsiliasi keluar 0 setelah replay penuh. **I12 gagal dua kali** dengan `[0,0,0]` (N21) |
+| B `make demo-fail` | Di fork 28 September 2026, ketiga kasus lulus dan struknya ada di `infra/.torture/`. `unwound` gagal sekali, lalu lulus (N22) |
 | C fixture F29 | Selesai 27 September 2026. Kueri `8846173`, 728 trade, `data/replay/august-2026.json` |
-| D `make replay` | Tertulis dan diuji unit. Menunggu fixture dan fork |
-| F `make demo-compete` | Tertulis, belum berjalan |
+| D `make replay` | Selesai 28 September 2026. 728 dari 728 trade diterima, nol harness fault, netting 6,91 persen dari 50 batch (N19, N20) |
+| F `make demo-compete` | Di fork 28 September 2026. Profil A menang di tiga batch berturut-turut, dan `--same-side` terbukti lewat perintah demo. Test `--same-side` di suite gagal dua kali (N22) |
 | G keeper lelang | **Dihentikan setelah G1**, tanpa kode keeper (N17) |
+| E dan H penutup | 28 September 2026. Test unit indexer 17, solver 51, analytics 11, semuanya lulus. `check-permit2` 3 dari 3, `check-batch` 41 dari 41, `postman-api` 105 dari 105. Suite fork indexer 4 lulus dan 4 gagal (I1, I5, I6, I8), dengan I6 gagal karena N22. Suite fork solver F15, F21, dan dua test preflight lulus. Sisanya, yaitu preflight, simulate, dan verify, terhenti karena memori laptop habis dan belum dijalankan ulang |
 
 **Satu keputusan yang mengubah bentuk struk.** Batch yang dirutekan penuh dan
 menghemat nol menerbitkan `BatchPassthrough("savings below threshold")` dan
@@ -1036,7 +1037,20 @@ supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
   dan di sisi USDG. Polanya cocok dengan baseline yang dihitung di blok yang berbeda
   dari blok yang dibaca kontrak, atau pembulatan yang berpihak ke arah yang salah.
   Intent di batch itu tidak dieksekusi sama sekali, jadi netting di atas dihitung
-  dari 50 batch saja.
+  dari 50 batch saja. API mencatat peringatan "recomputed baseline" dengan selisih
+  sekecil itu untuk batch yang sama, jadi API dan solver pun tidak sepakat.
+- **N21, belum ditangani. I12 tidak pernah melihat eventnya.** Dua kali berturut-turut,
+  `IntentSubmittedOnchain` dengan nonce 12 tidak terindeks, bahkan setelah dua blok
+  tambahan. `eth_call` yang sama tidak revert, `0xdEaD` punya saldo tanpa kode, dan
+  indexer menyimpan event Settlement secara generik. Penyebabnya belum ditemukan.
+- **N22, belum ditangani. `evm_revert` di dalam suite fork merusak kasus berikutnya.**
+  `failure.test.ts` dan `compete.test.ts` membungkus tiap kasus dengan snapshot dan
+  revert. Revert memundurkan waktu chain, tapi API dan indexer yang sedang berjalan
+  tidak ikut mundur. Kasus berikutnya lalu gagal dengan `BlockOutOfRangeError` atau
+  menunggu batch yang sudah lewat. Kasus yang sama lulus kalau dijalankan sendiri
+  lewat `make demo-fail` atau `make demo-compete` setelah API dan indexer dinyalakan
+  ulang. Pola yang sama membuat solver melewati batch setelah `make revert`, karena
+  store-nya masih memuat ID batch yang dipakai ulang.
 - **Diperbaiki di `537da15`.** `make` di root gagal untuk semua target di laptop Dharu,
   karena `make.exe` ada di path yang mengandung spasi. Delegasinya juga belum memuat
   `solver`, `indexer`, target database, `torture`, dan tidak meneruskan `CASE`,
