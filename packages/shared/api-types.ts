@@ -812,6 +812,43 @@ export const ROUTES = {
   stream: "WS /v1/stream",
 } as const;
 
+// ---------------------------------------------------------------------------
+// GET /v1/backtest/netting-curve
+// ---------------------------------------------------------------------------
+
+/**
+ * The netting against share of flow curve, served from the export of a public
+ * Dune query rather than typed into a screen. Every row carries the BACKTEST
+ * label, so no copy of the data can drop it. docs/rencana-backend.md F30.
+ */
+export interface NettingCurveResponse {
+  label: "BACKTEST";
+  statement: string;
+  source: {
+    duneQueryId: number;
+    duneQueryUrl: string;
+    dashboardUrl: string;
+    executionId: string;
+    exportedAt: string;
+    window: string;
+    batchSeconds: number;
+  };
+  definitions: Record<"nettingCounterpartyPct" | "nettingGrossPct" | "sharePct" | "session", string>;
+  rows: NettingCurveRow[];
+}
+
+export interface NettingCurveRow {
+  label: "BACKTEST";
+  session: "nyse_open" | "off_hours_weekday" | "weekend";
+  sharePct: number;
+  batches: number;
+  avgTradersPerBatch: number;
+  nettingGrossPct: number;
+  /** The honest figure, the one the pitch uses. */
+  nettingCounterpartyPct: number;
+  volumeUsdMillions: number;
+}
+
 export interface HealthResponse {
   ok: boolean;
   apiVersion: typeof API_VERSION;

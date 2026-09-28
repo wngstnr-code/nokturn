@@ -13,6 +13,7 @@ import {env} from "./config.ts";
 import {chain, deploymentMoved} from "./chain.ts";
 import {HttpError, fail} from "./errors.ts";
 import {allowlistRoutes} from "./routes/allowlist.ts";
+import {backtestRoutes} from "./routes/backtest.ts";
 import {batchRoutes} from "./routes/batches.ts";
 import {configRoutes} from "./routes/config.ts";
 import {escapeRoutes} from "./routes/escape.ts";
@@ -121,6 +122,7 @@ export function buildServer(): FastifyInstance {
   intentRoutes(app);
   solverRoutes(app);
   batchRoutes(app);
+  backtestRoutes(app);
   stubRoutes(app);
 
   // An oversized frame is closed with 1009 by ws itself, before any handler
