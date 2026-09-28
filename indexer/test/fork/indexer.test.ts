@@ -44,7 +44,7 @@ const DB_PORT = new URL(ADMIN_URL).port || "5433";
 
 // Imported after the database url is set, because db.ts reads it at import.
 const {closeDb, db, migrate} = await import("../../src/db.ts");
-const {Ingest} = await import("../../src/ingest.ts");
+const {Ingest, MAX_RANGE} = await import("../../src/ingest.ts");
 const {PgStore} = await import("../../src/store.ts");
 const {client, loadDeployment} = await import("../../src/index.ts");
 
@@ -110,6 +110,12 @@ async function sendAs(from: Address, to: Address, data: Hex): Promise<Hex> {
   const receipt = await c.waitForTransactionReceipt({hash, pollingInterval: 250});
   assert.equal(receipt.status, "success", `${hash} reverted`);
   return hash;
+}
+
+/** An intent for the escape hatch only. submitIntentOnchain publishes it and executes nothing. */
+function escapeIntent(nonce: bigint) {
+  const s = deployment.settlement as Address;
+  return {owner: s, receiver: s, sellToken: s, buyToken: s, sellAmount: 1n, minBuyAmount: 1n, validAfter: 0, validUntil: 1, flags: 0, kind: 0, maxDevFromRefBps: 0, allowedSessions: 0, batchSpan: 1, nonce};
 }
 
 async function getJson(path: string): Promise<{status: number; body: any}> {
@@ -235,13 +241,25 @@ describe("indexer on the fork", () => {
     const second = await counts();
     const onChain = await chainLogCount(deployment.fromBlock, head);
     results.I1 = {head, first, second, getLogs: onChain};
-    assert.deepEqual(second, first);
+    // chain_blocks records where each step ended, and the fork keeps mining
+    // between the two passes, so it is left out here exactly as I2 leaves it out.
+    for (const t of TABLES) if (t !== "chain_blocks") assert.equal(second[t], first[t], t);
     assert.equal(first.logs, onChain);
   });
 
+  // On a fork deployed minutes ago every log sits in the first step, so a kill
+  // after that step cuts nothing. The case waits for ordinary blocks until two
+  // steps past deploy, then publishes one escape hatch intent so a log lies
+  // beyond the first step. It does not call anvil_mine, because a large
+  // anvil_mine followed by evm_revert left block numbers that answered null on
+  // 28 September 2026.
   test("I2 killed mid range and restarted, no gap and no double", async () => {
+    const needed = deployment.fromBlock + 2n * MAX_RANGE;
+    while ((await c.getBlockNumber()) < needed) await new Promise((r) => setTimeout(r, 5_000));
+    await sendAs("0x000000000000000000000000000000000000dEaD", deployment.settlement as Address, encodeFunctionData({abi: settlementAbi, functionName: "submitIntentOnchain", args: [escapeIntent(2n), "0x"]}));
+    const head = await c.getBlockNumber();
+    await catchUp(head);
     const reference = await counts();
-    const head = BigInt(results.I1 ? (results.I1 as {head: bigint}).head : await c.getBlockNumber());
     await resetDb();
     const killed = await run(["indexer/src/index.ts", "--until-block", String(head)], {}, (line, kill) => {
       if (/^blocks \d+ to \d+/.test(line)) kill();
@@ -254,25 +272,28 @@ describe("indexer on the fork", () => {
     for (const t of TABLES) if (t !== "chain_blocks") assert.equal(after[t], reference[t], t);
   });
 
+  // Counted as a change from before, so the escape hatch intent I2 left on
+  // chain does not count here.
   test("I3 a reverted block's rows disappear and the new history is indexed", async () => {
     await catchUp();
+    const held = async () => (await db().query("SELECT count(*)::int AS n FROM logs WHERE event = 'IntentSubmittedOnchain'")).rows[0].n as number;
+    const before = await held();
     const id = (await rpc("evm_snapshot")) as Hex;
     let during: number;
     try {
-      const intent = {owner: deployment.settlement, receiver: deployment.settlement, sellToken: deployment.settlement, buyToken: deployment.settlement, sellAmount: 1n, minBuyAmount: 1n, validAfter: 0, validUntil: 1, flags: 0, kind: 0, maxDevFromRefBps: 0, allowedSessions: 0, batchSpan: 1, nonce: 1n};
-      await sendAs("0x000000000000000000000000000000000000dEaD", deployment.settlement as Address, encodeFunctionData({abi: settlementAbi, functionName: "submitIntentOnchain", args: [intent, "0x"]}));
+      await sendAs("0x000000000000000000000000000000000000dEaD", deployment.settlement as Address, encodeFunctionData({abi: settlementAbi, functionName: "submitIntentOnchain", args: [escapeIntent(1n), "0x"]}));
       await catchUp();
-      during = (await db().query("SELECT count(*)::int AS n FROM logs WHERE event = 'IntentSubmittedOnchain'")).rows[0].n;
+      during = await held();
     } finally {
       await rpc("evm_revert", [id]);
     }
     await rpc("evm_mine");
     await rpc("evm_mine");
     await catchUp();
-    const afterRevert = (await db().query("SELECT count(*)::int AS n FROM logs WHERE event = 'IntentSubmittedOnchain'")).rows[0].n;
-    results.I3 = {during, afterRevert};
-    assert.equal(during, 1);
-    assert.equal(afterRevert, 0);
+    const afterRevert = await held();
+    results.I3 = {before, during, afterRevert};
+    assert.equal(during, before + 1);
+    assert.equal(afterRevert, before);
   });
 
   test("I4 the database down for thirty seconds, the indexer backs off and catches up", async () => {
@@ -323,7 +344,20 @@ describe("indexer on the fork", () => {
   // whether the baseline agrees, not of how long the node has been running.
   const STATE_WINDOW_BLOCKS = 800n;
 
-  test("I8 every recent fill's baseline, recomputed with quoteFromState", async () => {
+  // Settles one batch of its own first, so there is always a fill inside the
+  // state window however long I4 and I5 took, and the check covers a batch
+  // this run produced.
+  // Settlement holds the baseline per direction, parameter.md 4C, and a routed
+  // batch splits one venue quote pro rata between its fills. So each direction's
+  // baselines are summed and held against quoteFromState on the direction's
+  // whole volume, at the block the verifier read.
+  test("I8 every recent direction's baseline, recomputed with quoteFromState", async () => {
+    const own = await placeNetted();
+    const s = await solveClosed(own);
+    const store = new Store(mkdtempSync(join(tmpdir(), "nokturn-i8-")));
+    assert.equal((await submit(c, solverAccount(), k, s, store)).status, "best");
+    const settled = await finalizeWon(c, solverAccount(), k, s, store);
+    assert.equal(settled.status, "finalized", settled.result);
     await catchUp();
     const head = await c.getBlockNumber();
     const cutoff = head > STATE_WINDOW_BLOCKS ? head - STATE_WINDOW_BLOCKS : 0n;
@@ -331,20 +365,37 @@ describe("indexer on the fork", () => {
     const recent = rows.filter((r) => BigInt(r.block_number) >= cutoff).map((r) => String(r.batch_id));
     const outOfWindow = rows.length - recent.length;
     let fills = 0;
+    let directionsChecked = 0;
     let stateUnavailable = 0;
     const differ: unknown[] = [];
+    // Built from this suite's database, as I6 and I7 do. The API reads the
+    // database make indexer fills, which may not have reached this batch yet.
     for (const id of recent) {
-      const r = await getJson(`/v1/batches/${id}`);
-      if (r.status !== 200) {
+      const built = await receiptOf(BigInt(id));
+      if (!built) {
         stateUnavailable += 1;
         continue;
       }
-      for (const f of r.body.fills) {
+      const byDirection = new Map<string, {sell: Address; buy: Address; block: bigint; executedSell: bigint; baselineBuy: bigint}>();
+      for (const f of built.receipt.fills) {
         fills += 1;
-        if (f.verifyBaseline.expected !== f.baselineBuy) differ.push({batchId: id, intentHash: f.intentHash, baselineBuy: f.baselineBuy, expected: f.verifyBaseline.expected, routed: f.attribution.routedSell});
+        const key = `${f.sellToken.address}:${f.buyToken.address}`.toLowerCase();
+        const d = byDirection.get(key) ?? {sell: f.sellToken.address as Address, buy: f.buyToken.address as Address, block: BigInt(f.verifyBaseline.blockNumber), executedSell: 0n, baselineBuy: 0n};
+        d.executedSell += BigInt(f.executedSell);
+        d.baselineBuy += BigInt(f.baselineBuy);
+        byDirection.set(key, d);
+      }
+      for (const d of byDirection.values()) {
+        directionsChecked += 1;
+        const q = await quote(c, k.baselineAdapter, d.sell, d.buy, d.executedSell, d.block);
+        if (!q.ok) {
+          stateUnavailable += 1;
+          continue;
+        }
+        if (d.baselineBuy < q.out) differ.push({batchId: id, sell: d.sell, buy: d.buy, baselineBuy: String(d.baselineBuy), floor: String(q.out), block: String(d.block)});
       }
     }
-    results.I8 = {totalBatchesIndexed: rows.length, outOfStateWindow: outOfWindow, checkedBatches: recent.length, stateUnavailable, fills, differ: differ.length, examples: differ.slice(0, 5)};
+    results.I8 = {totalBatchesIndexed: rows.length, outOfStateWindow: outOfWindow, checkedBatches: recent.length, directionsChecked, stateUnavailable, fills, differ: differ.length, examples: differ.slice(0, 5)};
     assert.equal(stateUnavailable, 0, "a batch inside the measured state window should still answer");
     assert.ok(fills > 0);
     assert.equal(differ.length, 0, JSON.stringify(differ));
@@ -361,7 +412,11 @@ describe("indexer on the fork", () => {
       try {
         out = execFileSync("bash", [`${REPO_ROOT}/tools/fork-demo.sh`], {cwd: REPO_ROOT, encoding: "utf8", timeout: 600_000});
       } catch (error) {
-        results.I9 = {skipped: "tools/fork-demo.sh failed", tail: String((error as {stdout?: string}).stdout ?? (error as Error).message).slice(-1500)};
+        // anvil prints its fork url in errors, and that url carries the RPC key.
+        // These results reach the console and the CI log, so the path is cut.
+        const e = error as {stdout?: string; stderr?: string; message: string};
+        const redact = (s: string) => s.replace(/(https?:\/\/[^/\s)]+)\/[^\s)]*/g, "$1/<redacted>");
+        results.I9 = {skipped: "tools/fork-demo.sh failed", tail: redact(String(e.stdout ?? "")).slice(-800), stderr: redact(String(e.stderr ?? e.message)).slice(-1500)};
         t.skip("tools/fork-demo.sh failed");
         return;
       }

@@ -13,7 +13,7 @@ import type {Profile} from "./account.ts";
 import {quote} from "./baseline.ts";
 import type {Contracts} from "./chain.ts";
 import {allocate, clear, pairsOf, route, type Fill, type Pair, type Reference} from "./clearing.ts";
-import {WAD, claimedSavings, limitRespected, uniformPriceHolds, withinBand} from "./math.ts";
+import {WAD, claimedSavings, limitRespected, raiseToFloor, uniformPriceHolds, withinBand} from "./math.ts";
 import {orderTokens, type Execution, type Intent, type Solution, type VenueCall} from "./solution.ts";
 
 export interface SignedIntent {
@@ -123,6 +123,21 @@ async function tryNetted(c: PublicClient, k: Contracts, pair: Pair, ref: Referen
     if (!venue.ok) return skipped(pair, `the venue cannot quote intent ${f.index}: ${venue.error}`);
     if (f.executedBuy < venue.out) return skipped(pair, `intent ${f.index} would get less than the venue gives, WorseThanBaseline`);
     baselines.set(f.index, venue.out);
+  }
+
+  for (const sellToken of new Set(a.fills.map((f) => key(byIndex.get(f.index)!.sellToken)))) {
+    const direction = a.fills.filter((f) => same(byIndex.get(f.index)!.sellToken, sellToken));
+    const {buyToken} = byIndex.get(direction[0]!.index)!;
+    const total = direction.reduce((s, f) => s + f.executedSell, 0n);
+    const floor = await quote(c, k.baselineAdapter, sellToken as Address, buyToken, total, block);
+    if (!floor.ok) return skipped(pair, `the venue cannot quote the floor for ${sellToken}: ${floor.error}`);
+    const raised = raiseToFloor(
+      direction.map((f) => baselines.get(f.index)!),
+      direction.map((f) => f.executedBuy),
+      floor.out,
+    );
+    if (!raised) return skipped(pair, `the fills leave no room to lift their baselines to the venue floor, BaselineBelowVenue`);
+    direction.forEach((f, n) => baselines.set(f.index, raised[n]!));
   }
 
   let quoteError: string | null = null;

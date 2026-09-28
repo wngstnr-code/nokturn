@@ -186,10 +186,28 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
     running = false;
   }
 
-  return chain().client.watchBlockNumber({
-    pollingInterval: POLLING_INTERVAL_MS,
-    emitMissed: false,
-    onBlockNumber: (n) => void drive(n),
-    onError: (error) => log.error({err: error}, "block watch failed"),
-  });
+  // Polled here rather than through viem's watchBlockNumber, which only emits a
+  // number above the last one it saw. After an evm_revert the head drops, and
+  // the lifecycle would sit silent until the chain climbed past its old height,
+  // with no batch closing and every solver waiting.
+  let last: bigint | null = null;
+  let stopped = false;
+  const poll = async () => {
+    if (stopped) return;
+    try {
+      const n = await chain().client.getBlockNumber({cacheTime: 0});
+      if (n !== last) {
+        last = n;
+        void drive(n);
+      }
+    } catch (error) {
+      log.error({err: error}, "block watch failed");
+    }
+    if (!stopped) timer = setTimeout(poll, POLLING_INTERVAL_MS);
+  };
+  let timer = setTimeout(poll, 0);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+  };
 }

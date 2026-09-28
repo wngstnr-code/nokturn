@@ -10,6 +10,7 @@ import {
   feeCap,
   feeWithinBand,
   limitRespected,
+  raiseToFloor,
   venueDeltas,
   withinBand,
 } from "../../src/math.ts";
@@ -119,5 +120,31 @@ describe("exposure", () => {
     const state = {capPerBatchUsd: 10n ** 30n, capPerTokenDailyUsd: 100n, capGlobalDailyUsd: 1000n, globalToday: 990n, perTokenToday: [0n, 95n]};
     const v = exposureViolations({notionalUsd: 11n, perToken: [0n, 6n]}, 3, state);
     assert.deepEqual(v.map((x) => x.split(" ")[0]), ["global", "token"]);
+  });
+});
+
+describe("raiseToFloor, BaselineBelowVenue", () => {
+  test("a sum already at or above the floor is left as it is", () => {
+    assert.deepEqual(raiseToFloor([100n, 200n], [150n, 260n], 300n), [100n, 200n]);
+    assert.deepEqual(raiseToFloor([100n, 200n], [150n, 260n], 290n), [100n, 200n]);
+  });
+
+  test("the shortfall goes to the fill with the most room first", () => {
+    // The claimed and floor figures of batch 1789893780 in the August replay,
+    // NVDA bought with USDG, split over two fills.
+    const floor = 9919374183887726n;
+    const baselines = [4959684839970663n, 4959684839970664n];
+    const raised = raiseToFloor(baselines, [4990000000000000n, 5000000000000000n], floor)!;
+    assert.equal(raised[0]! + raised[1]!, floor);
+    assert.deepEqual(raised, [baselines[0]!, baselines[1]! + (floor - baselines[0]! - baselines[1]!)]);
+  });
+
+  test("room is spread over several fills when one is not enough", () => {
+    assert.deepEqual(raiseToFloor([10n, 10n, 10n], [12n, 13n, 11n], 35n), [12n, 13n, 10n]);
+  });
+
+  test("no baseline is ever lifted above its executedBuy, and too little room is null", () => {
+    assert.equal(raiseToFloor([10n, 10n], [11n, 12n], 24n), null);
+    assert.deepEqual(raiseToFloor([10n, 10n], [11n, 12n], 23n), [11n, 12n]);
   });
 });

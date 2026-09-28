@@ -157,16 +157,47 @@ export async function reconcile(q: Queryable, chain: ChainReader, deployment: st
       upTo,
     )
   ).rows;
-  for (const f of sample(fills, opts.sampleSize ?? BASELINE_SAMPLE, opts.seed ?? BASELINE_SEED)) {
-    const block = BigInt(f.submit_block ?? f.block_number) - 1n;
-    const subject = `${f.intent_hash} batch ${f.batch_id} at ${block}`;
+  // Settlement holds the baseline per direction, parameter.md 4C. The sum of a
+  // direction's baselines may not fall under the venue's quote on that
+  // direction's whole volume. How the sum is split between fills is the
+  // solver's choice, a pro rata share on a routed batch, so a fill's own quote
+  // is not what the chain guarantees and is not what is compared here.
+  for (const d of sample(directions(fills), opts.sampleSize ?? BASELINE_SAMPLE, opts.seed ?? BASELINE_SEED)) {
+    const subject = `batch ${d.batchId} ${d.sellToken} to ${d.buyToken}, ${d.fills} fills at ${d.block}`;
     try {
-      out.push(compare("fills.baseline_buy", subject, f.baseline_buy, await chain.quote(String(f.sell_token), String(f.buy_token), BigInt(f.executed_sell), block)));
+      const floor = await chain.quote(d.sellToken, d.buyToken, d.executedSell, d.block);
+      out.push({check: "sum(fills.baseline_buy) per direction", subject, db: String(d.baselineBuy), chain: String(floor), status: d.baselineBuy >= floor ? "match" : "differ", note: "at or above the venue quote on the direction's volume"});
     } catch (error) {
-      out.push({check: "fills.baseline_buy", subject, db: String(f.baseline_buy), chain: "unreadable", status: "unreadable", note: (error as Error).message.split("\n")[0]});
+      out.push({check: "sum(fills.baseline_buy) per direction", subject, db: String(d.baselineBuy), chain: "unreadable", status: "unreadable", note: (error as Error).message.split("\n")[0]});
     }
   }
   return out;
+}
+
+interface Direction {
+  batchId: string;
+  sellToken: string;
+  buyToken: string;
+  block: bigint;
+  fills: number;
+  executedSell: bigint;
+  baselineBuy: bigint;
+}
+
+/** Fills grouped the way Settlement._verify groups them, one entry per batch and direction. */
+export function directions(fills: Record<string, unknown>[]): Direction[] {
+  const byKey = new Map<string, Direction>();
+  for (const f of fills) {
+    const sellToken = String(f.sell_token).toLowerCase();
+    const buyToken = String(f.buy_token).toLowerCase();
+    const key = `${f.batch_id}:${sellToken}:${buyToken}`;
+    const d = byKey.get(key) ?? {batchId: String(f.batch_id), sellToken, buyToken, block: BigInt(String(f.submit_block ?? f.block_number)) - 1n, fills: 0, executedSell: 0n, baselineBuy: 0n};
+    d.fills += 1;
+    d.executedSell += BigInt(String(f.executed_sell));
+    d.baselineBuy += BigInt(String(f.baseline_buy));
+    byKey.set(key, d);
+  }
+  return [...byKey.values()];
 }
 
 export function viemReader(c: PublicClient, d: Deployment, at: bigint, adapter: Address): ChainReader {
