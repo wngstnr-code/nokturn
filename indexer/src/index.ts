@@ -25,7 +25,9 @@ const BACKOFF_START_MS = 1_000;
 const BACKOFF_MAX_MS = 30_000;
 
 export function client(rpc = RPC): PublicClient {
-  return createPublicClient({transport: http(rpc, {timeout: 10_000, retryCount: 0})});
+  // No block number cache. Its four seconds outlive an evm_revert on the fork,
+  // and a head that old points at blocks that no longer exist.
+  return createPublicClient({cacheTime: 0, transport: http(rpc, {timeout: 10_000, retryCount: 0})});
 }
 
 /**
