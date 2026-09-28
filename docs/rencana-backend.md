@@ -1146,6 +1146,9 @@ dan terakhir `make replay ARGS="--duration 5 --speed 12"` setelah fixture ada.
 
 F32 hijau, F6, dan pengerasan. Setelah hari ini hanya perbaikan bug, uji, dan dokumen.
 
+**M3 tercapai 28 September 2026.** Sejak commit itu satu-satunya perubahan yang masuk
+adalah perbaikan bug packaging F5, dokumen, dan catatan hasil uji. Tidak ada fitur baru.
+
 ### Hari 9, 28 September. M4, audit provenansi
 
 Telusuri setiap field API dan setiap angka yang kamu hasilkan dengan satu pertanyaan
@@ -1158,6 +1161,15 @@ F30 dan F31 dikerjakan hari ini, karena keduanya adalah alat audit itu sendiri.
 Runbook operasi backend, yaitu cara menyalakan, cara membaca log, apa yang dilakukan
 kalau solver diam, dan siapa memanggil apa. Satu perintah demo yang berjalan dari mesin
 bersih.
+
+**M5 tercapai 28 September 2026.** Dibuktikan dengan gladi bersih dari clone kosong,
+bukan dengan membaca runbook. Sebelas menit dari `git clone` sampai struk pertama, nol
+langkah manual di antara `make up` dan `make demo`, perintah `cast` di struk cocok
+sampai wei terakhir, dan `make down` tidak menyisakan apa pun. Di clone yang sama,
+`make check-permit2` 3 dari 3, `make check-batch` 41 dari 41, dan `make postman-api`
+108 dari 108. Dua salah arah di `infra/README.md` yang ditemukan gladi ini sudah
+diperbaiki, yaitu klaim bahwa `.env` tidak perlu diisi dan `pnpm install --dir infra`
+yang tidak cukup untuk `make demo`.
 
 ### Hari 11, 30 September. Buffer
 
