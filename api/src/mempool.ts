@@ -17,6 +17,16 @@ import type {BlockStamp} from "./provenance.ts";
 const SOLUTION_WINDOW = 10n;
 export const FINALIZE_DEADLINE = 300n;
 
+/**
+ * How long, in chain seconds past its batch's finalize deadline, an intent's
+ * status stays answerable. byHash used to keep every intent ever accepted, about
+ * 10.6 KB each, so an API left running for a long demo only ever grew. D6.
+ * After this a status lookup answers 404, and the receipt, which the indexer
+ * keeps, is where the outcome lives. Settable so the C1-7 torture case can
+ * watch a steady state inside one run.
+ */
+export const STATUS_RETENTION = BigInt(process.env.NOKTURN_API_STATUS_RETENTION_SECONDS || 86_400);
+
 export interface StoredIntent {
   batchId: bigint;
   signed: SignedIntent;
@@ -26,7 +36,8 @@ export interface StoredIntent {
 
 const byBatch = new Map<bigint, SignedIntent[]>();
 const byHash = new Map<string, StoredIntent>();
-const byOwnerNonce = new Map<string, string>();
+/** Carries its own validUntil, so a nonce stays held after its status entry is forgotten. D5, D6. */
+const byOwnerNonce = new Map<string, {intentHash: string; validUntil: bigint}>();
 
 // Keyed on the nonce's value rather than on how the client spelled it. "7",
 // "07" and "0x7" are one Permit2 nonce, and only one of them can ever settle.
@@ -57,10 +68,20 @@ export function sweep(now: bigint): void {
   // ends where Permit2 refuses it, block.timestamp past the deadline, and the
   // deadline is validUntil. Releasing it with the batch instead would let a
   // second intent reuse a nonce the first can still spend. D5.
-  for (const [key, intentHash] of byOwnerNonce) {
-    const stored = byHash.get(intentHash);
-    if (!stored || now > BigInt(stored.signed.intent.validUntil)) byOwnerNonce.delete(key);
+  for (const [key, held] of byOwnerNonce) {
+    if (now > held.validUntil) byOwnerNonce.delete(key);
   }
+
+  // The status entry goes a retention after its batch closed. Its nonce does
+  // not go with it, byOwnerNonce keeps that until validUntil. D6.
+  for (const [intentHash, stored] of byHash) {
+    if (now > stored.batchId + SOLUTION_WINDOW + FINALIZE_DEADLINE + STATUS_RETENTION) byHash.delete(intentHash);
+  }
+}
+
+/** How many intents the mempool still remembers, for health and for the D6 test. */
+export function remembered(): number {
+  return byHash.size;
 }
 
 /** Nonces this owner's accepted intents still hold. Accurate as of the last sweep. */
@@ -118,12 +139,12 @@ export function admit(intentHash: string, signed: SignedIntent, batchId: bigint)
     throw fail(
       409,
       "COORDINATOR_DUPLICATE_INTENT",
-      `owner ${signed.intent.owner} already used nonce ${signed.intent.nonce} on intent ${dup}`,
-      {intentHash: dup},
+      `owner ${signed.intent.owner} already used nonce ${signed.intent.nonce} on intent ${dup.intentHash}`,
+      {intentHash: dup.intentHash},
     );
   }
 
-  byOwnerNonce.set(key, intentHash);
+  byOwnerNonce.set(key, {intentHash, validUntil: BigInt(signed.intent.validUntil)});
   byHash.set(intentHash, {batchId, signed, status: "pending", rejection: null});
   const list = byBatch.get(batchId);
   if (list) list.push(signed);
