@@ -51,6 +51,10 @@ services:
       - ./:/app/infra
       - /app/infra/node_modules
       - ../contracts:/app/contracts
+      # Bootstrap reads the NYSE calendar from ../data, which foundry.toml grants
+      # read access to. Without the mount the path does not exist and the cheat
+      # code refuses it.
+      - ../data:/app/data:ro
       - nokturn-svm:/root/.svm
     depends_on:
       anvil:
