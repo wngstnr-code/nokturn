@@ -235,7 +235,9 @@ describe("indexer on the fork", () => {
     const second = await counts();
     const onChain = await chainLogCount(deployment.fromBlock, head);
     results.I1 = {head, first, second, getLogs: onChain};
-    assert.deepEqual(second, first);
+    // chain_blocks records where each step ended, and the fork keeps mining
+    // between the two passes, so it is left out here exactly as I2 leaves it out.
+    for (const t of TABLES) if (t !== "chain_blocks") assert.equal(second[t], first[t], t);
     assert.equal(first.logs, onChain);
   });
 
@@ -323,7 +325,16 @@ describe("indexer on the fork", () => {
   // whether the baseline agrees, not of how long the node has been running.
   const STATE_WINDOW_BLOCKS = 800n;
 
+  // Settles one batch of its own first, so there is always a fill inside the
+  // state window however long I4 and I5 took, and the check covers a batch
+  // this run produced.
   test("I8 every recent fill's baseline, recomputed with quoteFromState", async () => {
+    const own = await placeNetted();
+    const s = await solveClosed(own);
+    const store = new Store(mkdtempSync(join(tmpdir(), "nokturn-i8-")));
+    assert.equal((await submit(c, solverAccount(), k, s, store)).status, "best");
+    const settled = await finalizeWon(c, solverAccount(), k, s, store);
+    assert.equal(settled.status, "finalized", settled.result);
     await catchUp();
     const head = await c.getBlockNumber();
     const cutoff = head > STATE_WINDOW_BLOCKS ? head - STATE_WINDOW_BLOCKS : 0n;
