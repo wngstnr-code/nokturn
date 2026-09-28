@@ -52,8 +52,9 @@ ARGS=(
 )
 
 BLOCK="$(pinned_block)"
-log "forking $NOKTURN_RPC_MAINNET at block $BLOCK"
+SHOWN="$(redact_url "$NOKTURN_RPC_MAINNET")"
+log "forking $SHOWN at block $BLOCK"
 ARGS+=(--fork-url "$NOKTURN_RPC_MAINNET" --fork-block-number "$BLOCK")
 
-log "anvil ${ARGS[*]}"
+log "anvil ${ARGS[*]/"$NOKTURN_RPC_MAINNET"/$SHOWN}"
 exec anvil "${ARGS[@]}"

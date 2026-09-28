@@ -12,7 +12,9 @@
 
 import type {FastifyInstance} from "fastify";
 import {keccak256, toHex} from "viem";
-import type {ConfigResponse, TokenInfo} from "../../../packages/shared/api-types.ts";
+import type {ConfigResponse, HealthResponse, TokenInfo} from "../../../packages/shared/api-types.ts";
+import {db} from "../../../indexer/src/db.ts";
+import {lastLifecycleTick} from "../lifecycle.ts";
 import {
   INTENT_TYPE_STRING,
   chain,
@@ -95,7 +97,7 @@ export function configRoutes(app: FastifyInstance) {
     };
   });
 
-  app.get("/v1/health", async () => {
+  app.get("/v1/health", async (): Promise<HealthResponse & {blockNumber: string; explorer: string}> => {
     const c = chain();
     let rpcUp = true;
     let blockNumber = 0n;
@@ -104,20 +106,54 @@ export function configRoutes(app: FastifyInstance) {
     } catch {
       rpcUp = false;
     }
+
+    let databaseUp = true;
+    let indexedTo: bigint | null = null;
+    try {
+      indexedTo = await withTimeout(indexerCheckpoint(c.chainId, c.deployment.settlement), DATABASE_TIMEOUT_MS);
+    } catch {
+      databaseUp = false;
+    }
+
+    // With no checkpoint or no database the lag cannot be measured, so it reads
+    // zero and the indexer component says down rather than implying it is current.
+    const lag = rpcUp && indexedTo !== null && blockNumber > indexedTo ? blockNumber - indexedTo : 0n;
+    const indexer = !databaseUp || indexedTo === null ? "down" : lag <= INDEXER_UP_LAG ? "up" : lag <= INDEXER_DEGRADED_LAG ? "degraded" : "down";
+
+    const tick = lastLifecycleTick();
+    const since = tick === null ? Infinity : Date.now() - tick;
+    const scheduler = since <= SCHEDULER_UP_MS ? "up" : since <= SCHEDULER_DEGRADED_MS ? "degraded" : "down";
+
     return {
       ok: rpcUp,
-      apiVersion: "v1" as const,
+      apiVersion: "v1",
       chainId: c.chainId,
-      // No indexer yet, so the lag is not a number this API can honestly report.
-      indexerLagBlocks: "0",
-      components: {
-        rpc: rpcUp ? ("up" as const) : ("down" as const),
-        indexer: "down" as const,
-        database: "down" as const,
-        scheduler: "down" as const,
-      },
+      indexerLagBlocks: String(lag),
+      components: {rpc: rpcUp ? "up" : "down", indexer, database: databaseUp ? "up" : "down", scheduler},
       blockNumber: String(blockNumber),
       explorer: explorerAddress(c.deployment.settlement),
     };
   });
+}
+
+/**
+ * The indexer steps once a block and the fork mines one a second, so a few
+ * blocks behind is normal and a minute behind means it has stalled. N18.
+ */
+const INDEXER_UP_LAG = 10n;
+const INDEXER_DEGRADED_LAG = 60n;
+/** The lifecycle polls every 500 ms. Ten seconds without a tick is a stall. */
+const SCHEDULER_UP_MS = 10_000;
+const SCHEDULER_DEGRADED_MS = 60_000;
+/** Health must answer while the database is down, I4, so the check gives up fast. */
+const DATABASE_TIMEOUT_MS = 2_000;
+
+async function indexerCheckpoint(chainId: number, settlement: string): Promise<bigint | null> {
+  const r = await db().query("SELECT last_block FROM indexer_state WHERE chain_id = $1 AND settlement = $2", [chainId, settlement.toLowerCase()]);
+  return r.rows.length ? BigInt(r.rows[0].last_block) : null;
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  return Promise.race([p, new Promise<T>((_, reject) => (timer = setTimeout(() => reject(new Error(`no answer in ${ms} ms`)), ms)))]).finally(() => clearTimeout(timer));
 }

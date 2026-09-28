@@ -74,9 +74,11 @@ const requests = [
     path: "/v1/health",
     tests: [
       `pm.test("rpc is up", () => pm.expect(body.components.rpc).to.eql("up"));`,
-      `pm.test("indexer is reported down rather than faked", () => pm.expect(body.components.indexer).to.eql("down"));`,
+      `pm.test("no database means no indexer and no lag", () => { if (body.components.database === "down") { pm.expect(body.components.indexer).to.eql("down"); pm.expect(body.indexerLagBlocks).to.eql("0"); } });`,
+      `pm.test("an indexer reported up is at most ten blocks behind", () => { if (body.components.indexer === "up") pm.expect(Number(body.indexerLagBlocks)).to.be.at.most(10); });`,
+      `pm.test("the scheduler has ticked", () => pm.expect(body.components.scheduler).to.be.oneOf(["up", "degraded"]));`,
     ],
-    why: "The indexer does not exist yet, and health says so instead of reporting a number it cannot know.",
+    why: "Every component is measured, the indexer against its own checkpoint. With the database down it says down rather than a lag it cannot know.",
   },
   {
     name: "config reads the three eip712 values off the chain",

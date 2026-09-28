@@ -50,6 +50,12 @@ load_env() {
   export NOKTURN_RPC_MAINNET
 }
 
+# A paid RPC carries its key in the path, so only the scheme and host are ever
+# printed or written to a committed file.
+redact_url() {
+  printf '%s' "$1" | sed -E 's#^(https?://[^/]+)/.+#\1/<redacted>#'
+}
+
 # The four roles the deploy scripts read, plus the ones the demo uses. These are
 # anvil's own default accounts, which are derived from a mnemonic anvil prints on
 # startup and which hold nothing anywhere else. Nothing here is a secret and no
