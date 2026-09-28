@@ -157,15 +157,16 @@ export async function replay(opts: ReplayOptions): Promise<Summary> {
     return q.out;
   };
 
-  // Permit2 nonces are a bitmap, so any unused one works. Each user's next is
-  // read once and counted up here, because two intents from one user inside
-  // the same block would otherwise both ask the API and both get the same one.
-  const nonces = new Map<string, bigint>();
+  // Asked of the API for every intent. Permit2 nonces are a bitmap with holes
+  // left by earlier runs and reverted tests, and the coordinator also holds the
+  // nonces of intents still waiting, which only it knows. Counting up from one
+  // answer hit both on 28 September 2026. play() runs one trade at a time and
+  // waits for the POST, so the nonce just used is already held when the next
+  // is asked for.
   const nextNonce = async (u: HDAccount) => {
-    if (!nonces.has(u.address)) nonces.set(u.address, BigInt((await getJson<NonceResponse>(`/v1/nonces/${u.address}`)).body.next));
-    const n = nonces.get(u.address)!;
-    nonces.set(u.address, n + 1n);
-    return n;
+    const r = await getJson<NonceResponse & Partial<ApiError>>(`/v1/nonces/${u.address}`);
+    if (r.status !== 200 || r.body.next === undefined) throw new Error(`GET /v1/nonces/${u.address} answered ${r.status} ${r.body.code ?? ""} ${r.body.message ?? ""}`);
+    return BigInt(r.body.next);
   };
 
   const summary: Summary = {sent: 0, accepted: 0, rejected: {}, harnessFaults: 0, shrunk: 0, skippedNoBalance: 0, fixtureTradesPlayed: 0, fixtureTradesLeft: 0, batches: 0, batchesWithReceipt: 0, batchesNetted: 0, nettedVolumeUsd: "0", routedVolumeUsd: "0", nettingRatioBps: "0", receiptsMissing: []};
