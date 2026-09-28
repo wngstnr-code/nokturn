@@ -14,6 +14,7 @@ import {readFileSync} from "node:fs";
 import {join} from "node:path";
 import {fileURLToPath} from "node:url";
 import {createPublicClient, http, type Address, type PublicClient} from "viem";
+import {unknownMethod} from "../../packages/shared/rpc.ts";
 import {INDEXED, REPO_ROOT, loadAbi, type ContractKey} from "./abi.ts";
 import {closeDb, db, migrate} from "./db.ts";
 import {Ingest, RangeRefused, type Deployment} from "./ingest.ts";
@@ -93,20 +94,6 @@ export async function isFork(c: PublicClient): Promise<boolean> {
       throw error;
     }
   });
-}
-
-/**
- * Measured 28 September 2026. Alchemy answers -32600 "Unsupported method:
- * anvil_nodeInfo", drpc answers HTTP 400 with no body, and the standard code
- * is -32601. A 5xx, a 429, a timeout or an internal error is not an answer.
- */
-function unknownMethod(error: unknown): boolean {
-  for (let e = error as {code?: number; status?: number; message?: string; cause?: unknown} | undefined; e; e = e.cause as typeof e) {
-    if (e.code === -32601) return true;
-    if (e.status === 400 || e.status === 404 || e.status === 405) return true;
-    if (/unsupported method|unknown method|method .*(not found|does not exist|not supported|is not available)/i.test(e.message ?? "")) return true;
-  }
-  return false;
 }
 
 export class UnsafeConfirmations extends Error {}

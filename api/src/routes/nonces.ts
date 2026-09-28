@@ -111,7 +111,7 @@ export function nonceRoutes(app: FastifyInstance) {
           data,
           castCommand:
             `cast send ${c.permit2} "invalidateUnorderedNonces(uint256,uint256)" ` +
-            `"${word}" "${mask}" --rpc-url ${env.rpc} --from ${address}`,
+            `"${word}" "${mask}" --rpc-url ${env.publicRpc} --from ${address}`,
           describes: "Permit2.invalidateUnorderedNonces",
         };
       }

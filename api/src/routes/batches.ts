@@ -66,7 +66,7 @@ async function receiptContext(batchId: bigint): Promise<ReceiptContext> {
     tokens,
     quoteToken: c.quote.address,
     explorer: c.explorer,
-    rpcUrl: env.rpc,
+    rpcUrl: env.publicRpc,
     baselineAdapter,
     session,
     sessionName: SESSION_NAMES[session]!,
@@ -118,6 +118,7 @@ async function running(batchId: bigint): Promise<BatchReceipt | null> {
     solver: null,
     solutions: [],
     fills: [],
+    baselineFloors: [],
     clearingPrices: [],
     venueRoutes: [],
     totals: {notionalUsd: "0", nettedVolumeUsd: "0", routedVolumeUsd: "0", nettingRatioBps: "0", totalSavingsUsd: "0", solverFeeUsd: "0", protocolFeeUsd: "0"},
@@ -183,7 +184,7 @@ export function batchRoutes(app: FastifyInstance) {
     try {
       const built = await receiptFor(batchId);
       if (built) {
-        if (built.baselineMismatches.length) request.log.warn({batchId: String(batchId), mismatches: built.baselineMismatches}, "recomputed baseline differs from the event");
+        if (built.baselineMismatches.length) request.log.warn({batchId: String(batchId), mismatches: built.baselineMismatches}, "a direction's baseline sits under the venue floor, or its quote could not be read");
         return built.receipt;
       }
     } catch (error) {

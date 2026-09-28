@@ -22,6 +22,7 @@ import {
   read,
   settlementAbi,
   explorerAddress,
+  rpcStatus,
 } from "../chain.ts";
 import {source} from "../provenance.ts";
 
@@ -120,6 +121,7 @@ export function configRoutes(app: FastifyInstance) {
     const lag = rpcUp && indexedTo !== null && blockNumber > indexedTo ? blockNumber - indexedTo : 0n;
     const indexer = !databaseUp || indexedTo === null ? "down" : lag <= INDEXER_UP_LAG ? "up" : lag <= INDEXER_DEGRADED_LAG ? "degraded" : "down";
 
+    const rpc = rpcStatus();
     const tick = lastLifecycleTick();
     const since = tick === null ? Infinity : Date.now() - tick;
     const scheduler = since <= SCHEDULER_UP_MS ? "up" : since <= SCHEDULER_DEGRADED_MS ? "degraded" : "down";
@@ -129,7 +131,8 @@ export function configRoutes(app: FastifyInstance) {
       apiVersion: "v1",
       chainId: c.chainId,
       indexerLagBlocks: String(lag),
-      components: {rpc: rpcUp ? "up" : "down", indexer, database: databaseUp ? "up" : "down", scheduler},
+      // Degraded while a fallback endpoint answers or the minute's budget is spent. F6.
+      components: {rpc: !rpcUp ? "down" : rpc.primary && !rpc.overBudget ? "up" : "degraded", indexer, database: databaseUp ? "up" : "down", scheduler},
       blockNumber: String(blockNumber),
       explorer: explorerAddress(c.deployment.settlement),
     };

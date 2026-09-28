@@ -7,6 +7,7 @@
 import {encodeFunctionData, type Address, type Hex} from "viem";
 import type {
   ApiErrorCode,
+  BaselineFloor,
   BatchReceipt,
   ClearingPriceRow,
   FillReceipt,
@@ -147,8 +148,13 @@ interface SolutionJson {
 
 export interface BuiltReceipt {
   receipt: BatchReceipt;
-  /** Fills whose baseline, recomputed at the block the verifier read, differs from the event. */
-  baselineMismatches: {intentHash: string; baselineBuy: string; expected: string | null}[];
+  /**
+   * Directions whose summed baseline sits under the venue's quote on their
+   * volume, or whose quote could not be read, at the block the verifier read.
+   * The rule Settlement enforces, so any entry here means the rows or the
+   * chain disagree with what was accepted.
+   */
+  baselineMismatches: {sellToken: string; buyToken: string; baselineBuy: string; floor: string | null}[];
 }
 
 export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: ReceiptContext): Promise<BuiltReceipt | null> {
@@ -184,10 +190,6 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
     const buyToken = String(f.buy_token) as Address;
     const block = verifyBlock ?? big(f.block_number) - 1n;
     const expected = await ctx.quote(sellToken, buyToken, executedSell, block);
-    if (expected === null || expected !== baselineBuy) {
-      mismatches.push({intentHash: String(f.intent_hash), baselineBuy: String(baselineBuy), expected: expected === null ? null : String(expected)});
-      ctx.log?.(`baseline for ${f.intent_hash} in batch ${batchId}: event ${baselineBuy}, quoteFromState at ${block} ${expected ?? "reverts"}`);
-    }
     const sellMeta = ctx.tokens.get(sellToken.toLowerCase());
     fills.push({
       intentHash: String(f.intent_hash) as Hex,
@@ -211,6 +213,43 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
         describes: `UniswapV3Adapter.quoteFromState, ${sellMeta?.symbol ?? sellToken} to ${ctx.tokens.get(buyToken.toLowerCase())?.symbol ?? buyToken} at the block the verifier read`,
       },
       provenance: provenanceOf(f, ctx.source),
+    });
+  }
+
+  const baselineFloors: BaselineFloor[] = [];
+  const byDirection = new Map<string, {sell: Address; buy: Address; block: bigint; fills: number; executedSell: bigint; baselineBuy: bigint}>();
+  for (const f of facts.fills) {
+    const sell = String(f.sell_token) as Address;
+    const buy = String(f.buy_token) as Address;
+    const key = `${sell}:${buy}`.toLowerCase();
+    const d = byDirection.get(key) ?? {sell, buy, block: verifyBlock ?? big(f.block_number) - 1n, fills: 0, executedSell: 0n, baselineBuy: 0n};
+    d.fills += 1;
+    d.executedSell += big(f.executed_sell);
+    d.baselineBuy += big(f.baseline_buy);
+    byDirection.set(key, d);
+  }
+  for (const d of byDirection.values()) {
+    const floor = await ctx.quote(d.sell, d.buy, d.executedSell, d.block);
+    const holds = floor === null ? null : d.baselineBuy >= floor;
+    if (holds !== true) {
+      mismatches.push({sellToken: d.sell, buyToken: d.buy, baselineBuy: String(d.baselineBuy), floor: floor === null ? null : String(floor)});
+      ctx.log?.(`baseline floor in batch ${batchId}, ${d.sell} to ${d.buy}: sum ${d.baselineBuy}, quoteFromState on ${d.executedSell} at ${d.block} ${floor ?? "reverts"}`);
+    }
+    baselineFloors.push({
+      sellToken: tokenRef(d.sell, ctx),
+      buyToken: tokenRef(d.buy, ctx),
+      fills: d.fills,
+      executedSell: String(d.executedSell),
+      baselineBuy: String(d.baselineBuy),
+      verifyFloor: {
+        to: ctx.baselineAdapter,
+        data: encodeFunctionData({abi: quoteAbi, functionName: "quoteFromState", args: [d.sell, d.buy, d.executedSell]}),
+        blockNumber: String(d.block),
+        castCommand: `cast call ${ctx.baselineAdapter} "quoteFromState(address,address,uint256)(uint256)" ${d.sell} ${d.buy} ${d.executedSell} --block ${d.block} --rpc-url ${ctx.rpcUrl}`,
+        expected: floor === null ? "reverts" : String(floor),
+        describes: `UniswapV3Adapter.quoteFromState on the direction's whole volume, ${ctx.tokens.get(d.sell.toLowerCase())?.symbol ?? d.sell} to ${ctx.tokens.get(d.buy.toLowerCase())?.symbol ?? d.buy}, at the block the verifier read`,
+      },
+      holds,
     });
   }
 
@@ -278,6 +317,7 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
     solver: (b.solver as Address | null) ?? (facts.solutions.filter((s) => s.accepted).at(-1)?.solver as Address | undefined) ?? null,
     solutions,
     fills,
+    baselineFloors,
     clearingPrices,
     venueRoutes,
     totals: {

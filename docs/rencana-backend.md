@@ -637,7 +637,7 @@ selesainya, dan tidak ada butir yang dianggap selesai tanpa itu.
 | F3 | Impersonation dan pendanaan akun uji dari pemegang nyata | Lima akun lokal memegang NVDA, AAPL, TSLA, GOOGL, GME, dan USDG dalam jumlah yang muat di exposure cap |
 | F4 | Deploy Nokturn ke fork lokal lewat skrip Wangsit | `deployments/31337.json` terisi dan `Bootstrap` lolos gerbang `StockTokenGate` terhadap token mainnet asli |
 | F5 | `docker-compose` untuk anvil, postgres, coordinator, indexer, dua solver | `make up` lalu `make demo` menghasilkan satu struk batch tanpa langkah manual |
-| F6 | Lapisan RPC dengan retry, failover, dan anggaran permintaan | Satu endpoint mati tidak menjatuhkan coordinator, dan lognya menyebut endpoint mana yang dipakai |
+| F6 | Lapisan RPC dengan retry, failover, dan anggaran permintaan | Satu endpoint mati tidak menjatuhkan coordinator, dan lognya menyebut endpoint mana yang dipakai. **Selesai 29 September 2026.** `NOKTURN_API_RPC` menerima beberapa URL dipisah koma, dan yang pertama utama. Diuji dengan endpoint utama mati di `127.0.0.1:9`. API tetap start, dilayani anvil sebagai cadangan, log menyebut host yang melayani, dan health melapor rpc `degraded`. Anggaran per menit hanya memperingatkan, tidak menolak. Perintah `cast` di struk kini memakai `NOKTURN_API_PUBLIC_RPC`, dan API menolak start kalau URL baca membawa path tanpa URL publik, karena path itu adalah key |
 
 Catatan F1. Fork memakai `--fork-block-number` dengan nomor blok **chain ini**, bukan
 `block.number`. Di Arbitrum `block.number` mengembalikan nomor blok chain induk, dan
@@ -712,8 +712,8 @@ punya isi, dan angkanya jadi angka yang harus dipercaya.
 | # | Fitur | Selesai kalau |
 |---|---|---|
 | F29 | Ekstraksi arus Agustus 2026 jadi fixture replay | Intent replay lahir dari kueri Dune per trade `data/dune-queries/13-replay-flow-august.sql`, dengan nomor kuerinya tercatat di file keluarannya. `8595251` dan `8595303` menjadi pembanding agregat, bukan sumber trade (N15, diputuskan Dharu 26 September 2026). **Kode selesai 26 September 2026.** Ekstraktor dan harness replay ada, beserta unit test-nya. **Fixture selesai 27 September 2026.** Kueri 13 tersimpan publik sebagai `8846173`. Jam yang terpilih adalah 5 Agustus 2026 00:00 sampai 01:00 UTC, median dari 378 jam off-hours hari kerja, berisi 728 trade dari 78 taker senilai $110.143. Ekspornya `data/replay/query-8846173.csv`, fixture-nya `data/replay/august-2026.json`. Cap dan panjang batch dibaca dari fork. Blok patokan jatuh di hari Minggu, jadi sesi 6 memberi cap batch $2.500 dan batch 60 detik, dan skalanya 0,2539 (N19). Replay penuh dijalankan 28 September 2026 |
-| F30 | Kurva netting lawan pangsa, berlabel BACKTEST **di data** | Kolom label ikut di CSV dan di respons API, bukan hanya di narasi UI |
-| F31 | Rekonsiliasi setelah demo | Angka yang tampil di layar bisa dilacak balik ke event dan ke kueri, satu per satu |
+| F30 | Kurva netting lawan pangsa, berlabel BACKTEST **di data** | Kolom label ikut di CSV dan di respons API, bukan hanya di narasi UI. **Backend selesai 29 September 2026.** `data/backtest/netting-vs-share-august-2026.json` adalah ekspor eksekusi terakhir kueri `8595303`, tiga sesi dan sepuluh pangsa. `GET /v1/backtest/netting-curve` menaruh `BACKTEST` di setiap baris dan menolak berkas tanpa label. Layar netting Nabil masih menulis kurvanya tetap di kode, dan perlu dipindah ke route ini |
+| F31 | Rekonsiliasi setelah demo | Angka yang tampil di layar bisa dilacak balik ke event dan ke kueri, satu per satu. **Bagian backend dijalankan 29 September 2026** sebagai `docs/audit-provenansi-backend.md`. Setiap field struk dan setiap route yang dibaca layar dipetakan ke sumber dan jalur verifikasinya, dengan vonis. `--reconcile` tetap alat untuk angka struk terhadap chain |
 
 ### 4.6 CI, satu butir
 
@@ -1087,6 +1087,27 @@ supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
   direproduksi di percobaan berikutnya. Test tidak lagi memakai `anvil_mine`.
 - **Catatan keamanan.** Error anvil memuat URL fork lengkap dengan key RPC. I9 kini
   memotong path URL sebelum hasilnya dicetak, karena hasil test sampai ke log CI.
+
+**Diperbaiki 28 dan 29 September 2026.**
+
+- **N23.** Struk kini memuat `baselineFloors`, satu entri per arah dengan jumlah
+  `executedSell` dan `baselineBuy`, satu perintah `cast` untuk lantainya, dan `holds`.
+  Itulah yang harus dicocokkan juri. `verifyBaseline` per fill tetap ada, dengan komentar
+  skema yang menjelaskan bahwa ia bisa lebih tinggi dari `baselineBuy`. Field ini
+  ditambahkan, bukan menggantikan, jadi layar Nabil tetap jalan. I8 dan `postman-api`
+  memeriksanya. **Nabil perlu menampilkan `baselineFloors`**, supaya tombol salin di
+  layar memberi juri perintah yang hasilnya cocok.
+- **N16.** Struk hanya menerima hash pemenang. Solusi yang kalah tanpa event penolakan
+  diberi alasan "replaced by a better solution".
+- **N18.** Health mengukur keempat komponennya. Lag dari checkpoint indexer, database
+  dengan batas dua detik, scheduler dari tick lifecycle terakhir, dan rpc dari endpoint
+  yang melayani.
+- **Key RPC di permukaan publik.** `pin-block.sh` menulis URL RPC lengkap ke
+  `infra/pinned-block.json` yang di-commit, dan `fork.sh` mencetaknya ke log. Keduanya
+  kini hanya menampilkan host. Di API, URL baca terpisah dari URL publik untuk perintah
+  `cast` (F6).
+- **CI fork nightly** membaca `NOKTURN_RPC_MAINNET` dari secret repo dan berhenti dengan
+  pesan jelas kalau secret belum dipasang. **Dharu perlu menambahkan secret itu.**
 - **Diperbaiki di `537da15`.** `make` di root gagal untuk semua target di laptop Dharu,
   karena `make.exe` ada di path yang mengandung spasi. Delegasinya juga belum memuat
   `solver`, `indexer`, target database, `torture`, dan tidak meneruskan `CASE`,

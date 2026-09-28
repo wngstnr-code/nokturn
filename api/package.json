@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/index.ts",
     "dev": "node --watch src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/unit/**/*.test.ts\""
   },
   "dependencies": {
     "@fastify/websocket": "^11.3.1",

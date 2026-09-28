@@ -44,6 +44,10 @@ jobs:
       - name: api compiles against them
         working-directory: api
         run: npx tsc --noEmit
+      # The backtest curve the netting screen draws. Fails when the data file
+      # loses its BACKTEST label or drifts from the figures the pitch quotes.
+      - name: api unit tests
+        run: pnpm -C api test
       - name: solver compiles against them
         run: pnpm -C solver typecheck
 

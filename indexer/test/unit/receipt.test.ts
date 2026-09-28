@@ -84,9 +84,32 @@ describe("receipt", () => {
     assert.equal(r.venueRoutes[0]!.minOut, "77");
     assert.equal(r.venueRoutes[0]!.pool, POOL);
     assert.equal(r.clearingPrices[0]!.withinBand, true);
-    // The second fill's recomputed baseline disagrees with its event, and says so.
-    assert.deepEqual(built!.baselineMismatches, [{intentHash: "0xbb", baselineBuy: "250", expected: "251"}]);
+    // The second direction sums under its floor, and says so.
+    assert.deepEqual(built!.baselineMismatches, [{sellToken: NVDA, buyToken: USDG, baselineBuy: "250", floor: "251"}]);
     assert.equal(b!.verifyBaseline.expected, "251");
+    assert.deepEqual(
+      r.baselineFloors.map((d) => [d.sellToken.symbol, d.fills, d.executedSell, d.baselineBuy, d.verifyFloor.expected, d.holds]),
+      [
+        ["USDG", 1, "400", "200", "200", true],
+        ["NVDA", 1, "100", "250", "251", false],
+      ],
+    );
+    assert.match(r.baselineFloors[0]!.verifyFloor.castCommand, /quoteFromState\(address,address,uint256\)\(uint256\)" 0x5fc5\S+ 0xd060\S+ 400 --block 11 /);
+  });
+
+  test("a routed direction split pro rata holds its floor though each fill's own quote is higher", async () => {
+    const f = nettedFacts();
+    f.fills = [
+      {owner: A, intent_hash: "0xaa", sell_token: USDG, buy_token: NVDA, executed_sell: "100", executed_buy: "49", baseline_buy: "49", savings_usd: "0", ...prov(20, 5)},
+      {owner: B, intent_hash: "0xbb", sell_token: USDG, buy_token: NVDA, executed_sell: "300", executed_buy: "149", baseline_buy: "149", savings_usd: "0", ...prov(20, 6)},
+    ];
+    const built = (await buildReceipt(1_789_893_780n, f, ctx({[`${USDG}:100`]: 50n, [`${USDG}:300`]: 150n, [`${USDG}:400`]: 198n})))!;
+    assert.deepEqual(built.baselineMismatches, []);
+    assert.deepEqual(
+      built.receipt.baselineFloors.map((d) => [d.fills, d.executedSell, d.baselineBuy, d.verifyFloor.expected, d.holds]),
+      [[2, "400", "198", "198", true]],
+    );
+    assert.deepEqual(built.receipt.fills.map((x) => x.verifyBaseline.expected), ["50", "150"]);
   });
 
   test("a passthrough names the owner that could not be collected, and carries no invented figures", async () => {

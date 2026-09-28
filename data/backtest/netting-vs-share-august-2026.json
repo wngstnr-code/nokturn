@@ -1,0 +1,51 @@
+{
+  "label": "BACKTEST",
+  "statement": "Counterfactual simulation over real trades. The inputs are August 2026 trades on Robinhood Chain, NVDA AAPL TSLA GOOGL, in 45 second batches. The mechanism is hypothetical because Nokturn did not exist then. It is a backtest and never a measurement.",
+  "source": {
+    "duneQueryId": 8595303,
+    "duneQueryUrl": "https://dune.com/queries/8595303",
+    "dashboardUrl": "https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026",
+    "executionId": "01M1KE310E23FY3E5QW4K9WG4A",
+    "exportedAt": "2026-09-29",
+    "window": "2026-08-01 to 2026-08-31 UTC",
+    "batchSeconds": 45
+  },
+  "definitions": {
+    "nettingCounterpartyPct": "2 * min(net_buy, net_sell) / total volume, where each address nets its own position first, so a single address trading both ways inside one batch is not counted. The honest figure, and the one the pitch uses.",
+    "nettingGrossPct": "2 * min(buy, sell) / total volume, which still counts an address trading both ways inside one batch.",
+    "sharePct": "The share of the market's flow sampled into the simulation, deterministic on tx_hash so a transaction is included whole or not at all.",
+    "session": "nyse_open is 13:30 to 20:00 UTC on a weekday, weekend is Saturday and Sunday UTC, off_hours_weekday is the rest."
+  },
+  "rows": [
+    {"session": "nyse_open", "sharePct": 5, "batches": 10270, "avgTradersPerBatch": 2.33, "nettingGrossPct": 32.5, "nettingCounterpartyPct": 25.93, "volumeUsdMillions": 8.7},
+    {"session": "nyse_open", "sharePct": 10, "batches": 14901, "avgTradersPerBatch": 3.14, "nettingGrossPct": 40.66, "nettingCounterpartyPct": 32.72, "volumeUsdMillions": 17.82},
+    {"session": "nyse_open", "sharePct": 15, "batches": 17912, "avgTradersPerBatch": 3.85, "nettingGrossPct": 44.74, "nettingCounterpartyPct": 36.03, "volumeUsdMillions": 26.96},
+    {"session": "nyse_open", "sharePct": 20, "batches": 20187, "avgTradersPerBatch": 4.48, "nettingGrossPct": 47.53, "nettingCounterpartyPct": 38.25, "volumeUsdMillions": 35.94},
+    {"session": "nyse_open", "sharePct": 25, "batches": 22028, "avgTradersPerBatch": 5.06, "nettingGrossPct": 49.65, "nettingCounterpartyPct": 40.14, "volumeUsdMillions": 44.88},
+    {"session": "nyse_open", "sharePct": 30, "batches": 23605, "avgTradersPerBatch": 5.58, "nettingGrossPct": 51.08, "nettingCounterpartyPct": 41.28, "volumeUsdMillions": 53.68},
+    {"session": "nyse_open", "sharePct": 40, "batches": 25959, "avgTradersPerBatch": 6.6, "nettingGrossPct": 52.68, "nettingCounterpartyPct": 42.66, "volumeUsdMillions": 71.82},
+    {"session": "nyse_open", "sharePct": 50, "batches": 27787, "avgTradersPerBatch": 7.53, "nettingGrossPct": 54.27, "nettingCounterpartyPct": 43.71, "volumeUsdMillions": 89.59},
+    {"session": "nyse_open", "sharePct": 75, "batches": 30945, "avgTradersPerBatch": 9.7, "nettingGrossPct": 57.23, "nettingCounterpartyPct": 45.71, "volumeUsdMillions": 135.79},
+    {"session": "nyse_open", "sharePct": 100, "batches": 33025, "avgTradersPerBatch": 11.68, "nettingGrossPct": 58.99, "nettingCounterpartyPct": 46.68, "volumeUsdMillions": 181.21},
+    {"session": "off_hours_weekday", "sharePct": 5, "batches": 17743, "avgTradersPerBatch": 1.94, "nettingGrossPct": 31.92, "nettingCounterpartyPct": 21.43, "volumeUsdMillions": 11.14},
+    {"session": "off_hours_weekday", "sharePct": 10, "batches": 27053, "avgTradersPerBatch": 2.47, "nettingGrossPct": 37.99, "nettingCounterpartyPct": 27.19, "volumeUsdMillions": 22.35},
+    {"session": "off_hours_weekday", "sharePct": 15, "batches": 33948, "avgTradersPerBatch": 2.9, "nettingGrossPct": 41.17, "nettingCounterpartyPct": 30.43, "volumeUsdMillions": 33.7},
+    {"session": "off_hours_weekday", "sharePct": 20, "batches": 39378, "avgTradersPerBatch": 3.29, "nettingGrossPct": 44.41, "nettingCounterpartyPct": 33.39, "volumeUsdMillions": 45},
+    {"session": "off_hours_weekday", "sharePct": 25, "batches": 44007, "avgTradersPerBatch": 3.63, "nettingGrossPct": 47.06, "nettingCounterpartyPct": 35.73, "volumeUsdMillions": 56.28},
+    {"session": "off_hours_weekday", "sharePct": 30, "batches": 47853, "avgTradersPerBatch": 3.95, "nettingGrossPct": 49.51, "nettingCounterpartyPct": 38.06, "volumeUsdMillions": 67.14},
+    {"session": "off_hours_weekday", "sharePct": 40, "batches": 54281, "avgTradersPerBatch": 4.55, "nettingGrossPct": 52.36, "nettingCounterpartyPct": 40.41, "volumeUsdMillions": 89.45},
+    {"session": "off_hours_weekday", "sharePct": 50, "batches": 59492, "avgTradersPerBatch": 5.09, "nettingGrossPct": 54.99, "nettingCounterpartyPct": 42.81, "volumeUsdMillions": 111.56},
+    {"session": "off_hours_weekday", "sharePct": 75, "batches": 68937, "avgTradersPerBatch": 6.35, "nettingGrossPct": 59.79, "nettingCounterpartyPct": 46.65, "volumeUsdMillions": 167.08},
+    {"session": "off_hours_weekday", "sharePct": 100, "batches": 75667, "avgTradersPerBatch": 7.47, "nettingGrossPct": 63.76, "nettingCounterpartyPct": 50.05, "volumeUsdMillions": 224.53},
+    {"session": "weekend", "sharePct": 5, "batches": 11868, "avgTradersPerBatch": 2.07, "nettingGrossPct": 31.71, "nettingCounterpartyPct": 21, "volumeUsdMillions": 4.36},
+    {"session": "weekend", "sharePct": 10, "batches": 17874, "avgTradersPerBatch": 2.68, "nettingGrossPct": 37.47, "nettingCounterpartyPct": 27.14, "volumeUsdMillions": 8.78},
+    {"session": "weekend", "sharePct": 15, "batches": 22531, "avgTradersPerBatch": 3.14, "nettingGrossPct": 42.68, "nettingCounterpartyPct": 31.9, "volumeUsdMillions": 13.36},
+    {"session": "weekend", "sharePct": 20, "batches": 26189, "avgTradersPerBatch": 3.55, "nettingGrossPct": 44.62, "nettingCounterpartyPct": 33.91, "volumeUsdMillions": 18.27},
+    {"session": "weekend", "sharePct": 25, "batches": 29289, "avgTradersPerBatch": 3.92, "nettingGrossPct": 46.55, "nettingCounterpartyPct": 35.75, "volumeUsdMillions": 23.28},
+    {"session": "weekend", "sharePct": 30, "batches": 31859, "avgTradersPerBatch": 4.27, "nettingGrossPct": 49.25, "nettingCounterpartyPct": 38.02, "volumeUsdMillions": 27.91},
+    {"session": "weekend", "sharePct": 40, "batches": 36212, "avgTradersPerBatch": 4.9, "nettingGrossPct": 53.4, "nettingCounterpartyPct": 41.12, "volumeUsdMillions": 37.86},
+    {"session": "weekend", "sharePct": 50, "batches": 39701, "avgTradersPerBatch": 5.48, "nettingGrossPct": 56.75, "nettingCounterpartyPct": 43.83, "volumeUsdMillions": 47.51},
+    {"session": "weekend", "sharePct": 75, "batches": 45920, "avgTradersPerBatch": 6.82, "nettingGrossPct": 61.53, "nettingCounterpartyPct": 47.28, "volumeUsdMillions": 71.57},
+    {"session": "weekend", "sharePct": 100, "batches": 50168, "avgTradersPerBatch": 8.01, "nettingGrossPct": 65.94, "nettingCounterpartyPct": 50.26, "volumeUsdMillions": 95.3}
+  ]
+}

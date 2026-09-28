@@ -553,6 +553,13 @@ export interface BatchReceipt {
   solutions: SolutionSummary[];
 
   fills: FillReceipt[];
+  /**
+   * The baseline rule Settlement enforces, one entry per direction of a pair.
+   * This is the check a judge can reproduce with one call, where a single
+   * fill's own quote is not, because a routed batch splits one venue quote pro
+   * rata between its fills. parameter.md section 4C.
+   */
+  baselineFloors: BaselineFloor[];
   clearingPrices: ClearingPriceRow[];
   venueRoutes: VenueRoute[];
 
@@ -605,7 +612,12 @@ export interface FillReceipt {
   buyToken: TokenRef;
   executedSell: Uint;
   executedBuy: Uint;
-  /** What this user would have received alone, at this size, at this block. */
+  /**
+   * This fill's share of the venue baseline. On a netted fill it is the venue's
+   * quote for this size, lifted by a few units when the direction's sum sat
+   * under its floor. On a routed fill it is a pro rata share of one quote on
+   * the whole direction. Checked against baselineFloors, not alone.
+   */
   baselineBuy: Uint;
   savingsUsd: UsdWad;
   /** executedBuy - baselineBuy over baselineBuy, in basis points. */
@@ -616,9 +628,27 @@ export interface FillReceipt {
     routedSell: Uint;
   };
   partial: boolean;
-  /** The copy button on the receipt. */
+  /**
+   * The venue's quote for this fill's size alone. Equal to baselineBuy on a
+   * netted fill that was not lifted, and above it on a routed fill. The call a
+   * judge should match against the chain is the direction's verifyFloor.
+   */
   verifyBaseline: VerifiableCall;
   provenance: Provenance;
+}
+
+export interface BaselineFloor {
+  sellToken: TokenRef;
+  buyToken: TokenRef;
+  fills: number;
+  /** Sum of executedSell over the direction's fills. */
+  executedSell: Uint;
+  /** Sum of baselineBuy over the same fills. */
+  baselineBuy: Uint;
+  /** quoteFromState on executedSell at the block the verifier read. baselineBuy must be at or above it. */
+  verifyFloor: VerifiableCall;
+  /** baselineBuy >= verifyFloor.expected. Null when the quote could not be read. */
+  holds: boolean | null;
 }
 
 export interface TokenRef {
@@ -781,6 +811,43 @@ export const ROUTES = {
   auction: "GET /v1/auctions/:auctionId",
   stream: "WS /v1/stream",
 } as const;
+
+// ---------------------------------------------------------------------------
+// GET /v1/backtest/netting-curve
+// ---------------------------------------------------------------------------
+
+/**
+ * The netting against share of flow curve, served from the export of a public
+ * Dune query rather than typed into a screen. Every row carries the BACKTEST
+ * label, so no copy of the data can drop it. docs/rencana-backend.md F30.
+ */
+export interface NettingCurveResponse {
+  label: "BACKTEST";
+  statement: string;
+  source: {
+    duneQueryId: number;
+    duneQueryUrl: string;
+    dashboardUrl: string;
+    executionId: string;
+    exportedAt: string;
+    window: string;
+    batchSeconds: number;
+  };
+  definitions: Record<"nettingCounterpartyPct" | "nettingGrossPct" | "sharePct" | "session", string>;
+  rows: NettingCurveRow[];
+}
+
+export interface NettingCurveRow {
+  label: "BACKTEST";
+  session: "nyse_open" | "off_hours_weekday" | "weekend";
+  sharePct: number;
+  batches: number;
+  avgTradersPerBatch: number;
+  nettingGrossPct: number;
+  /** The honest figure, the one the pitch uses. */
+  nettingCounterpartyPct: number;
+  volumeUsdMillions: number;
+}
 
 export interface HealthResponse {
   ok: boolean;
