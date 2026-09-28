@@ -553,6 +553,13 @@ export interface BatchReceipt {
   solutions: SolutionSummary[];
 
   fills: FillReceipt[];
+  /**
+   * The baseline rule Settlement enforces, one entry per direction of a pair.
+   * This is the check a judge can reproduce with one call, where a single
+   * fill's own quote is not, because a routed batch splits one venue quote pro
+   * rata between its fills. parameter.md section 4C.
+   */
+  baselineFloors: BaselineFloor[];
   clearingPrices: ClearingPriceRow[];
   venueRoutes: VenueRoute[];
 
@@ -605,7 +612,12 @@ export interface FillReceipt {
   buyToken: TokenRef;
   executedSell: Uint;
   executedBuy: Uint;
-  /** What this user would have received alone, at this size, at this block. */
+  /**
+   * This fill's share of the venue baseline. On a netted fill it is the venue's
+   * quote for this size, lifted by a few units when the direction's sum sat
+   * under its floor. On a routed fill it is a pro rata share of one quote on
+   * the whole direction. Checked against baselineFloors, not alone.
+   */
   baselineBuy: Uint;
   savingsUsd: UsdWad;
   /** executedBuy - baselineBuy over baselineBuy, in basis points. */
@@ -616,9 +628,27 @@ export interface FillReceipt {
     routedSell: Uint;
   };
   partial: boolean;
-  /** The copy button on the receipt. */
+  /**
+   * The venue's quote for this fill's size alone. Equal to baselineBuy on a
+   * netted fill that was not lifted, and above it on a routed fill. The call a
+   * judge should match against the chain is the direction's verifyFloor.
+   */
   verifyBaseline: VerifiableCall;
   provenance: Provenance;
+}
+
+export interface BaselineFloor {
+  sellToken: TokenRef;
+  buyToken: TokenRef;
+  fills: number;
+  /** Sum of executedSell over the direction's fills. */
+  executedSell: Uint;
+  /** Sum of baselineBuy over the same fills. */
+  baselineBuy: Uint;
+  /** quoteFromState on executedSell at the block the verifier read. baselineBuy must be at or above it. */
+  verifyFloor: VerifiableCall;
+  /** baselineBuy >= verifyFloor.expected. Null when the quote could not be read. */
+  holds: boolean | null;
 }
 
 export interface TokenRef {
