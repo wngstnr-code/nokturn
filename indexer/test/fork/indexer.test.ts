@@ -44,7 +44,7 @@ const DB_PORT = new URL(ADMIN_URL).port || "5433";
 
 // Imported after the database url is set, because db.ts reads it at import.
 const {closeDb, db, migrate} = await import("../../src/db.ts");
-const {Ingest} = await import("../../src/ingest.ts");
+const {Ingest, MAX_RANGE} = await import("../../src/ingest.ts");
 const {PgStore} = await import("../../src/store.ts");
 const {client, loadDeployment} = await import("../../src/index.ts");
 
@@ -241,9 +241,20 @@ describe("indexer on the fork", () => {
     assert.equal(first.logs, onChain);
   });
 
+  // A fork started minutes ago holds fewer blocks than one step takes, and the
+  // kill would land after everything was indexed. So the case waits for the
+  // fork to reach two steps past deploy. It waits for ordinary blocks rather
+  // than calling anvil_mine, because a large anvil_mine followed by evm_revert
+  // left block numbers that answered null on 28 September 2026.
   test("I2 killed mid range and restarted, no gap and no double", async () => {
+    const needed = deployment.fromBlock + 2n * MAX_RANGE;
+    let head = await c.getBlockNumber();
+    while (head < needed) {
+      await new Promise((r) => setTimeout(r, 5_000));
+      head = await c.getBlockNumber();
+    }
+    await catchUp(head);
     const reference = await counts();
-    const head = BigInt(results.I1 ? (results.I1 as {head: bigint}).head : await c.getBlockNumber());
     await resetDb();
     const killed = await run(["indexer/src/index.ts", "--until-block", String(head)], {}, (line, kill) => {
       if (/^blocks \d+ to \d+/.test(line)) kill();
