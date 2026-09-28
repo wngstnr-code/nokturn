@@ -416,6 +416,17 @@ karena keduanya bisa jatuh di bawah kuotasi nyata pada ukuran itu.
 Selisih antara keduanya terukur dan kecil. Nol bps pada bentuk batch yang nyata,
 paling besar tiga bps di cap peluncuran. Tabel penuhnya di `parameter.md` §4C.
 
+**Koreksi 28 September 2026. "Selalu lebih besar" tidak berlaku untuk tiket kecil.**
+Setiap kuotasi dibulatkan ke bawah dan membayar fee yang dibulatkan ke atas. Pada
+tiket beberapa dolar, kerugian pembulatan per kuotasi lebih besar daripada efek
+cekungnya, sehingga jumlah kuotasi per intent jatuh sedikit di bawah kuotasi atas
+totalnya. Replay Agustus menemukannya di 11 dari 61 batch, dengan selisih 0,04
+sampai 3,5 ppm (N20 di `rencana-backend.md`). Solver kini menghitung lantai per arah
+dan menambahkan kekurangannya ke fill yang masih punya ruang di bawah `executedBuy`.
+Itu hanya menurunkan savings yang diklaim, jadi arahnya tetap aman. Akibatnya baseline
+satu intent bisa beberapa unit di atas `quoteFromState` atas `executedSell`-nya
+sendiri.
+
 ⚠️ Ini juga menjawab kekhawatiran yang sudah ditulis §7.4 di atas, bahwa solver bisa
 mendapat baseline lebih menguntungkan dengan memecah kuotasi. Sekarang memecah tidak
 menolong, karena yang dibandingkan adalah totalnya terhadap kuotasi atas total.
