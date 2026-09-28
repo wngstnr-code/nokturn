@@ -946,13 +946,13 @@ selesai sebelum test fork-nya hijau.
 |---|---|
 | A1 `--confirmations` | Selesai dan diuji unit. Blok ditahan sampai cukup dalam, dan nol ditolak di luar fork |
 | A2 `--reconcile` | Selesai. SQL diuji ke Postgres sungguhan, dan satu ubahan 1 wei tertangkap dengan nama kolomnya |
-| A3 I10 sampai I12 | Di fork 28 September 2026. I10 dan I11 lulus, dan rekonsiliasi keluar 0 setelah replay penuh. **I12 gagal dua kali** dengan `[0,0,0]` (N21) |
-| B `make demo-fail` | Di fork 28 September 2026, ketiga kasus lulus dan struknya ada di `infra/.torture/`. `unwound` gagal sekali, lalu lulus (N22) |
+| A3 I10 sampai I12 | **Hijau 28 September 2026.** I10 sampai I12 lulus setelah N21 diperbaiki. Setelah replay 5 menit, rekonsiliasi 118 dari 118 cocok. Baseline kini direkonsiliasi per arah, sesuai `parameter.md` §4C |
+| B `make demo-fail` | **Hijau 28 September 2026.** `failure.test.ts` 3 dari 3 dalam satu run, tanpa restart manual. Struknya ada di `infra/.torture/` |
 | C fixture F29 | Selesai 27 September 2026. Kueri `8846173`, 728 trade, `data/replay/august-2026.json` |
-| D `make replay` | Selesai 28 September 2026. 728 dari 728 trade diterima, nol harness fault, netting 6,91 persen dari 50 batch (N19, N20) |
-| F `make demo-compete` | Di fork 28 September 2026. Profil A menang di tiga batch berturut-turut, dan `--same-side` terbukti lewat perintah demo. Test `--same-side` di suite gagal dua kali (N22) |
+| D `make replay` | **Hijau 28 September 2026.** Replay 5 menit setelah perbaikan N20. 72 dari 72 diterima, nol harness fault, 6 dari 6 batch berstruk, 3 batch netting, netting 1,94 persen, nol `BaselineBelowVenue`. Replay satu jam sebelum perbaikan N20 memberi 6,91 persen dari 50 batch dan belum diukur ulang |
+| F `make demo-compete` | **Hijau 28 September 2026.** `compete.test.ts` 2 dari 2. Profil A menang di tiga batch berturut-turut, dan dengan dua intent searah yang pertama masuk menang |
 | G keeper lelang | **Dihentikan setelah G1**, tanpa kode keeper (N17) |
-| E dan H penutup | 28 September 2026. Test unit indexer 17, solver 51, analytics 11, semuanya lulus. `check-permit2` 3 dari 3, `check-batch` 41 dari 41, `postman-api` 105 dari 105. Suite fork indexer 4 lulus dan 4 gagal (I1, I5, I6, I8), dengan I6 gagal karena N22. Suite fork solver F15, F21, dan dua test preflight lulus. Sisanya, yaitu preflight, simulate, dan verify, terhenti karena memori laptop habis dan belum dijalankan ulang |
+| E dan H penutup | **Hijau 28 September 2026.** Test unit indexer 18, solver 55, analytics 11. Suite fork indexer 8 dari 8, dengan I9 di-skip karena `fork-demo.sh` tidak menerbitkan event lelang (N17). Suite fork solver 13 dari 13, termasuk E4 yang dulu tidak tuntas. `check-permit2` 3 dari 3, `check-batch` 41 dari 41, `postman-api` 105 dari 105 |
 
 **Satu keputusan yang mengubah bentuk struk.** Batch yang dirutekan penuh dan
 menghemat nol menerbitkan `BatchPassthrough("savings below threshold")` dan
@@ -1056,6 +1056,37 @@ supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
   lewat `make demo-fail` atau `make demo-compete` setelah API dan indexer dinyalakan
   ulang. Pola yang sama membuat solver melewati batch setelah `make revert`, karena
   store-nya masih memuat ID batch yang dipakai ulang.
+
+**Diperbaiki 28 September 2026, di branch `dharu/day6-7-green`.**
+
+- **N20.** Solver menaikkan baseline netted sampai lantai per arah, dan kekurangannya
+  ditaruh di fill yang masih punya ruang di bawah `executedBuy`. Koreksi klaim terkait
+  ada di `desain-baseline.md` §9.3.
+- **N21.** viem menyimpan nomor blok di cache selama empat detik, sehingga `safeHead`
+  menghitung kedalaman dari head yang basi. Indexer kini membacanya tanpa cache.
+- **N22.** Dua sebab. Cache nomor blok yang sama di client indexer, solver, dan API
+  menunjuk ke blok yang sudah hilang setelah `evm_revert`. Dan `watchBlockNumber` di
+  lifecycle API hanya menerbitkan nomor yang naik, sehingga setelah revert tidak ada
+  batch yang tutup. Lifecycle kini mem-polling sendiri dan ikut turun.
+- **I5.** `isFork` menganggap error apa pun dari `anvil_nodeInfo` sebagai bukan fork.
+  Kini hanya jawaban "method tidak dikenal" yang berarti bukan fork, dalam tiga bentuk
+  yang diukur di Alchemy, drpc, dan kode standar. Bacaan blok pertama saat boot juga
+  diberi retry.
+- **Replay.** Nonce kini ditanyakan ke API untuk setiap intent, karena bitmap Permit2
+  berlubang dan coordinator memegang nonce intent yang masih menunggu.
+
+**Temuan baru.**
+
+- **N23, untuk audit M4 dan Nabil.** `verifyBaseline` di struk masih per intent. Di batch
+  rute penuh, baseline satu fill adalah bagian pro rata dari satu kuotasi gabungan, jadi
+  perintah `cast` di struk memberi angka yang berbeda dari `baselineBuy` padahal tidak
+  ada yang salah. Juri yang menjalankannya akan melihat selisih. Perbaikannya menyentuh
+  skema `api-types.ts`, yaitu verifikasi per arah, dan harus disepakati dengan Nabil.
+- **N24, diamati.** `anvil_mine` seribu blok lalu `evm_revert` meninggalkan nomor blok
+  yang menjawab null, dan indexer lalu gagal dengan `BlockNotFoundError`. Tidak bisa
+  direproduksi di percobaan berikutnya. Test tidak lagi memakai `anvil_mine`.
+- **Catatan keamanan.** Error anvil memuat URL fork lengkap dengan key RPC. I9 kini
+  memotong path URL sebelum hasilnya dicetak, karena hasil test sampai ke log CI.
 - **Diperbaiki di `537da15`.** `make` di root gagal untuk semua target di laptop Dharu,
   karena `make.exe` ada di path yang mengandung spasi. Delegasinya juga belum memuat
   `solver`, `indexer`, target database, `torture`, dan tidak meneruskan `CASE`,
