@@ -1087,6 +1087,18 @@ supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
   direproduksi di percobaan berikutnya. Test tidak lagi memakai `anvil_mine`.
 - **Catatan keamanan.** Error anvil memuat URL fork lengkap dengan key RPC. I9 kini
   memotong path URL sebelum hasilnya dicetak, karena hasil test sampai ke log CI.
+- **N25, dicatat 28 September 2026, tidak diperbaiki.** `pnpm lint` di root memanggil
+  `biome check .`, tapi biome tidak pernah jadi dependensi repo ini, jadi perintahnya
+  selalu gagal dengan command not found. Gerbang lint di §6 sebenarnya dijaga
+  `tsc --noEmit` dan `tools/prose-gate.py`, dan keduanya hijau. Ini script yang
+  menyesatkan, bukan gerbang yang bolong. Diserahkan ke setelah submit, karena feature
+  freeze dan karena menambah biome sekarang berarti memformat ulang seluruh repo.
+- **N26, dicatat 28 September 2026, tidak diperbaiki oleh saya.** Commit `e8f2ec4`,
+  yang sudah ada di `main` dan sudah di-push, menyebut nama berkas instruksi AI di
+  badan pesannya. Aturan §11.6 melarang jejak itu di permukaan repo, dan berkasnya
+  sendiri di-gitignore sehingga pembaca melihat rujukan ke berkas yang tidak ada.
+  Memperbaikinya berarti menulis ulang riwayat yang sudah terbit, jadi keputusannya
+  ada di Dharu, bukan di saya.
 
 **Diperbaiki 28 dan 29 September 2026.**
 
