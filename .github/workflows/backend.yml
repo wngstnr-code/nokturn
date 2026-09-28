@@ -83,10 +83,20 @@ jobs:
 
   fork:
     runs-on: ubuntu-latest
-    # Nightly only. These need mainnet 4663 through a public endpoint, and that
-    # endpoint has already changed behaviour once inside three days.
+    # Nightly only. These need archive state of mainnet 4663. The public drpc
+    # endpoint stopped serving anything but latest on 26 September 2026 (N13),
+    # so the fork reads an archive RPC from the repository secret. GitHub masks
+    # its value in the log, and the scripts print the host only.
     if: github.event_name == 'schedule'
+    env:
+      NOKTURN_RPC_MAINNET: ${{ secrets.NOKTURN_RPC_MAINNET }}
     steps:
+      - name: the archive RPC secret is set
+        run: |
+          if [ -z "$NOKTURN_RPC_MAINNET" ]; then
+            echo "::error::NOKTURN_RPC_MAINNET is not set. Add an archive RPC for chain 4663 under Settings, Secrets and variables, Actions."
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           submodules: recursive
