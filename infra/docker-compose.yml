@@ -1,13 +1,61 @@
-# Local development only. The credentials below exist on this laptop and
-# nowhere else, and the port is bound to 127.0.0.1 so nothing off the machine
-# can reach it.
+# The whole backend stack on a fork of mainnet 4663, for local development and
+# the demo. make up starts it, make demo drives one batch through it, make down
+# removes every container and volume it made.
 #
-# 5433 rather than 5432, because a developer's own Postgres already sits on 5432
-# and this must never touch it.
+# Every port is bound to 127.0.0.1, so nothing off the machine can reach it. The
+# Postgres credentials exist on this laptop and nowhere else.
 #
-# The first service of F5. The rest of the stack joins later.
+# The archive RPC key is read by the anvil service alone, from the repo root
+# .env through env_file, and is never written into this file or interpolated
+# into it. docker compose config does not print it.
+#
+# anvil and deploy run infra/scripts as they are, the same fork.sh, deploy.sh
+# and fund.sh that make fork, make deploy and make fund run on a laptop, so the
+# stack has one way to start rather than two.
+
+x-tools: &tools
+  build:
+    context: ..
+    dockerfile: infra/Dockerfile
+  image: nokturn-tools
+  working_dir: /app
+
+x-records: &records
+  # The chain records deploy writes, and the committed accounts and pinned block.
+  - ./:/app/infra:ro
 
 services:
+  anvil:
+    <<: *tools
+    command: ["bash", "infra/scripts/fork.sh"]
+    env_file: ../.env
+    environment:
+      NOKTURN_FORK_HOST: 0.0.0.0
+    volumes:
+      - ./:/app/infra
+      - /app/infra/node_modules
+    ports:
+      - "127.0.0.1:${NOKTURN_FORK_PORT:-8545}:8545"
+    healthcheck:
+      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://127.0.0.1:8545"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+  deploy:
+    <<: *tools
+    command: ["bash", "-c", "bash infra/scripts/deploy.sh && bash infra/scripts/fund.sh"]
+    environment:
+      NOKTURN_FORK_RPC: http://anvil:8545
+    volumes:
+      - ./:/app/infra
+      - /app/infra/node_modules
+      - ../contracts:/app/contracts
+      - nokturn-svm:/root/.svm
+    depends_on:
+      anvil:
+        condition: service_healthy
+
   postgres:
     image: postgres:18
     environment:
@@ -15,7 +63,8 @@ services:
       POSTGRES_PASSWORD: nokturn
       POSTGRES_DB: nokturn
     ports:
-      - "127.0.0.1:${NOKTURN_DB_PORT:-5433}:5432"
+      # 5440 by default, since 5433 is taken on at least one of our laptops.
+      - "127.0.0.1:${NOKTURN_DB_PORT:-5440}:5432"
     volumes:
       - nokturn-pg:/var/lib/postgresql
     healthcheck:
@@ -24,5 +73,68 @@ services:
       timeout: 3s
       retries: 30
 
+  indexer:
+    build:
+      context: ..
+      dockerfile: indexer/Dockerfile
+    image: nokturn-indexer
+    environment:
+      NOKTURN_INDEXER_RPC: http://anvil:8545
+      NOKTURN_DATABASE_URL: postgres://nokturn:nokturn@postgres:5432/nokturn
+    volumes: *records
+    depends_on:
+      postgres:
+        condition: service_healthy
+      deploy:
+        condition: service_completed_successfully
+
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    image: nokturn-api
+    environment:
+      NOKTURN_API_RPC: http://anvil:8545
+      # What a cast command in a receipt points at, the fork as published on
+      # this machine. Never a paid endpoint.
+      NOKTURN_API_PUBLIC_RPC: http://127.0.0.1:${NOKTURN_FORK_PORT:-8545}
+      NOKTURN_DATABASE_URL: postgres://nokturn:nokturn@postgres:5432/nokturn
+    volumes: *records
+    ports:
+      - "127.0.0.1:${NOKTURN_API_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      deploy:
+        condition: service_completed_successfully
+
+  solver-a:
+    build:
+      context: ..
+      dockerfile: solver/Dockerfile
+    image: nokturn-solver
+    command: ["--profile", "a"]
+    environment:
+      NOKTURN_SOLVER_RPC: http://anvil:8545
+      NOKTURN_API_URL: http://api:3000
+    volumes: *records
+    depends_on:
+      api:
+        condition: service_healthy
+
+  solver-b:
+    image: nokturn-solver
+    command: ["--profile", "b"]
+    environment:
+      NOKTURN_SOLVER_RPC: http://anvil:8545
+      NOKTURN_API_URL: http://api:3000
+    volumes: *records
+    depends_on:
+      api:
+        condition: service_healthy
+      solver-a:
+        condition: service_started
+
 volumes:
   nokturn-pg:
+  nokturn-svm:
