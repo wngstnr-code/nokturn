@@ -104,7 +104,10 @@ export async function initChain(): Promise<ChainContext> {
   const isFork = await detectFork(probe);
   const isTestnet = chainId === CHAIN_ID_TESTNET;
 
+  // No block number cache. Its four seconds outlive an evm_revert on the fork,
+  // and a head that old points at blocks that no longer exist.
   const client = createPublicClient({
+    cacheTime: 0,
     chain: {
       id: chainId,
       name: isFork ? "robinhood-fork" : isTestnet ? "robinhood-testnet" : "robinhood",
