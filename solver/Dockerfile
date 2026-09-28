@@ -13,6 +13,9 @@ COPY analytics/package.json analytics/
 COPY infra/package.json infra/
 COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile --prod --filter ./solver --filter ./packages/shared
+# viem lists typescript as an optional peer, and the lockfile resolves it, so a
+# production install still brings it. Nothing imports it at run time.
+RUN rm -rf node_modules/.pnpm/typescript@*
 
 FROM node:24-alpine
 WORKDIR /app
