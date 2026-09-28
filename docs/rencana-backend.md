@@ -637,7 +637,7 @@ selesainya, dan tidak ada butir yang dianggap selesai tanpa itu.
 | F3 | Impersonation dan pendanaan akun uji dari pemegang nyata | Lima akun lokal memegang NVDA, AAPL, TSLA, GOOGL, GME, dan USDG dalam jumlah yang muat di exposure cap |
 | F4 | Deploy Nokturn ke fork lokal lewat skrip Wangsit | `deployments/31337.json` terisi dan `Bootstrap` lolos gerbang `StockTokenGate` terhadap token mainnet asli |
 | F5 | `docker-compose` untuk anvil, postgres, coordinator, indexer, dua solver | `make up` lalu `make demo` menghasilkan satu struk batch tanpa langkah manual |
-| F6 | Lapisan RPC dengan retry, failover, dan anggaran permintaan | Satu endpoint mati tidak menjatuhkan coordinator, dan lognya menyebut endpoint mana yang dipakai |
+| F6 | Lapisan RPC dengan retry, failover, dan anggaran permintaan | Satu endpoint mati tidak menjatuhkan coordinator, dan lognya menyebut endpoint mana yang dipakai. **Selesai 29 September 2026.** `NOKTURN_API_RPC` menerima beberapa URL dipisah koma, dan yang pertama utama. Diuji dengan endpoint utama mati di `127.0.0.1:9`. API tetap start, dilayani anvil sebagai cadangan, log menyebut host yang melayani, dan health melapor rpc `degraded`. Anggaran per menit hanya memperingatkan, tidak menolak. Perintah `cast` di struk kini memakai `NOKTURN_API_PUBLIC_RPC`, dan API menolak start kalau URL baca membawa path tanpa URL publik, karena path itu adalah key |
 
 Catatan F1. Fork memakai `--fork-block-number` dengan nomor blok **chain ini**, bukan
 `block.number`. Di Arbitrum `block.number` mengembalikan nomor blok chain induk, dan
@@ -1087,6 +1087,27 @@ supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
   direproduksi di percobaan berikutnya. Test tidak lagi memakai `anvil_mine`.
 - **Catatan keamanan.** Error anvil memuat URL fork lengkap dengan key RPC. I9 kini
   memotong path URL sebelum hasilnya dicetak, karena hasil test sampai ke log CI.
+
+**Diperbaiki 28 dan 29 September 2026.**
+
+- **N23.** Struk kini memuat `baselineFloors`, satu entri per arah dengan jumlah
+  `executedSell` dan `baselineBuy`, satu perintah `cast` untuk lantainya, dan `holds`.
+  Itulah yang harus dicocokkan juri. `verifyBaseline` per fill tetap ada, dengan komentar
+  skema yang menjelaskan bahwa ia bisa lebih tinggi dari `baselineBuy`. Field ini
+  ditambahkan, bukan menggantikan, jadi layar Nabil tetap jalan. I8 dan `postman-api`
+  memeriksanya. **Nabil perlu menampilkan `baselineFloors`**, supaya tombol salin di
+  layar memberi juri perintah yang hasilnya cocok.
+- **N16.** Struk hanya menerima hash pemenang. Solusi yang kalah tanpa event penolakan
+  diberi alasan "replaced by a better solution".
+- **N18.** Health mengukur keempat komponennya. Lag dari checkpoint indexer, database
+  dengan batas dua detik, scheduler dari tick lifecycle terakhir, dan rpc dari endpoint
+  yang melayani.
+- **Key RPC di permukaan publik.** `pin-block.sh` menulis URL RPC lengkap ke
+  `infra/pinned-block.json` yang di-commit, dan `fork.sh` mencetaknya ke log. Keduanya
+  kini hanya menampilkan host. Di API, URL baca terpisah dari URL publik untuk perintah
+  `cast` (F6).
+- **CI fork nightly** membaca `NOKTURN_RPC_MAINNET` dari secret repo dan berhenti dengan
+  pesan jelas kalau secret belum dipasang. **Dharu perlu menambahkan secret itu.**
 - **Diperbaiki di `537da15`.** `make` di root gagal untuk semua target di laptop Dharu,
   karena `make.exe` ada di path yang mengandung spasi. Delegasinya juga belum memuat
   `solver`, `indexer`, target database, `torture`, dan tidak meneruskan `CASE`,
