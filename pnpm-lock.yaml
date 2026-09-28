@@ -69,13 +69,14 @@ importers:
         version: 2.56.8(typescript@7.0.2)
 
   packages/shared:
+    dependencies:
+      viem:
+        specifier: ^2.21.0
+        version: 2.56.8(typescript@7.0.2)
     devDependencies:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
-      viem:
-        specifier: ^2.21.0
-        version: 2.56.8(typescript@7.0.2)
 
   solver:
     dependencies:

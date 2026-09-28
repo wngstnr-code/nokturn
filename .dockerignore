@@ -1,0 +1,22 @@
+# The build context is the repo root, so the images can copy packages/shared
+# beside each service. Everything below stays out of every image.
+
+# The archive RPC key lives here and must never reach an image layer.
+.env
+.env.*
+!.env.example
+
+# Built on the host for the host. Each image installs its own for Linux.
+**/node_modules
+
+.git
+.github
+app
+contracts
+docs
+data
+tools
+**/.state
+**/.torture
+**/*.log
+**/test
