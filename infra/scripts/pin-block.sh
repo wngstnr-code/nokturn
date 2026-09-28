@@ -13,7 +13,7 @@ load_env
 MARGIN="${NOKTURN_FORK_MARGIN:-100000}"
 NVDA_POOL=0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3
 
-log "reading head from $NOKTURN_RPC_MAINNET"
+log "reading head from $(redact_url "$NOKTURN_RPC_MAINNET")"
 HEAD="$(cast block-number --rpc-url "$NOKTURN_RPC_MAINNET")"
 BLOCK=$((HEAD - MARGIN))
 log "head $HEAD, margin $MARGIN, candidate $BLOCK"
@@ -42,7 +42,7 @@ node -e '
     endpoint: rpc,
     note: "Synchronisation point 6. Moving this block changes every receipt number."
   }, null, 2) + "\n");
-' "$PIN_FILE" "$BLOCK" "$TS" "$HUMAN" "$HEAD" "$NOKTURN_RPC_MAINNET"
+' "$PIN_FILE" "$BLOCK" "$TS" "$HUMAN" "$HEAD" "$(redact_url "$NOKTURN_RPC_MAINNET")"
 
 log "pinned $BLOCK, chain time $HUMAN"
 echo "$SLOT0" | head -2
