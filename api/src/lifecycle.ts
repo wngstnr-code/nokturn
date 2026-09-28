@@ -36,6 +36,10 @@ interface State {
   healthy: Map<Address, boolean> | null;
 }
 
+/** Wall clock of the last tick that completed, for /v1/health. Null before the first. */
+let lastTickAt: number | null = null;
+export const lastLifecycleTick = (): number | null => lastTickAt;
+
 const fresh = (): State => ({
   lastTime: null,
   current: null,
@@ -178,6 +182,7 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
       queued = null;
       try {
         await tick(next);
+        lastTickAt = Date.now();
       } catch (error) {
         log.error({err: error, block: String(next)}, "lifecycle tick failed");
       }
