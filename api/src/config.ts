@@ -56,7 +56,7 @@ export interface PinnedBlock {
   timestampUtc: string;
 }
 
-const rpcs = parseRpcList(process.env.NOKTURN_API_RPC ?? "http://127.0.0.1:8545");
+const rpcs = parseRpcList(process.env.NOKTURN_API_RPC || "http://127.0.0.1:8545");
 
 export const env = {
   /** Every endpoint the API may read from, first primary, the rest fallbacks. F6. */
@@ -67,9 +67,9 @@ export const env = {
    * apart from the read list, because a paid endpoint carries its key in the
    * path and would otherwise be published in every receipt.
    */
-  publicRpc: process.env.NOKTURN_API_PUBLIC_RPC ?? rpcs[0]!,
+  publicRpc: process.env.NOKTURN_API_PUBLIC_RPC || rpcs[0]!,
   /** Requests per minute above which the log warns. Nothing is refused. */
-  rpcBudgetPerMinute: Number(process.env.NOKTURN_API_RPC_BUDGET_PER_MINUTE ?? 6000),
+  rpcBudgetPerMinute: Number(process.env.NOKTURN_API_RPC_BUDGET_PER_MINUTE || 6000),
   host: process.env.NOKTURN_API_HOST ?? "127.0.0.1",
   port: Number(process.env.NOKTURN_API_PORT ?? 3000),
   explorer: process.env.NOKTURN_EXPLORER ?? "https://robinhoodchain.blockscout.com",
