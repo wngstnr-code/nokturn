@@ -997,6 +997,11 @@ supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
   `passchick` sudah diarsipkan pada 2 Agustus dan kuerinya pindah ke `wngstnrs7119`.
   `CLAUDE.md` §6 menulis dashboard Agustus terbit di `passchick`. Salah satunya basi.
   Kode baru sengaja tidak menautkan handle mana pun sampai ini dicek.
+  **Terjawab 28 September 2026, dicek lewat API Dune.** Kueri Agustus, misalnya
+  `8595251`, ada di `team_id 65014` (`passchick`), publik dan tidak diarsipkan, jadi
+  `CLAUDE.md` §6 benar dan README itu yang basi. Kueri replay `8846173` ada di akun
+  Dune milik Dharu, `team_id 1012046`, publik dan permanen. Keduanya bisa dibuka juri
+  tanpa akses akun.
 - **N15, sudah diputuskan.** `8595251` dan `8595303` hanya berisi agregat per sesi dan
   per titik kurva, sehingga tidak bisa menjadi fixture. Kueri 13 memakai kaki trade
   yang sama dan mengambil satu jam off-hours hari kerja di Agustus, yaitu jam dengan
