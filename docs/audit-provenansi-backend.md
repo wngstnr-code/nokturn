@@ -90,6 +90,19 @@ Vonis akhirnya milik Nabil.
 | `allowlist/page.tsx` | Membaca gerbang Stock Token langsung dari mainnet. Sah, karena onchain | Baris 88 menyebut 29,6 juta dolar dan 250 ribu trade Juli 2026 untuk token penyamar GME. Tautkan sumbernya |
 | Semua layar | Grep angka literal tidak menemukan placeholder lain di luar ikon SVG | Jalankan ulang setelah perubahan terakhir |
 
+## 5b. Dijalankan ulang setelah F5, 28 September 2026
+
+§11.4 meminta audit ini diulang untuk setiap field yang berubah. F5 menutup
+packaging, bukan data. Yang berubah hanya tiga hal, yaitu `data/` di-mount ke
+container `deploy`, `data/backtest` ikut ke image api, dan letak store solver
+profil b. Tidak ada field API, struk, atau angka yang berubah bentuk maupun
+sumbernya, jadi tidak ada baris di §1 sampai §3 yang perlu divonis ulang.
+
+Satu hal dikuatkan, bukan diubah. `NOKTURN_API_PUBLIC_RPC` di compose disetel ke
+`http://127.0.0.1:8545`, yaitu fork sebagaimana diterbitkan di mesin yang
+menjalankan demo dan bukan endpoint berbayar. Itu persis kondisi yang membuat
+baris terakhir §1 berstatus lolos bersyarat, dan syaratnya belum hilang.
+
 ## 6. Yang masih harus terjadi sebelum submit
 
 1. Nabil memindahkan layar netting ke route F30 dan menampilkan `baselineFloors`.
