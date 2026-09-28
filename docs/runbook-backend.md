@@ -47,7 +47,30 @@ export NOKTURN_DATABASE_URL=postgres://nokturn:nokturn@127.0.0.1:5440/nokturn
 
 ---
 
-## 2. Urutan menyalakan
+## 2a. Satu perintah, lewat Docker
+
+Jalan tercepat dari clone kosong. Butuh Docker Desktop yang menyala dan `.env` dari
+§1. Semua layanan berjalan di container, dan urutannya dijaga compose.
+
+```
+git submodule update --init --recursive
+pnpm install
+make up
+make demo
+make down
+```
+
+`git submodule` mengambil pustaka kontrak yang dikompilasi container `deploy`.
+`pnpm install` dibutuhkan karena `make demo` berjalan di host. `make up` pertama kali
+membangun empat image dan mengompilasi kontrak, jadi lebih lama dari berikutnya.
+`make logs` mengikuti log semua layanan. `make down` menghapus semua container dan
+volume yang dibuat stack, termasuk database.
+
+Jangan jalankan `make up` bersamaan dengan `make fork` atau `make api`. Keduanya
+memakai port yang sama, dan `make up` menolak jalan kalau fork sudah menjawab di
+port 8545.
+
+## 2. Urutan menyalakan, tanpa Docker
 
 Urutannya penting, karena API menolak start tanpa deployment, dan solver menolak start
 tanpa API.
