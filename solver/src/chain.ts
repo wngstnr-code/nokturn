@@ -15,7 +15,9 @@ export const API = process.env.NOKTURN_API_URL ?? "http://127.0.0.1:3000";
 const RECORD = process.env.NOKTURN_SOLVER_DEPLOYMENT ?? join(REPO_ROOT, "infra", "fork-deployment.json");
 
 export function client(rpc = RPC): PublicClient {
-  return createPublicClient({transport: http(rpc, {timeout: 8_000, retryCount: 2})});
+  // No block number cache, so a batch is solved at the real head and not at one
+  // up to four seconds old, which after an evm_revert may not exist at all.
+  return createPublicClient({cacheTime: 0, transport: http(rpc, {timeout: 8_000, retryCount: 2})});
 }
 
 export function settlementAddress(): Address {
