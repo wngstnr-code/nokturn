@@ -8,12 +8,16 @@ Rencana lengkap dan daftar fitur F1 sampai F32 ada di `docs/rencana-backend.md`.
 ## Sekali saja, setelah clone
 
 ```bash
-pnpm install --dir infra
-cp ../.env.example ../.env   # satu berkas env untuk seluruh repo
+git submodule update --init --recursive
+pnpm install                 # dari root, bukan --dir infra. make demo dan make fund
+                             # berjalan di host dan memakai viem dari root
+cp .env.example .env         # satu berkas env untuk seluruh repo
 ```
 
-`.env` tidak perlu diisi untuk fork lokal. Nilai defaultnya sudah menunjuk ke
-endpoint yang tembus dari Indonesia.
+**`.env` harus diisi.** Sejak 26 September 2026 drpc hanya melayani `latest`,
+sehingga fork di blok patokan tidak bisa dibuat dari nilai bawaan. Isi
+`NOKTURN_RPC_MAINNET` dengan RPC archive untuk chain 4663. Caranya, dan cara
+mengujinya sebelum `make fork`, ada di `docs/runbook-backend.md` §1.
 
 ## Lima perintah, dari nol sampai bisa dites
 
@@ -202,13 +206,16 @@ sekaligus.
 cast call $SETTLEMENT "tokenAllowed(address)(bool)" $NVDA --rpc-url http://127.0.0.1:8545
 ```
 
-### Yang belum bisa diuji hari ini
+### 5. Permukaan API
 
-Endpoint coordinator di `packages/shared/api-types.ts` belum punya server.
-Skemanya dibekukan hari ini supaya Nabil bisa coding terhadapnya, dan koleksi
-Postman keduanya dibuat begitu server itu ada di hari 2. Sampai saat itu,
-endpoint apa pun yang dipanggil akan menjawab `COORDINATOR_NOT_IMPLEMENTED`
-dengan bentuk `ApiError` yang sudah ditetapkan, bukan 404 kosong.
+```bash
+make postman-api
+```
+
+Koleksi kedua, digenerate ulang setiap kali dijalankan karena koleksi yang
+berumur lebih panjang dari sebuah redeploy menandatangani untuk Settlement yang
+lama. Menutupi setiap route di `packages/shared/api-types.ts` terhadap API yang
+hidup, 107 assertion pada 28 September 2026.
 
 ## Berkas
 
