@@ -126,7 +126,10 @@ export class Ingest {
 
   /** The highest block deep enough to index. */
   async safeHead(): Promise<bigint> {
-    const head = await read(() => this.c.getBlockNumber());
+    // viem caches the block number for four seconds by default, so a head read
+    // right after a block would still be the one before it and the depth
+    // would be counted from a stale head.
+    const head = await read(() => this.c.getBlockNumber({cacheTime: 0}));
     return head > this.confirmations ? head - this.confirmations : 0n;
   }
 
