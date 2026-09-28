@@ -19,7 +19,10 @@ RUN rm -rf node_modules/.pnpm/typescript@*
 
 FROM node:24-alpine
 WORKDIR /app
-ENV NODE_ENV=production NOKTURN_SOLVER_STATE=/state NOKTURN_SOLVER_HEARTBEAT=/tmp/solver-heartbeat
+# Profile b appends its own suffix to the store path, so the setting names a file
+# inside /state rather than /state itself. Otherwise profile b writes /state-b,
+# which is the image root and is not writable by node.
+ENV NODE_ENV=production NOKTURN_SOLVER_STATE=/state/solver NOKTURN_SOLVER_HEARTBEAT=/tmp/solver-heartbeat
 COPY --from=deps /app /app
 COPY packages/shared packages/shared
 COPY solver/src solver/src
