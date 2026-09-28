@@ -66,7 +66,7 @@ async function receiptContext(batchId: bigint): Promise<ReceiptContext> {
     tokens,
     quoteToken: c.quote.address,
     explorer: c.explorer,
-    rpcUrl: env.rpc,
+    rpcUrl: env.publicRpc,
     baselineAdapter,
     session,
     sessionName: SESSION_NAMES[session]!,

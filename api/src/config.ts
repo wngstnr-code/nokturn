@@ -10,6 +10,7 @@
 import {existsSync, readFileSync} from "node:fs";
 import {dirname, join} from "node:path";
 import {fileURLToPath} from "node:url";
+import {parseRpcList} from "../../packages/shared/rpc.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = join(HERE, "..", "..");
@@ -55,8 +56,20 @@ export interface PinnedBlock {
   timestampUtc: string;
 }
 
+const rpcs = parseRpcList(process.env.NOKTURN_API_RPC ?? "http://127.0.0.1:8545");
+
 export const env = {
-  rpc: process.env.NOKTURN_API_RPC ?? "http://127.0.0.1:8545",
+  /** Every endpoint the API may read from, first primary, the rest fallbacks. F6. */
+  rpcs,
+  rpc: rpcs[0]!,
+  /**
+   * The url printed in every cast command a caller or a judge copies. Kept
+   * apart from the read list, because a paid endpoint carries its key in the
+   * path and would otherwise be published in every receipt.
+   */
+  publicRpc: process.env.NOKTURN_API_PUBLIC_RPC ?? rpcs[0]!,
+  /** Requests per minute above which the log warns. Nothing is refused. */
+  rpcBudgetPerMinute: Number(process.env.NOKTURN_API_RPC_BUDGET_PER_MINUTE ?? 6000),
   host: process.env.NOKTURN_API_HOST ?? "127.0.0.1",
   port: Number(process.env.NOKTURN_API_PORT ?? 3000),
   explorer: process.env.NOKTURN_EXPLORER ?? "https://robinhoodchain.blockscout.com",

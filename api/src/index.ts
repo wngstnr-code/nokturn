@@ -6,7 +6,7 @@
 // puts the reason on the terminal instead.
 
 import {env} from "./config.ts";
-import {initChain} from "./chain.ts";
+import {initChain, rpcStatus, useRpcLog} from "./chain.ts";
 import {useEventLog} from "./events.ts";
 import {startLifecycle} from "./lifecycle.ts";
 import {buildServer} from "./server.ts";
@@ -14,6 +14,8 @@ import {buildServer} from "./server.ts";
 async function main() {
   const c = await initChain();
   const app = buildServer();
+  useRpcLog(app.log);
+  app.log.info({...rpcStatus(), endpoints: env.rpcs.length, budgetPerMinute: env.rpcBudgetPerMinute}, "rpc endpoint in use");
 
   app.log.info(
     {

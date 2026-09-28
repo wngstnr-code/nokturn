@@ -76,7 +76,7 @@ export function verifiable(args: {
   const quoted = args.humanArgs.map((a) => `"${a}"`).join(" ");
   const castCommand =
     `cast call ${args.to} "${args.signature}" ${quoted}`.trimEnd() +
-    ` --block ${args.at.number} --rpc-url ${env.rpc}`;
+    ` --block ${args.at.number} --rpc-url ${env.publicRpc}`;
   return {
     to: args.to,
     data,

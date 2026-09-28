@@ -216,7 +216,7 @@ export function escapeHatchFor(intent: DecodedIntent, signature: Hex): EscapeHat
   return {
     to: c.deployment.settlement,
     data,
-    castCommand: `cast send ${c.deployment.settlement} ${data} --rpc-url ${env.rpc} --from ${intent.owner}`,
+    castCommand: `cast send ${c.deployment.settlement} ${data} --rpc-url ${env.publicRpc} --from ${intent.owner}`,
     describes: "Settlement.submitIntentOnchain",
   };
 }

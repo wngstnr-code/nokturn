@@ -9,11 +9,14 @@ import {
   BaseError,
   ContractFunctionRevertedError,
   createPublicClient,
+  fallback,
   http,
   type Abi,
   type Address,
   type PublicClient,
+  type Transport,
 } from "viem";
+import {carriesPath, redactUrl, unknownMethod} from "../../packages/shared/rpc.ts";
 import {erc20Abi, invalidateNoncesAbi, loadAbi} from "./abi.ts";
 import {
   CHAIN_ID_TESTNET,
@@ -81,46 +84,114 @@ export function rpcRequestCount(): number {
   return requests;
 }
 
+// F6. Which endpoint last answered, and how many requests went out in the last
+// minute. Logged on every change of endpoint and once a minute over budget.
+let serving: number | null = null;
+const lastMinute: number[] = [];
+let budgetWarnedAt = 0;
+let rpcLog: {info: (o: object, m: string) => void; warn: (o: object, m: string) => void} = {info: () => {}, warn: () => {}};
+
+export function useRpcLog(log: typeof rpcLog): void {
+  rpcLog = log;
+}
+
+export interface RpcStatus {
+  endpoint: string | null;
+  primary: boolean;
+  requestsLastMinute: number;
+  overBudget: boolean;
+}
+
+export function rpcStatus(): RpcStatus {
+  prune(Date.now());
+  return {endpoint: serving === null ? null : redactUrl(env.rpcs[serving]!), primary: serving === null || serving === 0, requestsLastMinute: lastMinute.length, overBudget: lastMinute.length > env.rpcBudgetPerMinute};
+}
+
+function prune(now: number): void {
+  while (lastMinute.length && lastMinute[0]! < now - 60_000) lastMinute.shift();
+}
+
+function counted(): void {
+  const now = Date.now();
+  requests += 1;
+  lastMinute.push(now);
+  prune(now);
+  if (lastMinute.length > env.rpcBudgetPerMinute && now - budgetWarnedAt > 60_000) {
+    budgetWarnedAt = now;
+    rpcLog.warn({requestsLastMinute: lastMinute.length, budget: env.rpcBudgetPerMinute}, "rpc request budget exceeded");
+  }
+}
+
+function answeredBy(index: number): void {
+  if (serving === index) return;
+  const from = serving;
+  serving = index;
+  const note = {endpoint: redactUrl(env.rpcs[index]!), position: index, of: env.rpcs.length};
+  if (from === null) rpcLog.info(note, "rpc endpoint in use");
+  else rpcLog.warn({...note, from: redactUrl(env.rpcs[from]!)}, index === 0 ? "rpc back on the primary endpoint" : "rpc failed over to a fallback endpoint");
+}
+
+/** One http transport per endpoint. More than one becomes a fallback, tried in the listed order. */
+function transport(): Transport {
+  const each = env.rpcs.map((url, i) =>
+    http(url, {
+      timeout: env.rpcTimeoutMs,
+      retryCount: env.rpcs.length > 1 ? 0 : env.rpcRetryCount,
+      onFetchRequest: counted,
+      onFetchResponse: (response) => {
+        if (response.ok) answeredBy(i);
+      },
+    }),
+  );
+  return each.length === 1 ? each[0]! : fallback(each, {rank: false, retryCount: env.rpcRetryCount});
+}
+
 /**
  * Asked of the node rather than taken from a flag. A fork reports the chain id
  * of whatever it forked, so the chain id alone cannot tell the two apart, and a
  * receipt that says mainnet when it means fork is exactly the provenance
- * failure the whole schema exists to prevent.
+ * failure the whole schema exists to prevent. Only a node that says it does
+ * not know the method counts as not a fork. A dropped request is retried and
+ * then thrown, never read as an answer.
  */
 async function detectFork(client: PublicClient): Promise<boolean> {
-  try {
-    await client.transport.request({method: "anvil_nodeInfo", params: []});
-    return true;
-  } catch {
-    return false;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await client.request({method: "anvil_nodeInfo" as never, params: [] as never});
+      return true;
+    } catch (error) {
+      if (unknownMethod(error)) return false;
+      if (attempt >= 4) throw error;
+      await new Promise((r) => setTimeout(r, 250 * 2 ** (attempt - 1)));
+    }
   }
 }
 
 export async function initChain(): Promise<ChainContext> {
   if (context) return context;
 
-  const probe = createPublicClient({transport: http(env.rpc)});
+  if (env.publicRpc === env.rpc && carriesPath(env.rpc)) {
+    throw new Error(
+      `NOKTURN_API_RPC looks like a paid endpoint, ${redactUrl(env.rpc)}, and it would be printed in every cast command a receipt carries. Set NOKTURN_API_PUBLIC_RPC to the url a judge should use, for example https://rpc.mainnet.chain.robinhood.com`,
+    );
+  }
+
+  // No block number cache. Its four seconds outlive an evm_revert on the fork,
+  // and a head that old points at blocks that no longer exist.
+  const probe = createPublicClient({cacheTime: 0, transport: transport()});
   const chainId = await probe.getChainId();
   const isFork = await detectFork(probe);
   const isTestnet = chainId === CHAIN_ID_TESTNET;
 
-  // No block number cache. Its four seconds outlive an evm_revert on the fork,
-  // and a head that old points at blocks that no longer exist.
   const client = createPublicClient({
     cacheTime: 0,
     chain: {
       id: chainId,
       name: isFork ? "robinhood-fork" : isTestnet ? "robinhood-testnet" : "robinhood",
       nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
-      rpcUrls: {default: {http: [env.rpc]}},
+      rpcUrls: {default: {http: [env.publicRpc]}},
     },
-    transport: http(env.rpc, {
-      timeout: env.rpcTimeoutMs,
-      retryCount: env.rpcRetryCount,
-      onFetchRequest: () => {
-        requests += 1;
-      },
-    }),
+    transport: transport(),
   });
 
   const chainFile: ChainFile = isTestnet ? loadTestnetTokens() : loadChainFile();
