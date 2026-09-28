@@ -26,6 +26,7 @@ COPY packages/shared packages/shared
 COPY indexer/src indexer/src
 COPY indexer/sql indexer/sql
 COPY api/src api/src
+COPY data/backtest data/backtest
 USER node
 WORKDIR /app/api
 EXPOSE 3000

@@ -15,6 +15,9 @@ app
 contracts
 docs
 data
+# The netting curve export is a published Dune result the api serves at boot, so
+# it belongs in the api image rather than in a mount. data/backtest only.
+!data/backtest
 tools
 **/.state
 **/.torture
