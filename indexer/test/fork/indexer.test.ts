@@ -376,23 +376,18 @@ describe("indexer on the fork", () => {
         stateUnavailable += 1;
         continue;
       }
-      const byDirection = new Map<string, {sell: Address; buy: Address; block: bigint; executedSell: bigint; baselineBuy: bigint}>();
-      for (const f of built.receipt.fills) {
-        fills += 1;
-        const key = `${f.sellToken.address}:${f.buyToken.address}`.toLowerCase();
-        const d = byDirection.get(key) ?? {sell: f.sellToken.address as Address, buy: f.buyToken.address as Address, block: BigInt(f.verifyBaseline.blockNumber), executedSell: 0n, baselineBuy: 0n};
-        d.executedSell += BigInt(f.executedSell);
-        d.baselineBuy += BigInt(f.baselineBuy);
-        byDirection.set(key, d);
-      }
-      for (const d of byDirection.values()) {
+      fills += built.receipt.fills.length;
+      assert.equal(built.receipt.baselineFloors.reduce((n, d) => n + d.fills, 0), built.receipt.fills.length, `batch ${id} floors do not cover every fill`);
+      // The receipt's own floor is checked, and its expected value recomputed
+      // here as well, so a wrong figure in the receipt cannot pass on its own say.
+      for (const d of built.receipt.baselineFloors) {
         directionsChecked += 1;
-        const q = await quote(c, k.baselineAdapter, d.sell, d.buy, d.executedSell, d.block);
-        if (!q.ok) {
+        const q = await quote(c, k.baselineAdapter, d.sellToken.address as Address, d.buyToken.address as Address, BigInt(d.executedSell), BigInt(d.verifyFloor.blockNumber));
+        if (!q.ok || d.holds === null) {
           stateUnavailable += 1;
           continue;
         }
-        if (d.baselineBuy < q.out) differ.push({batchId: id, sell: d.sell, buy: d.buy, baselineBuy: String(d.baselineBuy), floor: String(q.out), block: String(d.block)});
+        if (d.verifyFloor.expected !== String(q.out) || !d.holds || BigInt(d.baselineBuy) < q.out) differ.push({batchId: id, sell: d.sellToken.symbol, buy: d.buyToken.symbol, baselineBuy: d.baselineBuy, floor: String(q.out), receiptSays: d.verifyFloor.expected, holds: d.holds});
       }
     }
     results.I8 = {totalBatchesIndexed: rows.length, outOfStateWindow: outOfWindow, checkedBatches: recent.length, directionsChecked, stateUnavailable, fills, differ: differ.length, examples: differ.slice(0, 5)};
