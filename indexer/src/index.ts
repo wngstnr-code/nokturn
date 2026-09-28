@@ -76,14 +76,37 @@ export async function loadDeployment(c: PublicClient): Promise<Deployment> {
   return {chainId, settlement: record.settlement.toLowerCase(), contracts, fromBlock};
 }
 
-/** Same probe as api/src/chain.ts. A fork answers with the forked chain's id, so the id alone cannot tell. */
+/**
+ * Same probe as api/src/chain.ts. A fork answers with the forked chain's id, so
+ * the id alone cannot tell. Only a node that says it does not know the method
+ * is taken as not a fork. Any other failure is retried and then thrown, because
+ * one dropped request at boot used to read as "not a fork" and the indexer then
+ * refused its own zero confirmations. I5 found it.
+ */
 export async function isFork(c: PublicClient): Promise<boolean> {
-  try {
-    await c.request({method: "anvil_nodeInfo" as never, params: [] as never});
-    return true;
-  } catch {
-    return false;
+  return withRetry(async () => {
+    try {
+      await c.request({method: "anvil_nodeInfo" as never, params: [] as never});
+      return true;
+    } catch (error) {
+      if (unknownMethod(error)) return false;
+      throw error;
+    }
+  });
+}
+
+/**
+ * Measured 28 September 2026. Alchemy answers -32600 "Unsupported method:
+ * anvil_nodeInfo", drpc answers HTTP 400 with no body, and the standard code
+ * is -32601. A 5xx, a 429, a timeout or an internal error is not an answer.
+ */
+function unknownMethod(error: unknown): boolean {
+  for (let e = error as {code?: number; status?: number; message?: string; cause?: unknown} | undefined; e; e = e.cause as typeof e) {
+    if (e.code === -32601) return true;
+    if (e.status === 400 || e.status === 404 || e.status === 405) return true;
+    if (/unsupported method|unknown method|method .*(not found|does not exist|not supported|is not available)/i.test(e.message ?? "")) return true;
   }
+  return false;
 }
 
 export class UnsafeConfirmations extends Error {}
