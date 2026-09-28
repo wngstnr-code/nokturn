@@ -633,7 +633,7 @@ selesainya, dan tidak ada butir yang dianggap selesai tanpa itu.
 | # | Fitur | Selesai kalau |
 |---|---|---|
 | F1 | Fork mainnet 4663 di blok yang dipatok, lewat anvil | `make fork` menyala di laptop ketiganya dengan satu perintah, dan bloknya sama di ketiganya |
-| F2 | Snapshot state, `--dump-state` setelah prewarming pool, token, feed, dan Permit2 | Fork bisa jalan tanpa endpoint hidup, dibuktikan dengan mematikan jaringan |
+| F2 | Snapshot state, `--dump-state` setelah prewarming pool, token, feed, dan Permit2 | Fork bisa jalan tanpa endpoint hidup, dibuktikan dengan mematikan jaringan. **Diganti 28 September 2026, diputuskan Dharu.** Anvil tidak bisa memenuhinya, karena `--dump-state` tidak menyimpan slot yang diambil lazily, sehingga fork yang dimuat ulang menjawab `slot0` lalu nol untuk likuiditas (diukur 20 September 2026). Penggantinya `make snapshot` dan `make revert` di atas fork yang hidup, ditambah RPC archive di `NOKTURN_RPC_MAINNET`. Fork tetap butuh endpoint saat pertama menyala |
 | F3 | Impersonation dan pendanaan akun uji dari pemegang nyata | Lima akun lokal memegang NVDA, AAPL, TSLA, GOOGL, GME, dan USDG dalam jumlah yang muat di exposure cap |
 | F4 | Deploy Nokturn ke fork lokal lewat skrip Wangsit | `deployments/31337.json` terisi dan `Bootstrap` lolos gerbang `StockTokenGate` terhadap token mainnet asli |
 | F5 | `docker-compose` untuk anvil, postgres, coordinator, indexer, dua solver | `make up` lalu `make demo` menghasilkan satu struk batch tanpa langkah manual |
