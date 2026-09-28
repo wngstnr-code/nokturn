@@ -135,7 +135,7 @@ export class Ingest {
 
   private async initial(): Promise<Checkpoint> {
     const start = this.d.fromBlock - 1n;
-    const block = await this.c.getBlock({blockNumber: start});
+    const block = await read(() => this.c.getBlock({blockNumber: start}));
     return {chainId: this.d.chainId, settlement: this.d.settlement, fromBlock: this.d.fromBlock, lastBlock: start, lastHash: block.hash!};
   }
 
