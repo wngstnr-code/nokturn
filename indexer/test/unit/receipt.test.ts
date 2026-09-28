@@ -129,6 +129,31 @@ describe("receipt", () => {
     assert.equal(r.failure!.feeCharged, "0");
   });
 
+  test("only the winning hash is accepted, and a loser replaced without an event says so", async () => {
+    const f = nettedFacts();
+    f.solutions = [
+      {solver: "0xsolverB", solution_hash: "0xfirst", claimed_savings: "0", accepted: true, rejection_reason: null, ...prov(11, 0)},
+      {solver: "0xsolver", solution_hash: "0xhash", claimed_savings: "9", accepted: true, rejection_reason: null, ...prov(12, 0)},
+      {solver: "0xsolverC", solution_hash: "0xlate", claimed_savings: "1", accepted: false, rejection_reason: "not the best", ...prov(13, 0)},
+    ];
+    const r = (await buildReceipt(1_789_893_780n, f, ctx()))!.receipt;
+    assert.deepEqual(
+      r.solutions.map((s) => [s.solutionHash, s.accepted, s.rejectionReason]),
+      [
+        ["0xfirst", false, "replaced by a better solution"],
+        ["0xhash", true, null],
+        ["0xlate", false, "not the best"],
+      ],
+    );
+  });
+
+  test("before a winner is known, the indexed flag stands", async () => {
+    const f = nettedFacts();
+    f.winning = null;
+    const r = (await buildReceipt(1_789_893_780n, f, ctx()))!.receipt;
+    assert.deepEqual(r.solutions.map((s) => s.accepted), [true]);
+  });
+
   test("an unknown batch has no receipt", async () => {
     assert.equal(await buildReceipt(3n, {...nettedFacts(), batch: null}, ctx()), null);
   });

@@ -243,15 +243,24 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
     };
   });
 
-  const solutions: SolutionSummary[] = facts.solutions.map((s) => ({
-    solver: String(s.solver) as Address,
-    solutionHash: String(s.solution_hash) as Hex,
-    claimedSavingsUsd: String(s.claimed_savings),
-    accepted: Boolean(s.accepted),
-    rejectionReason: (s.rejection_reason as string | null) ?? null,
-    submittedAt: Number(s.block_timestamp),
-    provenance: provenanceOf(s, ctx.source),
-  }));
+  // A solution that arrives first and is then beaten is replaced in place,
+  // with no SolutionRejected, so its row still reads accepted. Once the batch
+  // has a winner, only the winning hash is accepted and a loser without a
+  // rejection event is named as replaced. N16.
+  const winningHash = facts.winning ? String(facts.winning.solution_hash).toLowerCase() : null;
+  const solutions: SolutionSummary[] = facts.solutions.map((s) => {
+    const rejected = (s.rejection_reason as string | null) ?? null;
+    const won = winningHash === null ? Boolean(s.accepted) : String(s.solution_hash).toLowerCase() === winningHash;
+    return {
+      solver: String(s.solver) as Address,
+      solutionHash: String(s.solution_hash) as Hex,
+      claimedSavingsUsd: String(s.claimed_savings),
+      accepted: won,
+      rejectionReason: won ? null : (rejected ?? "replaced by a better solution"),
+      submittedAt: Number(s.block_timestamp),
+      provenance: provenanceOf(s, ctx.source),
+    };
+  });
 
   const netted = b.netted_usd === null || b.netted_usd === undefined ? 0n : big(b.netted_usd);
   const routed = b.routed_usd === null || b.routed_usd === undefined ? 0n : big(b.routed_usd);
