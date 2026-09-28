@@ -46,6 +46,34 @@ export function uniformPriceHolds(executedSell: bigint, executedBuy: bigint, sel
 }
 
 /**
+ * Settlement._verify refuses a direction whose baselines sum below the venue's
+ * quote on that direction's whole volume, BaselineBelowVenue. Per intent quotes
+ * each round down and each pay the fee rounded up, so on small tickets their sum
+ * lands a few units under the one quote on the total, measured in the August
+ * replay. The shortfall is added to the fills with the most room under their
+ * executedBuy, which only lowers the savings claimed. Null when the room is not
+ * there, and then the direction cannot be netted.
+ */
+export function raiseToFloor(baselines: readonly bigint[], executedBuys: readonly bigint[], floor: bigint): bigint[] | null {
+  const out = [...baselines];
+  let short = floor - out.reduce((a, b) => a + b, 0n);
+  const byRoom = out.map((_, k) => k).sort((a, b) => {
+    const d = executedBuys[b]! - out[b]! - (executedBuys[a]! - out[a]!);
+    return d > 0n ? 1 : d < 0n ? -1 : a - b;
+  });
+  for (const k of byRoom) {
+    if (short <= 0n) break;
+    const room = executedBuys[k]! - out[k]!;
+    const add = room < short ? room : short;
+    if (add > 0n) {
+      out[k] = out[k]! + add;
+      short -= add;
+    }
+  }
+  return short > 0n ? null : out;
+}
+
+/**
  * The savings verify returns. Floored per execution inside the loop, exactly as
  * the contract does, never once over the total.
  */
