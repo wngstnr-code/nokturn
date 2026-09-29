@@ -12,8 +12,11 @@ PowerShell.
 
 ## 1. Sebelum menyalakan
 
-**RPC archive.** Fork butuh state di blok patokan 67.798.044, dan drpc sejak
-26 September 2026 hanya melayani `latest`. Isi `.env` di root repo, yang tidak pernah
+**RPC archive.** Fork butuh state di blok patokan 67.798.044. Jangkauan drpc sudah
+berubah tiga kali, yaitu jendela 20 sampai 40 ribu blok pada 16 September 2026, hanya
+`latest` pada 26 September, dan riwayat penuh pada 29 September. Hari itu `make fork`,
+`deploy`, `fund`, dan seluruh fork test jalan di atas drpc. Karena perilakunya tidak
+stabil, jangan bergantung padanya. Isi `.env` di root repo, yang tidak pernah
 di-commit, dengan satu baris ini.
 
 ```
