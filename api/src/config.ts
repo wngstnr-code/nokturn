@@ -154,8 +154,13 @@ export function loadTestnetTokens(): ChainFile {
  * every solver needs the indexer. Until that lands the board reports the two the
  * demo runs, read from infra/accounts.json, and says nothing about solvers it
  * has not been told about rather than pretending the set is complete.
+ *
+ * Those are anvil accounts, so they mean something on the fork only. On mainnet
+ * or testnet the board stays empty rather than listing addresses that never
+ * bonded there.
  */
-export function loadKnownSolvers(): {address: `0x${string}`; label: string}[] {
+export function loadKnownSolvers(isFork: boolean): {address: `0x${string}`; label: string}[] {
+  if (!isFork) return [];
   const path = join(REPO_ROOT, "infra", "accounts.json");
   if (!existsSync(path)) return [];
   const accounts = JSON.parse(readFileSync(path, "utf8")) as {solverA?: string; solverB?: string};
