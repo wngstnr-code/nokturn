@@ -70,6 +70,7 @@ contracts/broadcast/
 # Backend local artefacts. infra/pinned-block.json and infra/accounts.json are
 # committed on purpose, the rest is produced by a run on one laptop.
 infra/fork-deployment.json
+infra/.mainnet-record.json
 infra/chain.json
 infra/.snapshot-id
 # Regenerated from the live deployment by `make postman`, so the addresses in it

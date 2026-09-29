@@ -45,9 +45,11 @@ dan setiap solusi revert dengan `OracleUnhealthy`. Jadi fork yang tidak bisa
 menjalankan `SetFeeds` adalah fork yang tidak bisa menyelesaikan satu batch pun.
 
 Akibatnya `Deploy.s.sol` menulis ke `contracts/deployments/4663.json`, yaitu
-jalur yang sama dengan catatan mainnet sungguhan. `deploy.sh` menolak jalan kalau
-berkas itu sudah ter-commit, dan memindahkannya ke `infra/fork-deployment.json`
-begitu urutannya selesai. Backend membaca yang di `infra/`.
+jalur yang sama dengan catatan mainnet sungguhan, yang ter-commit sejak Wangsit
+deploy ke mainnet pada 29 September 2026. `deploy.sh` dan `lock.sh` menyisihkan
+catatan mainnet ke `infra/.mainnet-record.json` selama skrip Wangsit berjalan, lalu
+mengembalikannya saat keluar, termasuk saat gagal. Catatan fork dipindahkan ke
+`infra/fork-deployment.json`, dan backend membaca yang di `infra/`.
 
 ## Urutan deploy berbeda satu langkah dari runbook, dan itu disengaja
 

@@ -21,14 +21,8 @@ CHAIN="$(cast chain-id --rpc-url "$FORK_RPC")"
 [ "$CHAIN" = "4663" ] || die "fork reports chain id $CHAIN, expected 4663"
 
 # Deploy.s.sol writes deployments/<chainid>.json, and on this fork that is the
-# same path a real mainnet deploy would write. Refuse rather than overwrite it.
-if [ -f "$CHAIN_RECORD" ]; then
-  if git -C "$REPO_ROOT" ls-files --error-unmatch "contracts/deployments/4663.json" >/dev/null 2>&1; then
-    die "contracts/deployments/4663.json is committed, which means mainnet is deployed. back it up and remove it before running a fork deploy"
-  fi
-  warn "leftover contracts/deployments/4663.json from an earlier fork run, removing"
-  rm -f "$CHAIN_RECORD"
-fi
+# path of the committed mainnet record. It is parked and put back on exit.
+borrow_chain_record
 
 export NOKTURN_TREASURY="$TREASURY"
 export NOKTURN_GUARDIAN="$GUARDIAN"
@@ -54,7 +48,7 @@ run_script SetFeeds "$PROPOSER"
 cp "$CHAIN_RECORD" "$FORK_RECORD"
 # Taken back out of the contracts tree so it can never be committed as if it were
 # a mainnet record. The backend reads infra/fork-deployment.json.
-rm -f "$CHAIN_RECORD"
+return_chain_record
 
 log "wrote $FORK_RECORD"
 node -e '
