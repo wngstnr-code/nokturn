@@ -67,6 +67,13 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
     uint16 internal constant MIN_SAVINGS_BPS = 1;
     uint16 internal constant SOLVER_SHARE_OF_FEE_BPS = 7500; // 15 of the 20
 
+    /// parameter.md section 6. Enforced rather than merely written down, so a leaked
+    /// timelock key cannot open the caps without limit. There is no floor, because a
+    /// zero cap only refuses new batches.
+    uint256 public constant CAP_PER_BATCH_CEILING = 500_000e18;
+    uint256 public constant CAP_PER_TOKEN_DAILY_CEILING = 5_000_000e18;
+    uint256 public constant CAP_GLOBAL_DAILY_CEILING = 20_000_000e18;
+
     ISessionManager public immutable sessions;
     IPriceOracle public immutable oracle;
     IClearingVerifier public immutable verifier;
@@ -173,6 +180,11 @@ contract Settlement is ISettlement, Guarded, ReentrancyGuard {
         external
         onlyGovernor
     {
+        if (perBatch > CAP_PER_BATCH_CEILING) revert ExposureCapOutOfRange("batch", perBatch);
+        if (perTokenDaily > CAP_PER_TOKEN_DAILY_CEILING) {
+            revert ExposureCapOutOfRange("token", perTokenDaily);
+        }
+        if (globalDaily > CAP_GLOBAL_DAILY_CEILING) revert ExposureCapOutOfRange("global", globalDaily);
         capPerBatchUsd = perBatch;
         capPerTokenDailyUsd = perTokenDaily;
         capGlobalDailyUsd = globalDaily;

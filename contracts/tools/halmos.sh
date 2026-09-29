@@ -36,19 +36,29 @@
 # is not promised to stay that way. It was measured against z3, bitwuzla and cvc5 on
 # 20 September 2026 and all four stop in the same place, so this is about the run
 # being reproducible rather than about yices being faster. rencana-uji.md 4.1.
+#
+# RoundingProofs is the exception and runs on cvc5-int. It reasons over integers,
+# where dividing by a constant is linear, and it closes the floor lemma at full
+# width where all four bitvector solvers time out. Measured 29 September 2026, after
+# it refuted three deliberately false statements. halmos downloads the pinned cvc5
+# itself on first use. The other contracts stay on yices so their measured times
+# still mean what rencana-uji.md says they mean.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 FOUNDRY_PROFILE=halmos forge build --force >/dev/null
 
-for contract in ClearingMathProofs AuctionMathProofs SessionProofs GuardianProofs; do
-  echo "== $contract"
+for entry in ClearingMathProofs:yices AuctionMathProofs:yices SessionProofs:yices GuardianProofs:yices \
+  RoundingProofs:cvc5-int; do
+  contract="${entry%%:*}"
+  solver="${entry#*:}"
+  echo "== $contract ($solver)"
   FOUNDRY_PROFILE=halmos halmos \
     --contract "$contract" \
     --function testFuzz \
     --loop 8 \
-    --solver yices \
+    --solver "$solver" \
     --solver-timeout-assertion 900000 \
     "$@"
 done

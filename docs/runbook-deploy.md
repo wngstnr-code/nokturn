@@ -133,7 +133,7 @@ sama, jangan ditunda.
 ## Langkah empat, sumber harga, dua hari setelahnya
 
 ```bash
-forge script script/SetFeeds.s.sol:SetFeeds --rpc-url $RPC --account nokturn --broadcast
+forge script script/SetFeeds.s.sol:SetFeeds --rpc-url $RPC --account <proposer> --broadcast
 ```
 
 Feed sengaja tidak ikut `Bootstrap`. Bootstrap berjalan saat delay masih nol, dan
@@ -397,6 +397,121 @@ selama demo dan menyalakannya lagi saat keluar, termasuk saat gagal.
 automine, jadi node yang disuruh automine dulu lalu diberi interval nol berhenti
 menambang sama sekali dan setiap transaksi menggantung, bukan revert.
 
+## Mainnet 4663, 29 September 2026
+
+Deploy, Bootstrap, dan Lock selesai di hari yang sama dengan gladi keenam, dari kode
+yang sama. Dua gerbang §10 dilewati dengan sengaja, lihat bagian gerbang di akhir
+dokumen ini.
+
+| Kontrak | Alamat |
+|---|---|
+| `TimelockController` | `0x578368Fff29f855A44f6535a07C75fb8dFF9b473` |
+| `SessionManager` | `0x28bc715F1B0c5c22133A6767B1b6F01bEA7BF75D` |
+| `ClearingVerifier` | `0xcA49295aa440F6ff76102Ca7eD7F746e7515d219` |
+| `PriceOracle` | `0x6AFD60892bf88E0b36ce0b2F7B143CFd12A0935c` |
+| `SolverRegistry` | `0x1003F2A873F86af103cAca69201445b25705b25a` |
+| `Settlement` | `0x92075BaA431Cb3A4CeaD3F6E676d26F6c0bCb934` |
+| `AuctionHouse` | `0x8E3e3e9c0a91e8a4be68F3B558D4843bCF86450b` |
+| `AgentMandate` | `0xf2DB7fdc6DCc90A6Aa4cD66AE7A81C1b0Dd32eaD` |
+| `UniswapV3Adapter` | `0x179452d18FaF107F50e08422C8Dd5be39a353C19` |
+
+| Peran | Keystore | Alamat |
+|---|---|---|
+| Deployer | `nokturn-mainnet` | `0x10B19379131a5b4590903187E5ec7b304C74F633` |
+| Proposer dan executor | `nokturn-mainnet-gov` | `0x3EBC27c8Cc6408ea2fC8b649508B3B095F929E5d` |
+| Treasury | `nokturn-treasury` | `0x5d0aacA3933388454a916662CFD429458cb36A0d` |
+| Guardian | `nokturn-guardian` | `0xfa15dD037d1f6c0F8288dD1b530dd4F3f01eEB99` |
+
+Proposer mainnet adalah kunci baru, terpisah dari `nokturn-gov` yang dipakai di
+testnet, sesuai aturan dua kunci di atas.
+
+| Langkah | Gas | Biaya |
+|---|---|---|
+| `Deploy`, 9 kontrak dalam dua kali kirim | 26.026.570 | 0,00052720 ETH |
+| `Bootstrap`, 22 panggilan | 4.134.629 | 0,00008396 ETH |
+| `Lock` | 115.270 | 0,00000234 ETH |
+
+Totalnya 30.276.469 gas dan 0,00061349 ETH, sekitar $1,68 pada ETH $2.733. Base fee
+berkisar 0,0200 sampai 0,0204 gwei, dua kali testnet.
+
+**Yang dibuktikan dengan membaca rantai.** `VerifyDeployment` 47 dari 47, `every check
+passed`. Sourcify mencatat kesembilannya `match`, dikonfirmasi lewat API per alamat.
+Pemantau melaporkan `M4` di kelima token, dan itu benar sampai `SetFeeds` dieksekusi,
+karena oracle belum punya feed.
+
+**Estimasi gas mainnet 29 persen di atas testnet.** Deploy yang sama diperkirakan
+35,5 juta gas di mainnet dan 27,4 juta di testnet. Pemakaian nyatanya hampir sama,
+26,0 juta lawan 20,7 juta. Anggarkan saldo dari estimasi mainnet, bukan dari angka
+gladi.
+
+**Plafon fee yang terlalu mepet menghentikan deploy di tengah.** Dengan
+`--with-gas-price` 0,022 gwei, base fee melonjak ke 0,0221 lalu 0,0276 dan empat
+kontrak pertama saja yang mendarat. `--resume` dengan plafon 0,026 gwei mengirim lima
+sisanya ke alamat yang sama. Tidak ada yang hilang, tapi selama jeda itu timelock
+berdiri dengan delay nol. Pakai plafon setidaknya 50 persen di atas base fee.
+
+**drpc mainnet berhenti melayani state di nomor blok di tengah hari.** Pagi harinya
+ia menjawab riwayat penuh, sorenya menolak dengan pesan yang sama seperti testnet.
+Deploy berjalan lewat proxy lokal ke `rpc.mainnet.chain.robinhood.com` di IP aslinya
+`172.66.147.70`.
+
+**Pemantau membawa kursor testnet ke mainnet.** File kursornya satu untuk semua chain,
+jadi run mainnet pertama membaca dari blok 126 juta di chain yang head-nya 75 juta dan
+tidak membaca apa pun. Sejak hari ini kursornya satu file per chain, dan kursor di atas
+head ditolak dengan peringatan.
+
+`SetFeeds` dijadwalkan 29 September 2026 di blok 75.702.583, transaksi
+`0x062c17ef0d8406192c8ab2a844699aeb3e75afe6ee91565667190d5b563d252b`, 153.368 gas.
+Ia bisa dieksekusi mulai 1 Oktober 2026 pukul 13.45.39 UTC. Sebelum itu oracle tidak
+punya harga dan tidak ada batch yang bisa selesai.
+
+## Gladi resik testnet 46630, keenam, 29 September 2026
+
+Digelar ulang karena `Settlement` berubah. `setExposureCaps` sekarang menolak nilai di
+atas plafon `parameter.md` §6, jadi bytecode angkatan kelima tidak lagi berasal dari
+sumber di repo. Umpan testnet tidak ikut diganti.
+
+| Kontrak | Alamat |
+|---|---|
+| `TimelockController` | `0x9EF56008c65061319De8cF5eD78793d4b6a79d3e` |
+| `SessionManager` | `0x6cb5ea86251367bA0fb542787203116F6e054c80` |
+| `ClearingVerifier` | `0x2A49E9Fe2A69038ECd94890D44AEf89eF89Ba445` |
+| `PriceOracle` | `0x31569a806c6D09e04a69AE883A134336E1F8FB21` |
+| `SolverRegistry` | `0xe3F17fbe35b81cE4d3E1e74591d7919bFf8D5196` |
+| `Settlement` | `0xEa3Fa76a9DE819dD98bAC8773cD1027D3D09EEB9` |
+| `AuctionHouse` | `0x176147FcfC926f5200e4591F119AF0115199d599` |
+| `AgentMandate` | `0x2f63a69a626753aEF14273aE418224CAB6eF8B07` |
+| `UniswapV3Adapter` | `0xb7d1A3A14d8d3D393b6093e73A9C4aaA0b7e32b7` |
+
+| Langkah | Gas | Biaya | Perkiraan script | Rasio |
+|---|---|---|---|---|
+| `Deploy`, 9 kontrak | 20.719.000 | 0,00020719 ETH | 27.447.294 | 75% |
+| `Bootstrap`, 22 panggilan | 4.269.431 | 0,00004269 ETH | 6.091.598 | 70% |
+| `Lock` | 137.436 | 0,00000137 ETH | 173.848 | 79% |
+
+Totalnya 25.125.867 gas dan 0,00025126 ETH. `Settlement` naik dari 4.838.119 ke
+**4.916.667** gas, selisih 78.548 atau 1,6 persen, harga dari tiga konstanta plafon
+dan tiga pemeriksaannya. Runtime-nya 19.960 byte dari 24.576, jadi marginnya 4.616.
+
+**Yang dibuktikan dengan membaca rantai.** `VerifyDeployment` menjalankan 47
+pemeriksaan dan hasilnya `every check passed`. Enam di antaranya baru, yaitu ketiga
+cap peluncuran dan ketiga plafonnya, dibaca dari kontrak dan bukan dari catatan.
+Sourcify mencatat kesembilannya `match`, dikonfirmasi lewat API per alamat. Pemantau
+melaporkan `M1` sampai `M3` bersih dan `M4` menyala di kelima token, sama seperti
+lima angkatan sebelumnya.
+
+**drpc testnet berhenti melayani state di nomor blok.** Ia menjawab `latest` tapi
+menolak setiap permintaan di blok tertentu dengan `Unknown state. First available
+state is 1`. `forge script` selalu mem-fork di nomor blok, jadi simulasi pun tidak
+bisa jalan. Endpoint resmi lewat IP aslinya `172.66.147.70` menjawab dengan benar,
+tapi forge tidak punya `--resolve`. Yang dipakai adalah proxy lokal sementara di
+`127.0.0.1:8546` yang meneruskan ke IP itu dengan nama TLS
+`rpc.testnet.chain.robinhood.com`. Proxy-nya tidak di-commit. Alternatifnya satu
+baris di `/etc/hosts`.
+
+Deployer adalah keystore `nokturn-testnet` di `0xcf9d130498657617b26e119d27cdc469f7d6b8c4`,
+proposer adalah `nokturn-gov` di `0xF7354707BC51d1299B19c43B8B3cc79420Bc9c7B`.
+
 ## Gladi resik testnet 46630, kelima, 22 September 2026
 
 Digelar ulang karena `Settlement` berubah, dan `SolverRegistry` sudah berubah
@@ -654,5 +769,13 @@ testnet sekarang ikut dicegat DNS ISP Indonesia, lihat `parameter.md` §10.6.
 ## Gerbang sebelum mainnet
 
 `rencana-uji.md` §10 adalah daftarnya, dan deploy mainnet hanya jalan kalau semuanya
-hijau. Per hari ini sepuluh dari empat belas tercentang. Testnet 46630 tidak menunggu
+hijau. Per 29 September 2026 dua belas dari empat belas tercentang.
+
+**Pengecualian, 29 September 2026.** Pemilik proyek, Wangsit, memutuskan deploy
+mainnet dijalankan sebelum dua gerbang terakhir hijau, dan melewatinya dengan sengaja.
+Yang terbuka adalah Halmos, dengan pembagian quote lewat `tokenOf` dan `sessionAt`
+belum terbukti penuh, serta audit provenansi §11 bagian frontend. Yang membatasi
+kerugian selama keduanya terbuka adalah exposure cap `parameter.md` §6, yaitu $5.000
+per batch dan $200.000 global per hari, yang plafonnya ditegakkan di kontrak sejak hari
+yang sama. Kedua gerbang tetap dikerjakan setelah deploy, bukan dicoret. Testnet 46630 tidak menunggu
 itu, karena ia gladi resik dan tokennya token uji. Sebut begitu apa adanya.

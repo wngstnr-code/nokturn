@@ -72,6 +72,39 @@ contract VerifyDeployment is Script {
         } else {
             _uintIs("registry minBond", d.solvers, abi.encodeWithSignature("minBond()"), floor);
         }
+        _uintIs(
+            "settlement capPerBatchUsd", d.settlement, abi.encodeWithSignature("capPerBatchUsd()"), 5000e18
+        );
+        _uintIs(
+            "settlement capPerTokenDailyUsd",
+            d.settlement,
+            abi.encodeWithSignature("capPerTokenDailyUsd()"),
+            50_000e18
+        );
+        _uintIs(
+            "settlement capGlobalDailyUsd",
+            d.settlement,
+            abi.encodeWithSignature("capGlobalDailyUsd()"),
+            200_000e18
+        );
+        _uintIs(
+            "settlement CAP_PER_BATCH_CEILING",
+            d.settlement,
+            abi.encodeWithSignature("CAP_PER_BATCH_CEILING()"),
+            500_000e18
+        );
+        _uintIs(
+            "settlement CAP_PER_TOKEN_DAILY_CEILING",
+            d.settlement,
+            abi.encodeWithSignature("CAP_PER_TOKEN_DAILY_CEILING()"),
+            5_000_000e18
+        );
+        _uintIs(
+            "settlement CAP_GLOBAL_DAILY_CEILING",
+            d.settlement,
+            abi.encodeWithSignature("CAP_GLOBAL_DAILY_CEILING()"),
+            20_000_000e18
+        );
     }
 
     /// @dev The references that cannot be changed after deployment, read back from

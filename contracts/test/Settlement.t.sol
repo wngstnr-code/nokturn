@@ -520,6 +520,52 @@ contract SettlementTest is SettlementFixture {
         settlement.setExposureCaps(1, 2, 3);
     }
 
+    function test_exposureCapsCannotPassTheirCeilings() public {
+        uint256 batchCeiling = settlement.CAP_PER_BATCH_CEILING();
+        uint256 tokenCeiling = settlement.CAP_PER_TOKEN_DAILY_CEILING();
+        uint256 globalCeiling = settlement.CAP_GLOBAL_DAILY_CEILING();
+
+        vm.startPrank(governor);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettlement.ExposureCapOutOfRange.selector, bytes32("batch"), batchCeiling + 1
+            )
+        );
+        settlement.setExposureCaps(batchCeiling + 1, tokenCeiling, globalCeiling);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettlement.ExposureCapOutOfRange.selector, bytes32("token"), tokenCeiling + 1
+            )
+        );
+        settlement.setExposureCaps(batchCeiling, tokenCeiling + 1, globalCeiling);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISettlement.ExposureCapOutOfRange.selector, bytes32("global"), globalCeiling + 1
+            )
+        );
+        settlement.setExposureCaps(batchCeiling, tokenCeiling, globalCeiling + 1);
+
+        settlement.setExposureCaps(batchCeiling, tokenCeiling, globalCeiling);
+        assertEq(settlement.capPerBatchUsd(), batchCeiling, "the ceiling itself is allowed");
+        assertEq(settlement.capPerTokenDailyUsd(), tokenCeiling);
+        assertEq(settlement.capGlobalDailyUsd(), globalCeiling);
+
+        settlement.setExposureCaps(0, 0, 0);
+        assertEq(settlement.capPerBatchUsd(), 0, "zero is allowed, it only refuses new batches");
+        vm.stopPrank();
+    }
+
+    function test_launchCapsMatchParameterSection6() public view {
+        assertEq(settlement.capPerBatchUsd(), 5000e18);
+        assertEq(settlement.capPerTokenDailyUsd(), 50_000e18);
+        assertEq(settlement.capGlobalDailyUsd(), 200_000e18);
+        assertEq(settlement.CAP_PER_BATCH_CEILING(), 500_000e18);
+        assertEq(settlement.CAP_PER_TOKEN_DAILY_CEILING(), 5_000_000e18);
+        assertEq(settlement.CAP_GLOBAL_DAILY_CEILING(), 20_000_000e18);
+    }
+
     /// parameter.md section 4C. Nothing on chain used to check the baseline a solver
     /// claimed, and savings is what picks the winner and sets the fee cap. These
     /// four hold the floor that closes it.
