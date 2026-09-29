@@ -15,9 +15,13 @@ execution so anyone can recompute it from pool state at the same block.
 
 ## Status
 
-Design is complete and implementation started on 14 September 2026, the first day
-the buildathon Code of Conduct allows code. Nothing is deployed yet. This README
-describes what is being built, not what is running.
+Implementation started on 14 September 2026, the first day the buildathon Code of
+Conduct allows code. The contracts were deployed to Robinhood Chain mainnet on
+29 September 2026 and verified on Sourcify. Settlement lives at
+`0x92075BaA431Cb3A4CeaD3F6E676d26F6c0bCb934`. Batches can settle on mainnet once the
+price feeds, scheduled through the 48 hour time-lock, go live on 1 October 2026.
+Until then every number the backend produces comes from a mainnet fork pinned at
+block 67,798,044, and each response says so.
 
 The design documents in `docs/` are the working record from the research phase
 that ran through August and early September 2026. They are published as written,
@@ -112,16 +116,37 @@ closed.
 ## Repository layout
 
 ```
-contracts/     Foundry. Settlement, SessionManager, SolverRegistry,
-               AuctionHouse, AgentMandate, PriceOracle, adapters
-verifier/      Stylus. Rust clearing verifier, pending a benchmark
-               against the Solidity implementation
-solver/        TypeScript reference solver and intent coordinator
-app/           Next.js
-analytics/     Dune queries and backtest scripts
-data/          Dune SQL mirrors and the NYSE session calendar
-docs/          Design documents and the research record
+contracts/          Foundry project, owned by the on-chain side
+  src/              Settlement, SessionManager, ClearingVerifier, PriceOracle,
+                    SolverRegistry, AuctionHouse, ClosingPrintFeed,
+                    AgentMandate, MandateAccount, Guarded
+  src/adapters/     UniswapV3Adapter, the only venue in v1.0
+  script/           Deploy, Bootstrap, Lock, SetFeeds, VerifyDeployment
+  test/             Unit, fuzz, invariant, fork, Halmos and Echidna suites
+  deployments/      Deployed addresses per chain, 4663 mainnet and 46630 testnet
+api/                Intent coordinator API, Fastify, REST and WebSocket
+solver/             Reference solver, recovery, and the auction keeper
+indexer/            Event indexer into PostgreSQL, serves batch receipts
+packages/shared/    ABIs and types shared by the API, solver and indexer
+analytics/          Replay of real August 2026 trades for the netting backtest
+verifier/           Rust clearing verifier and the differential harness
+infra/              Docker Compose, mainnet fork, deploy scripts, Postman
+app/                Next.js frontend
+data/               Dune SQL mirrors and the NYSE session calendar
+docs/               Design documents and the research record
+tools/              Prose gate and fork demo helpers
 ```
+
+## Technology
+
+| Layer | Stack |
+|---|---|
+| Smart contracts | Solidity 0.8.28, Foundry 1.8.3, OpenZeppelin Contracts 5.7.0, Permit2, Uniswap V3, Chainlink Data Feeds |
+| Backend | Node.js 22 or newer, TypeScript, Fastify 5, viem 2, PostgreSQL 18, pnpm 9.15.4 |
+| Frontend | Next.js 15, React 19, wagmi 2, viem 2 |
+| Verification | Rust with revm and the Stylus SDK for the differential verifier, Slither, Aderyn, Echidna, Halmos |
+| Testing and operations | Anvil mainnet fork, Postman and Newman, Docker Compose, GitHub Actions |
+| Data | Dune, over indexed Robinhood Chain tables |
 
 ## Chain
 
@@ -135,8 +160,18 @@ against a mainnet fork with real pools, real tokens, and real prices.
 
 ## Team
 
-Wangsit on contracts, Dharu on backend, Nabil on frontend. Built for the Arbitrum
-Open House Singapore Buildathon.
+Group Nokturn. Built for the Arbitrum Open House Singapore Buildathon.
+
+| Member | Role |
+|---|---|
+| Wangsit Nursyahada | Smart contracts |
+| Dharu Bintang Mahendratama | Backend |
+| Nabil Aufa Danaputra | Frontend |
+
+## Milestone report
+
+The Milestone 1 (Backend) report is in
+[Google Drive](https://drive.google.com/drive/folders/11-DkCsKXMJsj-1Jb4owT-TWUeg_9kd0Y?usp=drive_link).
 
 ## License
 
