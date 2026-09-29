@@ -5,6 +5,7 @@
 // Time comes from blocks. --duration is counted in chain seconds from the head
 // at start, and the process exits on its own when it runs out.
 
+import {writeFileSync} from "node:fs";
 import type {Hex, PublicClient} from "viem";
 import type {HDAccount} from "viem/accounts";
 import type {StreamEvent} from "../../packages/shared/api-types.ts";
@@ -25,6 +26,13 @@ export const MAX_TRACKED = 8;
 
 /** Wall clock backstop past the chain deadline, in case the node stops producing blocks. */
 const TASK_BACKSTOP_MS = Number(SOLUTION_WINDOW + FINALIZE_DEADLINE + 30n) * 1_000;
+
+/**
+ * Set in the compose stack only. The last batch this solver saw open is written
+ * here, and the container healthcheck reads its age, so a solver whose stream
+ * has gone quiet reads unhealthy rather than alive.
+ */
+const HEARTBEAT = process.env.NOKTURN_SOLVER_HEARTBEAT;
 
 export type Outcome =
   | "finalized"
@@ -200,7 +208,10 @@ export async function run(opts: {durationMinutes?: number; profile?: Profile; lo
       log(`stream error ${f.code}: ${f.message}`);
       return;
     }
-    if (f.type === "batch.opened" && f.data.batchId !== null) log(`batch ${f.data.batchId} open, session ${f.data.session}`);
+    if (f.type === "batch.opened" && f.data.batchId !== null) {
+      log(`batch ${f.data.batchId} open, session ${f.data.session}`);
+      if (HEARTBEAT) writeFileSync(HEARTBEAT, `${f.data.batchId}\n`);
+    }
     if (f.type !== "batch.collect_closed" || stopping) return;
     const id = f.data.batchId;
     if (seen.has(id)) return;

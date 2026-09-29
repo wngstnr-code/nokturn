@@ -17,6 +17,11 @@ PIN_FILE="$INFRA_DIR/pinned-block.json"
 ACCOUNTS_FILE="$INFRA_DIR/accounts.json"
 FORK_RECORD="$INFRA_DIR/fork-deployment.json"
 CHAIN_RECORD="$CONTRACTS_DIR/deployments/4663.json"
+# Where the committed mainnet record waits while a fork run borrows its path. It
+# sits under infra/ rather than in a temp dir because the deploy container sees
+# infra/ and contracts/ from the host but has no .git, so a record parked in the
+# container would die with it.
+PARKED_RECORD="$INFRA_DIR/.mainnet-record.json"
 
 log()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m/!\\\033[0m %s\n' "$*" >&2; }
@@ -68,6 +73,35 @@ load_accounts() {
   SOLVER_A="$(json_get "$ACCOUNTS_FILE" solverA)"
   SOLVER_B="$(json_get "$ACCOUNTS_FILE" solverB)"
   export DEPLOYER PROPOSER GUARDIAN TREASURY SOLVER_A SOLVER_B
+}
+
+# Wangsit's scripts read and write deployments/<chainid>.json, and the fork keeps
+# chain id 4663, so a fork run needs the path mainnet's committed record lives at.
+# Park whatever is there, and put it back on every exit, failure included. A park
+# left over from a run that was killed outright is restored first, because the
+# file then sitting at the path is that run's fork record.
+borrow_chain_record() {
+  if [ -f "$PARKED_RECORD" ]; then
+    warn "restoring the mainnet record parked by an earlier run that did not finish"
+    mv -f "$PARKED_RECORD" "$CHAIN_RECORD"
+  fi
+  if [ -f "$CHAIN_RECORD" ]; then
+    mv -f "$CHAIN_RECORD" "$PARKED_RECORD"
+  fi
+  CHAIN_RECORD_BORROWED=1
+  trap return_chain_record EXIT
+}
+
+# Runs twice on a clean exit, once called and once from the trap. Without the
+# flag the second run finds no park and deletes the record the first put back.
+return_chain_record() {
+  [ "${CHAIN_RECORD_BORROWED:-0}" = "1" ] || return 0
+  CHAIN_RECORD_BORROWED=0
+  if [ -f "$PARKED_RECORD" ]; then
+    mv -f "$PARKED_RECORD" "$CHAIN_RECORD"
+  else
+    rm -f "$CHAIN_RECORD"
+  fi
 }
 
 pinned_block() {

@@ -179,8 +179,10 @@ describe("C1 mempool", () => {
     assert.ok(ok, `${whileHeld} ${afterExpiry} ${again.status} ${again.text}`);
   });
 
-  test("C1-7 memory across 20000 intents in 200 batches", {timeout: 60 * 60_000, todo: "KEPUTUSAN D6"}, async () => {
-    const api = await restartApi(g);
+  test("C1-7 memory across 20000 intents in 200 batches", {timeout: 60 * 60_000}, async () => {
+    // A short status retention, so forgetting shows inside one run. D6.
+    const retention = 600n;
+    const api = await restartApi(g, {NOKTURN_API_STATUS_RETENTION_SECONDS: String(retention)});
     const total = Number(process.env.NOKTURN_TORTURE_C17_TOTAL ?? 20_000);
     const perBatch = 100;
     const samples = [{accepted: 0, rss: rssOf(api.pid)}];
@@ -203,8 +205,9 @@ describe("C1 mempool", () => {
       if (accepted % 1000 < perBatch) samples.push({accepted, rss: rssOf(api.pid), batch: batch.batchId});
       await warpTo(BigInt(batch.collectEndsAt) + 1n);
     }
-    // Let the sweep run once more, so every batch but the last is forgotten.
-    await warpTo((await chainNow()) + 400n);
+    // Let the sweep run once more, past the retention, so every status but the
+    // last batch's is forgotten.
+    await warpTo((await chainNow()) + 400n + retention);
     await currentBatch(api);
     samples.push({accepted, rss: rssOf(api.pid), swept: true});
 

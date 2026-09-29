@@ -104,7 +104,10 @@ Known gaps in v1.0, all deliberate:
   metric with open methodology, not an on-chain guarantee. That router cannot be
   quoted on-chain. The on-chain baseline is Uniswap V3 pool state.
 
-Ten residual risks are listed openly in `docs/threat-model.md`.
+Thirteen residual risks are listed openly in `docs/threat-model.md`. Three were
+added on 29 September 2026 from the coordinator torture suite and a fork test. One
+of them, a routed finalize that reverts when the pool moves before it lands, is not
+closed.
 
 ## Repository layout
 

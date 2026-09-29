@@ -636,7 +636,7 @@ selesainya, dan tidak ada butir yang dianggap selesai tanpa itu.
 | F2 | Snapshot state, `--dump-state` setelah prewarming pool, token, feed, dan Permit2 | Fork bisa jalan tanpa endpoint hidup, dibuktikan dengan mematikan jaringan. **Diganti 28 September 2026, diputuskan Dharu.** Anvil tidak bisa memenuhinya, karena `--dump-state` tidak menyimpan slot yang diambil lazily, sehingga fork yang dimuat ulang menjawab `slot0` lalu nol untuk likuiditas (diukur 20 September 2026). Penggantinya `make snapshot` dan `make revert` di atas fork yang hidup, ditambah RPC archive di `NOKTURN_RPC_MAINNET`. Fork tetap butuh endpoint saat pertama menyala |
 | F3 | Impersonation dan pendanaan akun uji dari pemegang nyata | Lima akun lokal memegang NVDA, AAPL, TSLA, GOOGL, GME, dan USDG dalam jumlah yang muat di exposure cap |
 | F4 | Deploy Nokturn ke fork lokal lewat skrip Wangsit | `deployments/31337.json` terisi dan `Bootstrap` lolos gerbang `StockTokenGate` terhadap token mainnet asli |
-| F5 | `docker-compose` untuk anvil, postgres, coordinator, indexer, dua solver | `make up` lalu `make demo` menghasilkan satu struk batch tanpa langkah manual |
+| F5 | `docker-compose` untuk anvil, postgres, coordinator, indexer, dua solver | `make up` lalu `make demo` menghasilkan satu struk batch tanpa langkah manual. **Selesai 28 September 2026.** Tujuh service, urutannya dijaga `service_healthy` dan `service_completed_successfully`, tanpa satu pun tidur. `make demo` menghasilkan batch 1789893480 settled, netting 100 persen, savings 150145992818052994, dan perintah `cast` di struknya dijalankan ulang dengan hasil sama persis. Tiga hal yang menggigit dan sudah diperbaiki, yaitu `data/` tidak ter-mount ke container `deploy` sehingga `Bootstrap` tidak bisa membaca kalender NYSE, `data/backtest` tidak ikut ke image api sehingga route F30 gagal saat boot, dan `NOKTURN_SOLVER_STATE=/state` membuat profil b menulis ke `/state-b` di root image |
 | F6 | Lapisan RPC dengan retry, failover, dan anggaran permintaan | Satu endpoint mati tidak menjatuhkan coordinator, dan lognya menyebut endpoint mana yang dipakai. **Selesai 29 September 2026.** `NOKTURN_API_RPC` menerima beberapa URL dipisah koma, dan yang pertama utama. Diuji dengan endpoint utama mati di `127.0.0.1:9`. API tetap start, dilayani anvil sebagai cadangan, log menyebut host yang melayani, dan health melapor rpc `degraded`. Anggaran per menit hanya memperingatkan, tidak menolak. Perintah `cast` di struk kini memakai `NOKTURN_API_PUBLIC_RPC`, dan API menolak start kalau URL baca membawa path tanpa URL publik, karena path itu adalah key |
 
 Catatan F1. Fork memakai `--fork-block-number` dengan nomor blok **chain ini**, bukan
@@ -678,7 +678,7 @@ ia bukan fitur opsional.
 | F20 | Simulasi kering lewat `eth_call` ke `submitSolution` sebelum mengirim | Tidak ada transaksi terkirim yang akan revert. Terpasang 22 September 2026, simulasi kering lolos untuk routed dan netted, 35 sampai 71 ms dari tutup collect. Pengiriman belum ada, itu F21 |
 | F21 | Siklus hidup kirim dan finalisasi, jendela 10 detik dan tenggat 300 detik | **Selesai 23 September 2026.** Run satu jam, 60 batch diproses, 60 `finalized`, nol `abandoned`, nol `finalize_reverted`. Diverifikasi dari chain (`f21-check.mjs`, bukan ringkasan solver): 60 `SolutionSubmitted`, 60 `BatchSettled`, nol batch menang yang belum final lewat tenggat. Latensi collect-tutup ke receipt submit p50 907 ms, p99 1150 ms (run 10 menit) dan p99 8260 ms (run satu jam, satu batch tertunda karena kontensi RPC lokal, tetap sebelum tenggat) |
 | F22 | Operasi bonding, 500 USDG di `SolverRegistry` | **Selesai 23 September 2026.** `solver/src/preflight.ts`. `isActive` benar untuk solverA dan solverB, keduanya bond 500 USDG. Akun yang tidak di-bond ditolak dengan pesan yang menyebut `make fund` |
-| F23 | Profil solver kedua untuk demo kompetisi | Dua solver mengajukan, yang savings-nya lebih tinggi menang, keduanya terbit di event. **Kode selesai 26 September 2026, belum dijalankan di fork.** `--profile a` adalah solverA yang men-netting dulu. `--profile b` adalah solverB yang merutekan setiap arah dari setiap pasangan ke venue, dengan store sendiri. `make demo-compete` dan `solver/test/fork/compete.test.ts` tertulis, dan penolakan "not the best" hanya diperiksa kalau yang kalah datang belakangan (N16) |
+| F23 | Profil solver kedua untuk demo kompetisi | Dua solver mengajukan, yang savings-nya lebih tinggi menang, keduanya terbit di event. **Dijalankan di fork 28 September 2026 di atas stack compose,** dan terbukti dari chain, bukan dari log solver. Batch 1789893480 memuat dua `SolutionSubmitted` di blok 67798418 dari dua alamat berbeda, yaitu solverB `0xa153d1d2` di `logIndex` 0 dan solverA `0x86d9065c` di `logIndex` 1. SolverA menang dengan savings 150145992818052994, solverB ditolak dengan alasan replaced by a better solution, dan hanya ada satu `SolverScoreUpdated` di seluruh rentang blok itu, untuk solverA. Struk `receipt-demo.json` memuat keduanya di `solutions[]`. `--profile a` adalah solverA yang men-netting dulu. `--profile b` adalah solverB yang merutekan setiap arah dari setiap pasangan ke venue, dengan store sendiri. `make demo-compete` dan `solver/test/fork/compete.test.ts` tertulis, dan penolakan "not the best" hanya diperiksa kalau yang kalah datang belakangan (N16) |
 
 Catatan F15, dan ini rekomendasi yang perlu persetujuan tim karena menyentuh titik
 sinkronisasi 4 di `pembagian-tugas.md`. **Jalur produksi sebaiknya memanggil
@@ -701,7 +701,7 @@ produksi hidup, dan gerbang differential berlaku penuh atas port itu.
 | F25 | Skema tabel sesuai `interfaces.md` §10 | Sembilan tabel terisi dari event, tidak ada kolom yang diisi tebakan. **Selesai 25 September 2026.** `indexer/sql/001_init.sql` memuat sembilan tabel §10 dan tiga tabel pendukung. Semuanya membawa `chain_id`, `block_number`, `tx_hash`, dan `log_index`. Nilai uint256 disimpan sebagai `numeric(78,0)`. I1 menghitung 143 log, sama persis dengan `getLogs` langsung ke anvil |
 | F26 | Kolom provenansi di setiap baris struk | Chain id, nomor blok chain ini, hash transaksi, log index, alamat pool, dan payload `eth_call` untuk menghitung ulang baseline. **Selesai 25 September 2026.** Di M2, tiga dari tiga `castCommand` dijalankan lewat `cast` dan hasilnya sama persis dengan `baselineBuy`. Di I8, tiga fill dihitung ulang dengan `quoteFromState`, dan selisihnya nol |
 | F27 | Metrik turunan | `savings_bps`, `netting_ratio`, `improvement_vs_venue`, `uptime`, dihitung dari event dan bukan dari klaim solver. **Selesai 25 September 2026.** `indexer/src/metrics.ts`, keempatnya dihitung dari tabel dan diuji terhadap contoh yang dihitung tangan. `uptime` versi ini tidak menghitung batch kosong, dan alasannya tertulis di kode |
-| F28 | Kedalaman konfirmasi dan rekonsiliasi | Angka indexer cocok dengan pembacaan langsung kontrak pada blok yang sama. **Kode selesai 26 September 2026, belum dijalankan di fork.** `--confirmations` menolak nol di chain yang bukan fork. `--reconcile` membandingkan hasil batch, pemenang, jumlah fill, total savings, skor kedua solver, allowlist, dan 10 baseline sampel, lalu keluar 1 kalau ada satu saja yang beda. Ambang selisih savings 0 wei, karena kontrak membagi per suku dengan cara yang sama di kedua jalur. SQL-nya sudah diuji ke Postgres sungguhan dengan baris sintetis. I10 sampai I12 tertulis, tapi belum berjalan (N13) |
+| F28 | Kedalaman konfirmasi dan rekonsiliasi | Angka indexer cocok dengan pembacaan langsung kontrak pada blok yang sama. **Dijalankan di fork 28 September 2026 di atas stack compose,** 19 pemeriksaan, 19 cocok, 0 beda, 0 tidak terbaca, termasuk kedua arah baseline per direction pada blok solusi yang menang. `--confirmations` menolak nol di chain yang bukan fork. `--reconcile` membandingkan hasil batch, pemenang, jumlah fill, total savings, skor kedua solver, allowlist, dan 10 baseline sampel, lalu keluar 1 kalau ada satu saja yang beda. Ambang selisih savings 0 wei, karena kontrak membagi per suku dengan cara yang sama di kedua jalur. SQL-nya sudah diuji ke Postgres sungguhan dengan baris sintetis. I10 sampai I12 tertulis, tapi belum berjalan (N13) |
 
 Catatan F26. Ini yang membuat layar Nabil lolos audit provenansi §11. Tanpa payload
 verifikasi yang bisa disalin, tombol salin panggilan verifikasi di `demo.md` §2 tidak
@@ -949,7 +949,7 @@ selesai sebelum test fork-nya hijau.
 | A3 I10 sampai I12 | **Hijau 28 September 2026.** I10 sampai I12 lulus setelah N21 diperbaiki. Setelah replay 5 menit, rekonsiliasi 118 dari 118 cocok. Baseline kini direkonsiliasi per arah, sesuai `parameter.md` §4C |
 | B `make demo-fail` | **Hijau 28 September 2026.** `failure.test.ts` 3 dari 3 dalam satu run, tanpa restart manual. Struknya ada di `infra/.torture/` |
 | C fixture F29 | Selesai 27 September 2026. Kueri `8846173`, 728 trade, `data/replay/august-2026.json` |
-| D `make replay` | **Hijau 28 September 2026.** Replay 5 menit setelah perbaikan N20. 72 dari 72 diterima, nol harness fault, 6 dari 6 batch berstruk, 3 batch netting, netting 1,94 persen, nol `BaselineBelowVenue`. Replay satu jam sebelum perbaikan N20 memberi 6,91 persen dari 50 batch dan belum diukur ulang |
+| D `make replay` | **Hijau 28 September 2026.** Replay 5 menit setelah perbaikan N20. 72 dari 72 diterima, nol harness fault, 6 dari 6 batch berstruk, 3 batch netting, netting 1,94 persen, nol `BaselineBelowVenue`. **Replay satu jam diukur ulang 29 September 2026.** 728 dari 728 diterima, nol harness fault, 61 dari 61 batch berstruk, 34 batch netting, netting 9,26 persen ($2.179 netted, $21.331 dirutekan). Sebelum perbaikan N20, 11 batch revert dan netting 6,91 persen dari 50 batch. Kedua angka replay ini diukur di fork dengan empat kunci lokal, bukan backtest |
 | F `make demo-compete` | **Hijau 28 September 2026.** `compete.test.ts` 2 dari 2. Profil A menang di tiga batch berturut-turut, dan dengan dua intent searah yang pertama masuk menang |
 | G keeper lelang | **Dihentikan setelah G1**, tanpa kode keeper (N17) |
 | E dan H penutup | **Hijau 28 September 2026.** Test unit indexer 18, solver 55, analytics 11. Suite fork indexer 8 dari 8, dengan I9 di-skip karena `fork-demo.sh` tidak menerbitkan event lelang (N17). Suite fork solver 13 dari 13, termasuk E4 yang dulu tidak tuntas. `check-permit2` 3 dari 3, `check-batch` 41 dari 41, `postman-api` 105 dari 105 |
@@ -1087,6 +1087,18 @@ supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
   direproduksi di percobaan berikutnya. Test tidak lagi memakai `anvil_mine`.
 - **Catatan keamanan.** Error anvil memuat URL fork lengkap dengan key RPC. I9 kini
   memotong path URL sebelum hasilnya dicetak, karena hasil test sampai ke log CI.
+- **N25, dicatat 28 September 2026, tidak diperbaiki.** `pnpm lint` di root memanggil
+  `biome check .`, tapi biome tidak pernah jadi dependensi repo ini, jadi perintahnya
+  selalu gagal dengan command not found. Gerbang lint di §6 sebenarnya dijaga
+  `tsc --noEmit` dan `tools/prose-gate.py`, dan keduanya hijau. Ini script yang
+  menyesatkan, bukan gerbang yang bolong. Diserahkan ke setelah submit, karena feature
+  freeze dan karena menambah biome sekarang berarti memformat ulang seluruh repo.
+- **N26, dicatat 28 September 2026, tidak diperbaiki oleh saya.** Commit `e8f2ec4`,
+  yang sudah ada di `main` dan sudah di-push, menyebut nama berkas instruksi AI di
+  badan pesannya. Aturan §11.6 melarang jejak itu di permukaan repo, dan berkasnya
+  sendiri di-gitignore sehingga pembaca melihat rujukan ke berkas yang tidak ada.
+  Memperbaikinya berarti menulis ulang riwayat yang sudah terbit, jadi keputusannya
+  ada di Dharu, bukan di saya.
 
 **Diperbaiki 28 dan 29 September 2026.**
 
@@ -1146,6 +1158,9 @@ dan terakhir `make replay ARGS="--duration 5 --speed 12"` setelah fixture ada.
 
 F32 hijau, F6, dan pengerasan. Setelah hari ini hanya perbaikan bug, uji, dan dokumen.
 
+**M3 tercapai 28 September 2026.** Sejak commit itu satu-satunya perubahan yang masuk
+adalah perbaikan bug packaging F5, dokumen, dan catatan hasil uji. Tidak ada fitur baru.
+
 ### Hari 9, 28 September. M4, audit provenansi
 
 Telusuri setiap field API dan setiap angka yang kamu hasilkan dengan satu pertanyaan
@@ -1158,6 +1173,15 @@ F30 dan F31 dikerjakan hari ini, karena keduanya adalah alat audit itu sendiri.
 Runbook operasi backend, yaitu cara menyalakan, cara membaca log, apa yang dilakukan
 kalau solver diam, dan siapa memanggil apa. Satu perintah demo yang berjalan dari mesin
 bersih.
+
+**M5 tercapai 28 September 2026.** Dibuktikan dengan gladi bersih dari clone kosong,
+bukan dengan membaca runbook. Sebelas menit dari `git clone` sampai struk pertama, nol
+langkah manual di antara `make up` dan `make demo`, perintah `cast` di struk cocok
+sampai wei terakhir, dan `make down` tidak menyisakan apa pun. Di clone yang sama,
+`make check-permit2` 3 dari 3, `make check-batch` 41 dari 41, dan `make postman-api`
+108 dari 108. Dua salah arah di `infra/README.md` yang ditemukan gladi ini sudah
+diperbaiki, yaitu klaim bahwa `.env` tidak perlu diisi dan `pnpm install --dir infra`
+yang tidak cukup untuk `make demo`.
 
 ### Hari 11, 30 September. Buffer
 

@@ -250,6 +250,33 @@ kecil, dan membesarkannya butuh kebohongan. Kalau kecil, katakan kecil
 
 ---
 
+## 3d. Tiga kalimat yang wajib ikut, dari sisi backend, 29 September 2026
+
+Ketiganya harus sama persis di naskah lisan, deck, dan video. Kalau salah satu
+tertinggal, itu temuan audit provenansi, bukan soal gaya.
+
+**1. Layar lelang berasal dari harness, bukan dari keeper yang berjalan sendiri.**
+Keeper lelang backend dihentikan setelah G1 (N17 di `rencana-backend.md`). Layar
+cross penutupan datang dari `tools/fork-auction.sh` milik Wangsit, di fork blok
+66.491.729. Kalimatnya kira kira, *"lelang ini kami jalankan dengan skrip di fork,
+belum dengan keeper yang berjalan sendiri."*
+
+**2. Replay adalah bentuk arus nyata dengan penanda tangan lokal.** Harness replay
+mencetak kalimat ini sendiri di awal setiap run, dan kalimat itu yang dipakai, bukan
+parafrasenya.
+
+```
+replay: trade shape from Dune query 8846173, 728 trades in the off-hours hour from
+2026-08-05T00:00:00.000Z, sizes scaled by 0.253872. signed again by 4 local keys, not
+the original 78 traders. real pools, real tokens and real prices on a fork of mainnet
+4663 pinned at block 67798044. not mainnet
+```
+
+**3. Netting hasil replay bukan angka backtest.** Replay 5 menit di fork memberi
+netting 1,94 persen, dengan empat kunci lokal menggantikan 78 pedagang. Angka backtest
+27 sampai 33 persen berasal dari data Agustus lewat kueri `8595303`. Keduanya tidak
+pernah muncul di satu kalimat, satu slide, atau satu grafik yang sama.
+
 ## 3c. Harness yang sudah ada, 22 September 2026
 
 Dokumen ini ditulis 12 Agustus sebagai rancangan. Sejak 21 September ada skripnya,

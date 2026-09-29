@@ -42,16 +42,49 @@ mesin virtual Docker (WSL), Chrome, dan aplikasi lain. Kalau RAM bebas di bawah 
 proses latar belakang bisa dihentikan sistem di tengah jalan. Batasi WSL lewat
 `C:\Users\<nama>\.wslconfig` berisi `[wsl2]` dan `memory=3GB`, lalu `wsl --shutdown`.
 
-**Port database.** Kalau port 5433 sudah dipakai proyek lain, pakai 5440.
+**Port database.** Bawaannya 5440 di semua tempat, yaitu `db.sh`, compose, indexer,
+dan test fork indexer. Kalau 5440 juga terpakai, pindahkan keduanya bersamaan.
 
 ```
-export NOKTURN_DB_PORT=5440
-export NOKTURN_DATABASE_URL=postgres://nokturn:nokturn@127.0.0.1:5440/nokturn
+export NOKTURN_DB_PORT=5441
+export NOKTURN_DATABASE_URL=postgres://nokturn:nokturn@127.0.0.1:5441/nokturn
 ```
 
 ---
 
-## 2. Urutan menyalakan
+## 2a. Satu perintah, lewat Docker
+
+Jalan tercepat dari clone kosong. Butuh Docker Desktop yang menyala dan `.env` dari
+§1. Semua layanan berjalan di container, dan urutannya dijaga compose.
+
+```
+git submodule update --init --recursive
+pnpm install
+make up
+make demo
+make down
+```
+
+`git submodule` mengambil pustaka kontrak yang dikompilasi container `deploy`.
+`pnpm install` dibutuhkan karena `make demo` berjalan di host. `make up` pertama kali
+membangun empat image dan mengompilasi kontrak, jadi lebih lama dari berikutnya.
+
+**Gladi bersih 28 September 2026.** Clone kosong ke `D:/Lomba/nokturn-clean`, lalu
+kelima perintah di atas diikuti harfiah, tanpa satu pun langkah manual di antara
+`make up` dan `make demo`. Dari clone sampai struk pertama **11 menit**, dengan
+layer image sebagian sudah ter-cache. Di dalamnya `make up` sekitar 7 menit, hampir
+seluruhnya `deploy`, yaitu kompilasi 86 berkas Solidity lewat via-ir ditambah sekitar
+150 transaksi pendanaan pada `--block-time 1`. Perintah `cast` dari struknya
+dijalankan ulang dan hasilnya sama persis dengan `expected`. `make down` tidak
+menyisakan container, volume, maupun network.
+`make logs` mengikuti log semua layanan. `make down` menghapus semua container dan
+volume yang dibuat stack, termasuk database.
+
+Jangan jalankan `make up` bersamaan dengan `make fork` atau `make api`. Keduanya
+memakai port yang sama, dan `make up` menolak jalan kalau fork sudah menjawab di
+port 8545.
+
+## 2. Urutan menyalakan, tanpa Docker
 
 Urutannya penting, karena API menolak start tanpa deployment, dan solver menolak start
 tanpa API.
@@ -130,9 +163,9 @@ berjalan terlewat. Anggap fork sudah tidak bisa dipakai, lalu ulangi §2 dari la
 | Pemeriksaan | Perintah | Hasil terakhir, 28 September 2026 |
 |---|---|---|
 | Rekonsiliasi indexer ke chain | `node indexer/src/index.ts --reconcile` | 118 dari 118 cocok setelah replay |
-| Batch helper dan kontrak sepakat | `make check-batch` | 41 dari 41 |
-| Digest Permit2 | `make check-permit2` | 3 dari 3 |
-| Semua route API | `make postman-api` | 107 dari 107 |
+| Batch helper dan kontrak sepakat | `make check-batch` | 41 dari 41, di clone bersih |
+| Digest Permit2 | `make check-permit2` | 3 dari 3, di clone bersih |
+| Semua route API | `make postman-api` | 108 dari 108, di clone bersih |
 | Test fork indexer | `pnpm -C indexer test:fork` | 8 dari 8, I9 di-skip karena tidak ada event lelang |
 | Test fork solver | `pnpm -C solver test:fork` | 15 dari 15 |
 

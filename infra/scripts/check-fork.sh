@@ -7,6 +7,9 @@
 
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 require_cmd node
+# D1 and D2 ask the upstream about the pinned block, so they need the same
+# archive endpoint the fork itself was started from.
+load_env
 require_fork
 [ -f "$FORK_RECORD" ] || die "no $FORK_RECORD. run: make deploy"
 exec node "$INFRA_DIR/scripts/check-fork.mjs"

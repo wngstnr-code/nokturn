@@ -28,8 +28,12 @@ help:
 	@echo "torture      worst case suite for the coordinator, GROUP=c2 for one group"
 	@echo "torture-soak the two hour soak, run it in the background"
 	@echo "lock         raise the timelock delay to 48h, opt in, freezes parameters"
+	@echo "up           the whole stack in docker, fork to solvers, waits until healthy"
+	@echo "demo         one batch end to end through the stack make up started"
+	@echo "logs         follow every service of the stack"
+	@echo "down         remove every container and volume the stack made"
 	@echo "clean        remove the fork deployment record and the snapshot id"
-	@echo "db-up        start the indexer postgres on 127.0.0.1:5433"
+	@echo "db-up        start the indexer postgres on 127.0.0.1:5440"
 	@echo "db-down      stop it, keeping the data"
 	@echo "db-reset     delete its volume, asks first"
 	@echo "indexer      start the event indexer, ARGS=\"--duration 10\" bounds it"
@@ -38,7 +42,19 @@ help:
 	@echo "expire       expireBatch from another account, BATCH=<batchId>"
 	@echo "replay       play the august fixture through the live stack, ARGS=\"--duration 5\" required"
 
-.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay
+.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo
+
+up:
+	@$(S)/stack.sh up
+
+down:
+	@$(S)/stack.sh down
+
+logs:
+	@$(S)/stack.sh logs
+
+demo:
+	@node $(S)/demo.mjs
 
 # ARGS="--duration 5 --speed 12" plays the fixture's hour in five chain minutes.
 # Needs make api, make solver and make indexer running.

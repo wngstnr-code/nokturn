@@ -41,7 +41,9 @@ fi
 MNEMONIC="${NOKTURN_FORK_MNEMONIC:-spin skill strategy deal rebel image eager original crowd baby inhale calm}"
 
 ARGS=(
-  --host 127.0.0.1
+  # 0.0.0.0 only inside the compose network, where docker-compose.yml still
+  # publishes the port on 127.0.0.1 alone.
+  --host "${NOKTURN_FORK_HOST:-127.0.0.1}"
   --mnemonic "$MNEMONIC"
   --port "$PORT"
   --chain-id 4663

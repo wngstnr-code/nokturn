@@ -15,7 +15,7 @@ export function solverRoutes(app: FastifyInstance) {
   app.get("/v1/solvers", async (): Promise<SolverBoardResponse> => {
     const c = chain();
     const at = await stamp();
-    const known = loadKnownSolvers();
+    const known = loadKnownSolvers(c.isFork);
 
     const solvers: SolverRow[] = await Promise.all(
       known.map(async ({address, label}) => {

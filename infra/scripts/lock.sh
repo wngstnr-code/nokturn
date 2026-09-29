@@ -13,8 +13,9 @@ require_fork
 
 [ -f "$FORK_RECORD" ] || die "no $FORK_RECORD. run: make deploy"
 warn "after this the fork freezes every parameter for 48h of chain time"
+borrow_chain_record
 cp "$FORK_RECORD" "$CHAIN_RECORD"
 ( cd "$CONTRACTS_DIR" && forge script script/Lock.s.sol:Lock \
     --rpc-url "$FORK_RPC" --unlocked --sender "$PROPOSER" --broadcast )
-rm -f "$CHAIN_RECORD"
+return_chain_record
 log "delay raised"

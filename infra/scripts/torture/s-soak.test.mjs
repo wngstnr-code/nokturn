@@ -146,7 +146,8 @@ describe("S soak", () => {
           let booted = null;
           for (let attempt = 1; attempt <= 3 && !booted; attempt += 1) {
             try {
-              booted = await startApi({rpc: g.proxy.url});
+              // A short status retention, so the soak sees forgetting within one process lifetime. D6.
+              booted = await startApi({rpc: g.proxy.url, env: {NOKTURN_API_STATUS_RETENTION_SECONDS: "600"}});
             } catch (error) {
               noteError(`restart attempt ${attempt}`, error);
             }
@@ -243,7 +244,7 @@ describe("S soak", () => {
     });
   }, {timeout: (MINUTES + 20) * 60_000});
 
-  test(`S-1 memory over ${MINUTES} minutes`, {todo: "KEPUTUSAN D6"}, () => {
+  test(`S-1 memory over ${MINUTES} minutes`, () => {
     assert.ok(result.medianSlope !== null, "too few samples per process lifetime to measure, run longer");
     assert.ok(result.flat, "memory keeps growing within a process lifetime");
   });

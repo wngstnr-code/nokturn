@@ -410,7 +410,8 @@ async function d8AbiMatchesBytecode() {
 
 async function main() {
   console.log(`fork      ${FORK}`);
-  console.log(`upstream  ${UPSTREAM}`);
+  // A paid endpoint carries its key in the path, and this output reaches CI logs.
+  console.log(`upstream  ${UPSTREAM.replace(/^(https?:\/\/[^/]+)\/.+$/, "$1/<redacted>")}`);
   console.log(`pinned    ${pin.block}  ${pin.timestampUtc}`);
 
   const snap = await rpc("evm_snapshot", []);

@@ -37,7 +37,7 @@ lengkap dengan blok patokannya.
 | `baselineFloors[]` | Satu kuotasi `quoteFromState` per arah pasangan, di blok induk `submitSolution` | `verifyFloor.castCommand` bisa ditempel, dan `holds` harus benar | FK | Lolos. Ditambahkan 29 September 2026 (N23) |
 | `fills[].verifyBaseline` | Kuotasi venue untuk ukuran fill itu saja | Perintah `cast` di field itu | FK | **Lolos bersyarat.** Di batch rute penuh, angkanya lebih tinggi dari `baselineBuy` karena baseline fill adalah bagian pro rata. Layar harus menampilkan `baselineFloors` sebagai tombol verifikasi, bukan `verifyBaseline` |
 | `fills[].attribution` | Dihitung dari fill dan `VenueRouted` di batch yang sama | Kedua sumber punya tx hash | FK | Lolos |
-| `clearingPrices[]` | Event `ClearingPrice`, dengan `refPrice` dari oracle | Tx hash per baris | FK | Lolos |
+| `clearingPrices[]` | Event `ClearingPrice`, yang dideklarasikan tapi tidak pernah diterbitkan kontrak (N9) | Tidak ada, karena field ini selalu kosong | FK | **Lolos bersyarat.** Tidak ada angka yang dikarang, tapi layar tidak boleh menampilkan bagian harga kliring seolah berisi. Tampilkan dari `fills` atau sembunyikan bagiannya sampai kontrak menerbitkan event itu |
 | `venueRoutes[]` | Event `VenueRouted`, dan `minOut` dari calldata solusi pemenang | Tx hash, alamat pool | FK | Lolos |
 | `solutions[]` | Event `SolutionSubmitted` dan `SolutionRejected` | Tx hash per baris | FK | Lolos. `accepted` diperbaiki 28 September 2026 (N16) |
 | `failure.*` | Alasan di `BatchPassthrough`, `IntentCollectionFailed`, atau `expireBatch` | Tx hash | FK | Lolos |
@@ -62,7 +62,8 @@ lengkap dengan blok patokannya.
 | Kurva netting lawan pangsa, `GET /v1/backtest/netting-curve` | Ekspor eksekusi `01M1KE310E23FY3E5QW4K9WG4A` dari kueri `8595303`, label `BACKTEST` di setiap baris | Q | Lolos, **asal layar memakai route ini** (lihat §5) |
 | Netting 27 sampai 33 persen, 21,4 persen di pangsa 5 persen, 50,1 persen di 100 persen | Kueri `8595303`, baris `off_hours_weekday` | Q | Lolos, selalu disebut **backtest** |
 | Fixture replay, 728 trade | Kueri `8846173`, publik dan permanen, setiap trade membawa tx hash asli | Q | Lolos |
-| Netting hasil replay di fork | Struk replay, empat kunci lokal, fork blok 67.798.044 | FK | **Lolos bersyarat.** Kalimat kejujuran replay wajib ikut, yaitu arus Agustus, kunci lokal, fork, bukan mainnet. Tidak boleh disandingkan dengan angka backtest |
+| Netting hasil replay di fork | Struk replay, empat kunci lokal, fork blok 67.798.044 | FK | **Lolos bersyarat.** Kalimat kejujuran replay wajib ikut, yaitu arus Agustus, kunci lokal, fork, bukan mainnet. Tidak boleh disandingkan dengan angka backtest. Kalimatnya ada di `demo.md` §3d |
+| Layar lelang | `tools/fork-auction.sh` milik Wangsit, fork blok 66.491.729, event `CrossExecuted` | FK | **Lolos bersyarat.** Disebut sebagai harness, bukan keeper yang berjalan sendiri (N17). Pesertanya dompet demo, dan itu diucapkan sebelum layarnya muncul (`demo.md` §3b) |
 
 ## 4. Temuan yang diperbaiki selama audit
 
@@ -88,6 +89,19 @@ Vonis akhirnya milik Nabil.
 | `session/page.tsx` | Membaca `SessionManager` langsung dari chain **testnet 46630**, bukan lewat API | Sebut testnet dengan jelas di layar. F12 meminta layar ini lewat `GET /v1/session` |
 | `allowlist/page.tsx` | Membaca gerbang Stock Token langsung dari mainnet. Sah, karena onchain | Baris 88 menyebut 29,6 juta dolar dan 250 ribu trade Juli 2026 untuk token penyamar GME. Tautkan sumbernya |
 | Semua layar | Grep angka literal tidak menemukan placeholder lain di luar ikon SVG | Jalankan ulang setelah perubahan terakhir |
+
+## 5b. Dijalankan ulang setelah F5, 28 September 2026
+
+§11.4 meminta audit ini diulang untuk setiap field yang berubah. F5 menutup
+packaging, bukan data. Yang berubah hanya tiga hal, yaitu `data/` di-mount ke
+container `deploy`, `data/backtest` ikut ke image api, dan letak store solver
+profil b. Tidak ada field API, struk, atau angka yang berubah bentuk maupun
+sumbernya, jadi tidak ada baris di §1 sampai §3 yang perlu divonis ulang.
+
+Satu hal dikuatkan, bukan diubah. `NOKTURN_API_PUBLIC_RPC` di compose disetel ke
+`http://127.0.0.1:8545`, yaitu fork sebagaimana diterbitkan di mesin yang
+menjalankan demo dan bukan endpoint berbayar. Itu persis kondisi yang membuat
+baris terakhir §1 berstatus lolos bersyarat, dan syaratnya belum hilang.
 
 ## 6. Yang masih harus terjadi sebelum submit
 

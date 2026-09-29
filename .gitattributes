@@ -1,0 +1,6 @@
+# Shell scripts run inside Linux containers as well as Git Bash, and bash in a
+# container stops at the first carriage return. A Windows checkout with
+# core.autocrlf on turned every one of them to CRLF, so they are pinned to LF.
+*.sh text eol=lf
+Makefile text eol=lf
+Dockerfile text eol=lf
