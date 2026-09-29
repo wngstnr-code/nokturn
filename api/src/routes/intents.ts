@@ -36,9 +36,10 @@ import {
 import {badRequest, fail, notFound} from "../errors.ts";
 import {canonicalPayload, escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
 import {publish} from "../events.ts";
-import {admit, counts, openWindow, getByBatch, getByHash, sweep} from "../mempool.ts";
+import {admit, committed, counts, frozenFeed, getByBatch, getByHash, openWindow, sweep, withdraw, withdrawnFrom} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
 import {provenance, stamp, type BlockStamp} from "../provenance.ts";
+import {readFacts, screen} from "../revalidate.ts";
 import {fillFor} from "./batches.ts";
 import {SESSION_NAMES} from "./session.ts";
 
@@ -63,6 +64,17 @@ const DELEGATION_PREFIX = "0xef0100";
  */
 export function isCollectClosed(batchId: bigint, chainTime: bigint): boolean {
   return chainTime > batchId;
+}
+
+/**
+ * Takes out every intent of the batch that Permit2 would refuse at this block.
+ * Only meaningful up to solveEnd, see revalidate.ts, and callers check that.
+ */
+async function screenBatch(batchId: bigint, at: BlockStamp): Promise<void> {
+  const list = [...getByBatch(batchId)];
+  if (list.length === 0) return;
+  const {withdrawn} = screen(list, await readFacts(list, at.number));
+  for (const w of withdrawn) withdraw(w.intentHash, {...w.rejection, provenance: provenance(at)});
 }
 
 export function intentRoutes(app: FastifyInstance) {
@@ -191,6 +203,19 @@ export function intentRoutes(app: FastifyInstance) {
       );
     }
 
+    // What the owner's earlier intents on this token still hold, read now so the
+    // sum below can run with nothing asynchronous between it and admit. A prior
+    // intent whose nonce is spent has already been pulled or burned, and one in
+    // a batch past solveEnd with no winning solution can never be pulled. D4.
+    const prior = committed(intent.owner, intent.sellToken);
+    const priorFacts = prior.length ? await readFacts(prior.map((p) => p.signed)) : null;
+    const unwinnable = new Set<bigint>();
+    for (const batchId of new Set(prior.map((p) => p.batchId))) {
+      if (at.timestamp <= batchId + SOLUTION_WINDOW) continue;
+      const [winner] = await read<[Hex, bigint, Hex]>(c.deployment.settlement, settlementAbi, "bestSolution", [batchId]);
+      if (BigInt(winner) === 0n) unwinnable.add(batchId);
+    }
+
     // Step 8. The window this intent joins, and the same session bit check
     // Settlement._pull makes against collectEnd, contracts/src/Settlement.sol
     // line 387.
@@ -246,6 +271,31 @@ export function intentRoutes(app: FastifyInstance) {
       lookup = await windowAt(now);
     }
 
+    // Recounted here rather than trusting the list read above, because another
+    // request may have admitted an intent for the same owner in between. Such an
+    // intent has no prefetched nonce, so it counts as holding, which errs toward
+    // refusing rather than toward a batch that unwinds.
+    let held = 0n;
+    for (const p of committed(intent.owner, intent.sellToken)) {
+      if (unwinnable.has(p.batchId)) continue;
+      if (priorFacts?.nonceUsed(intent.owner, BigInt(p.signed.intent.nonce))) continue;
+      held += BigInt(p.signed.intent.sellAmount);
+    }
+    if (balance < held + intent.sellAmount) {
+      throw badRequest(
+        "COORDINATOR_INSUFFICIENT_BALANCE",
+        `owner holds ${balance}, of which ${held} is committed to earlier intents, and sellAmount needs ${intent.sellAmount}`,
+        {balance: String(balance), committed: String(held), sellAmount: String(intent.sellAmount)},
+      );
+    }
+    if (allowance < held + intent.sellAmount) {
+      throw badRequest(
+        "COORDINATOR_PERMIT2_NOT_APPROVED",
+        `Permit2 allowance is ${allowance}, of which ${held} is committed to earlier intents, and sellAmount needs ${intent.sellAmount}`,
+        {allowance: String(allowance), committed: String(held), sellAmount: String(intent.sellAmount)},
+      );
+    }
+
     // Step 9. Admitted, and the mempool is the single place both this route
     // and the solver feed read from, so they cannot disagree about who is in.
     const signed: SignedIntent = {
@@ -283,10 +333,16 @@ export function intentRoutes(app: FastifyInstance) {
       if (!HASH_PATTERN.test(raw)) {
         throw notFound("COORDINATOR_INVALID_REQUEST", `not an intent hash: ${raw}`);
       }
-      sweep((await stamp()).timestamp);
+      const now = await stamp();
+      sweep(now.timestamp);
       const stored = getByHash(raw.toLowerCase());
       if (!stored) {
         throw notFound("COORDINATOR_INVALID_REQUEST", `no intent known for ${raw}`);
+      }
+      // Only while collection is open. After that the frozen feed decides, once,
+      // so a status lookup can never change what solvers were already given. N3.
+      if (stored.status === "pending" && !isCollectClosed(stored.batchId, now.timestamp)) {
+        await screenBatch(stored.batchId, now);
       }
 
       const decoded = validateIntentPayload(stored.signed.intent);
@@ -348,6 +404,22 @@ export function intentRoutes(app: FastifyInstance) {
       const collectStart = batchId - BigInt(duration);
       const solveEnd = batchId + SOLUTION_WINDOW;
 
+      // N3. While collecting, screened on every request. Once frozen, screened
+      // once at the first request and served unchanged after. A first request
+      // that only arrives after solveEnd is not screened at all, because by then
+      // finalize may have pulled the funds and every intent would look spent.
+      const frozen = isCollectClosed(batchId, at.timestamp);
+      let intents: SignedIntent[];
+      if (!frozen) {
+        await screenBatch(batchId, at);
+        intents = getByBatch(batchId);
+      } else {
+        intents = await frozenFeed(batchId, async () => {
+          if (at.timestamp <= solveEnd) await screenBatch(batchId, at);
+          return [...getByBatch(batchId)];
+        });
+      }
+
       // One token whose refPrice reverts, FeedNotSet or TwapSourceNotSet, used to
       // take the whole feed down with a 502. It is reported by name instead and
       // the other tokens are still served. A failure that is not a revert is the
@@ -404,10 +476,11 @@ export function intentRoutes(app: FastifyInstance) {
         collectEndsAt: Number(collectEnd),
         solveEndsAt: Number(solveEnd),
         chainTime: Number(at.timestamp),
-        frozen: isCollectClosed(batchId, at.timestamp),
-        intents: getByBatch(batchId),
+        frozen,
+        intents,
         oraclePrices,
         oracleUnavailable,
+        withdrawn: withdrawnFrom(batchId),
         maxDeviationBps,
         provenance: provenance(at),
       };
