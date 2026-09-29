@@ -10,8 +10,11 @@
 // Token addresses are read from the running API rather than from a file, so the
 // collection cannot drift from the deployment the server is actually pointed at.
 
-import {writeFileSync, mkdirSync} from "node:fs";
-import {buildSignedIntent} from "./sign-intent.mjs";
+import {readFileSync, writeFileSync, mkdirSync} from "node:fs";
+import {erc20Abi, toFunctionSelector} from "viem";
+import {chain, settlementAbi} from "../../api/src/chain.ts";
+import {decodeIntent, intentHash} from "../../api/src/permit2.ts";
+import {buildSignedIntent, demoUsers} from "./sign-intent.mjs";
 
 const API = process.env.NOKTURN_API_URL ?? "http://127.0.0.1:3000";
 const here = new URL(".", import.meta.url);
@@ -42,6 +45,34 @@ const FAKE_SIGNATURE = `0x${"11".repeat(32)}${"22".repeat(32)}1b`;
 // than a canned body copied from an old run of this script.
 const badSignatureCase = await buildSignedIntent({signature: FAKE_SIGNATURE});
 const notAllowedCase = await buildSignedIntent({fields: {sellToken: IMPOSTOR}});
+
+// D4. users[3] signs away its whole USDG balance, then one more unit with a
+// different nonce. The first is accepted and holds the balance, the second has
+// nothing left to draw on. Both ask for more NVDA than any price could give, so
+// no solver ever fills them and the fork's balances never move. The hold lasts
+// until its batch closes, and only as long as that when no solver wins it.
+const holder = demoUsers[3];
+const holderBalance = await chain().client.readContract({address: usdg, abi: erc20Abi, functionName: "balanceOf", args: [holder.address]});
+if (holderBalance === 0n) throw new Error(`${holder.address} holds no USDG on this fork, so the D4 case cannot be built. run make fund`);
+const UNFILLABLE = String(10n ** 36n);
+const holdCase = await buildSignedIntent({account: holder, sellAmount: holderBalance, fields: {minBuyAmount: UNFILLABLE}});
+const nonceWords = (await fetch(`${API}/v1/nonces/${holder.address}`).then((r) => r.json())).scannedWords;
+const secondFree = (() => {
+  const taken = BigInt(holdCase.intent.nonce);
+  for (const {word, bitmap} of nonceWords) {
+    for (let bit = 0n; bit < 256n; bit += 1n) {
+      const n = BigInt(word) * 256n + bit;
+      if (n !== taken && (BigInt(bitmap) >> bit) % 2n === 0n) return String(n);
+    }
+  }
+  throw new Error(`no second free nonce for ${holder.address}`);
+})();
+const overdrawCase = await buildSignedIntent({account: holder, sellAmount: 1n, fields: {minBuyAmount: UNFILLABLE, nonce: secondFree}});
+const holdHash = intentHash(decodeIntent(holdCase.intent));
+
+const curveFile = JSON.parse(readFileSync(new URL("../../data/backtest/netting-vs-share-august-2026.json", here), "utf8"));
+const SUBMIT_ONCHAIN = toFunctionSelector(settlementAbi.find((f) => f.type === "function" && f.name === "submitIntentOnchain"));
+const INVALIDATE_NONCES = toFunctionSelector("invalidateUnorderedNonces(uint256,uint256)");
 
 const provenanceChecks = [
   `const p = body.provenance;`,
@@ -142,6 +173,7 @@ const requests = [
       `    pm.expect(body.collectEndsAt - body.collectStartsAt).to.be.above(0);`,
       `  });`,
       `  pm.test("solve window is ten seconds", () => pm.expect(body.solveEndsAt - body.collectEndsAt).to.eql(10));`,
+      `  pm.collectionVariables.set("feedBatch", body.batchId);`,
       `}`,
       `pm.test("intentCount is a real number, not a hardcoded zero", () => pm.expect(typeof body.intentCount).to.eql("number"));`,
     ],
@@ -294,6 +326,199 @@ const requests = [
   },
 ];
 
+requests.push(
+  {
+    name: "root names the network it serves",
+    method: "GET",
+    path: "/",
+    tests: [
+      `pm.test("apiVersion v1", () => pm.expect(body.apiVersion).to.eql("v1"));`,
+      `pm.test("network is one of three", () => pm.expect(["fork", "testnet", "mainnet"]).to.include(body.network));`,
+      `pm.test("chain id matches config", () => pm.expect(body.chainId).to.eql(${config.chainId}));`,
+    ],
+    why: "The one route that is not under /v1. A client pointed at the wrong server finds out here.",
+  },
+  {
+    name: "nonces answers the next free Permit2 nonce with the words it read",
+    method: "GET",
+    path: `/v1/nonces/${holder.address}`,
+    tests: [
+      ...provenanceChecks,
+      `pm.test("next is a decimal string", () => pm.expect(body.next).to.match(/^[0-9]+$/));`,
+      `pm.test("the words it scanned are published", () => pm.expect(body.scannedWords.length).to.be.above(0));`,
+      `pm.test("next is free in the word it lives in", () => {`,
+      `  const n = BigInt(body.next); const w = body.scannedWords.find((x) => BigInt(x.word) === n >> 8n);`,
+      `  pm.expect((BigInt(w.bitmap) >> (n % 256n)) % 2n).to.eql(0n);`,
+      `});`,
+      `pm.collectionVariables.set("nextNonce", body.next);`,
+    ],
+    why: "Permit2 nonces are an unordered bitmap, so a free one can only be found by asking the chain. Nothing can be signed before this answers.",
+  },
+  {
+    name: "nonces with ?nonce= builds the Permit2 cancel, not a Settlement one",
+    method: "GET",
+    path: `/v1/nonces/${holder.address}?nonce={{nextNonce}}`,
+    tests: [
+      `pm.test("an unused nonce reads unused", () => pm.expect(body.cancel.used).to.eql(false));`,
+      `pm.test("the call goes to Permit2", () => pm.expect(body.cancel.to.toLowerCase()).to.eql("${config.contracts.permit2.toLowerCase()}"));`,
+      `pm.test("calldata is invalidateUnorderedNonces", () => pm.expect(body.cancel.data.slice(0, 10)).to.eql("${INVALIDATE_NONCES}"));`,
+      `pm.test("describes what it calls", () => pm.expect(body.cancel.describes).to.eql("Permit2.invalidateUnorderedNonces"));`,
+    ],
+    why: "Settlement has no invalidateNonce whatever the old interface doc says, so a cancel built from the doc would target a function that does not exist.",
+  },
+  {
+    name: "nonces refuses something that is not an address",
+    method: "GET",
+    path: "/v1/nonces/not-an-address",
+    expectStatus: 400,
+    tests: [`pm.test("code is COORDINATOR_INVALID_REQUEST", () => pm.expect(body.code).to.eql("COORDINATOR_INVALID_REQUEST"));`],
+    why: "Validated before any chain read.",
+  },
+  {
+    name: "escape hatch hands back submitIntentOnchain calldata for a valid signature",
+    method: "POST",
+    path: "/v1/intents/escape",
+    body: {intent: notAllowedCase.intent, signature: notAllowedCase.signature},
+    tests: [
+      ...provenanceChecks,
+      `pm.test("the signature checks out", () => pm.expect(body.signatureValid).to.eql(true));`,
+      `pm.test("it goes to Settlement", () => pm.expect(body.to.toLowerCase()).to.eql("${baked}"));`,
+      `pm.test("calldata is submitIntentOnchain", () => pm.expect(body.data.slice(0, 10)).to.eql("${SUBMIT_ONCHAIN}"));`,
+      `pm.test("the intent hash is the one IntentLib computes", () => pm.expect(body.intentHash).to.eql("${intentHash(decodeIntent(notAllowedCase.intent))}"));`,
+      `pm.test("a cast command rides along", () => pm.expect(body.castCommand).to.include("cast send"));`,
+    ],
+    why: "The same intent the coordinator refuses with TokenNotAllowed above. The escape hatch still encodes it, because the hatch exists for exactly the intents a coordinator says no to. F14.",
+  },
+  {
+    name: "escape hatch still hands back the payload when the signature is wrong",
+    method: "POST",
+    path: "/v1/intents/escape",
+    body: {intent: badSignatureCase.intent, signature: FAKE_SIGNATURE},
+    tests: [
+      `pm.test("signatureValid is false", () => pm.expect(body.signatureValid).to.eql(false));`,
+      `pm.test("and the calldata is there anyway", () => pm.expect(body.data.slice(0, 10)).to.eql("${SUBMIT_ONCHAIN}"));`,
+    ],
+    why: "Withholding it would make the hatch one more place the coordinator gets to say no. The chain decides whether the signature is good.",
+  },
+  {
+    name: "escape hatch refuses a body with no signature",
+    method: "POST",
+    path: "/v1/intents/escape",
+    body: {intent: badSignatureCase.intent},
+    expectStatus: 400,
+    tests: [`pm.test("code is COORDINATOR_INVALID_REQUEST", () => pm.expect(body.code).to.eql("COORDINATOR_INVALID_REQUEST"));`],
+    why: "Shape first, as on the main route.",
+  },
+  {
+    name: "D4, an intent selling the owner's whole USDG balance is accepted",
+    method: "POST",
+    path: "/v1/intents",
+    body: {intent: holdCase.intent, signature: holdCase.signature},
+    expectStatus: [200, 409],
+    tests: [
+      `if (pm.response.code === 200) {`,
+      `  pm.test("pending in a batch", () => pm.expect(body.status).to.eql("pending"));`,
+      `  pm.test("the hash is IntentLib's", () => pm.expect(body.intentHash).to.eql("${holdHash}"));`,
+      `} else {`,
+      `  pm.test("a rerun meets its own earlier submission", () => pm.expect(body.code).to.eql("COORDINATOR_DUPLICATE_INTENT"));`,
+      `}`,
+    ],
+    why: `${holder.address} sells all ${holderBalance} USDG units and asks for more NVDA than any price gives, so it holds the balance and never trades. 409 on a second run of the same file is the duplicate check doing its job.`,
+  },
+  {
+    name: "D4, the held intent is still pending",
+    method: "GET",
+    path: `/v1/intents/${holdHash}`,
+    expectStatus: [200, 404],
+    tests: [
+      `const pending = pm.response.code === 200 && body.status === "pending";`,
+      `pm.collectionVariables.set("holdPending", pending ? "yes" : "no");`,
+      `if (pm.response.code === 200) {`,
+      `  pm.collectionVariables.set("feedBatch", body.batchId);`,
+      `  pm.test("carries an escape hatch", () => pm.expect(body.escapeHatch.data.slice(0, 10)).to.eql("${SUBMIT_ONCHAIN}"));`,
+      `}`,
+      `console.log("hold is", pm.response.code === 200 ? body.status : "forgotten");`,
+    ],
+    why: "Once the hold's batch has closed it no longer holds anything, so the next case only asserts while it is pending.",
+  },
+  {
+    name: "D4, a second intent drawing on the same balance is refused",
+    method: "POST",
+    path: "/v1/intents",
+    body: {intent: overdrawCase.intent, signature: overdrawCase.signature},
+    expectStatus: [200, 400, 409],
+    tests: [
+      `if (pm.collectionVariables.get("holdPending") === "yes") {`,
+      `  pm.test("400 COORDINATOR_INSUFFICIENT_BALANCE", () => {`,
+      `    pm.response.to.have.status(400);`,
+      `    pm.expect(body.code).to.eql("COORDINATOR_INSUFFICIENT_BALANCE");`,
+      `  });`,
+      `  pm.test("it names what the earlier intent holds", () => pm.expect(body.detail.committed).to.eql("${holderBalance}"));`,
+      `} else {`,
+      `  pm.test("skipped, the hold's batch has already closed. regenerate with make postman-api", () => {});`,
+      `}`,
+    ],
+    why: "Before D4 was fixed both were accepted, and Permit2 refused the second pull in finalize, unwinding the whole batch. Now the coordinator counts what earlier intents still hold.",
+  },
+  {
+    name: "the solver feed for that batch, with withdrawn intents reported",
+    method: "GET",
+    path: "/v1/batches/{{feedBatch}}/intents",
+    tests: [
+      ...provenanceChecks,
+      `pm.test("frozen is a boolean", () => pm.expect(body.frozen).to.be.a("boolean"));`,
+      `pm.test("intents and withdrawn are both arrays", () => {`,
+      `  pm.expect(body.intents).to.be.an("array");`,
+      `  pm.expect(body.withdrawn).to.be.an("array");`,
+      `});`,
+      `pm.test("every withdrawn intent says why, with an admission code", () => {`,
+      `  for (const w of body.withdrawn) pm.expect(["NonceAlreadyUsed", "COORDINATOR_INSUFFICIENT_BALANCE", "COORDINATOR_PERMIT2_NOT_APPROVED"]).to.include(w.rejection.code);`,
+      `});`,
+      `pm.test("nothing is both served and withdrawn", () => {`,
+      `  const served = new Set(body.intents.map((i) => i.intentHash));`,
+      `  for (const w of body.withdrawn) pm.expect(served.has(w.intentHash)).to.eql(false);`,
+      `});`,
+      `pm.test("USDG is priced like any token, near 1e30 per unit", () => {`,
+      `  const q = body.oraclePrices.find((r) => r.symbol === "USDG");`,
+      `  pm.expect(q, "no USDG row").to.not.eql(undefined);`,
+      `  pm.expect(BigInt(q.price) > 9n * 10n ** 29n && BigInt(q.price) < 11n * 10n ** 29n).to.eql(true);`,
+      `});`,
+      `if (pm.collectionVariables.get("holdPending") === "yes" && !body.frozen) {`,
+      `  pm.test("the held intent is served, it is still collectable", () => pm.expect(body.intents.some((i) => i.intentHash === "${holdHash}")).to.eql(true));`,
+      `}`,
+    ],
+    why: "N3. The feed screens every intent against nonce, balance and allowance at the block it answers, and takes out the ones Permit2 would refuse rather than handing solvers a batch that unwinds.",
+  },
+  {
+    name: "the solver feed refuses a batchId that is not a uint64",
+    method: "GET",
+    path: "/v1/batches/abc/intents",
+    expectStatus: 400,
+    tests: [`pm.test("code is COORDINATOR_INVALID_REQUEST", () => pm.expect(body.code).to.eql("COORDINATOR_INVALID_REQUEST"));`],
+    why: "D11. Refused by name rather than becoming a 502 on the first chain read.",
+  },
+  {
+    name: "the netting curve is labelled BACKTEST in the data, row by row",
+    method: "GET",
+    path: "/v1/backtest/netting-curve",
+    tests: [
+      `pm.test("labelled BACKTEST at the top", () => pm.expect(body.label).to.eql("BACKTEST"));`,
+      `pm.test("and on every row", () => { for (const r of body.rows) pm.expect(r.label).to.eql("BACKTEST"); });`,
+      `pm.test("names Dune query ${curveFile.source.duneQueryId}", () => pm.expect(body.source.duneQueryId).to.eql(${curveFile.source.duneQueryId}));`,
+      `pm.test("rows are the export, unchanged", () => {`,
+      `  const want = ${JSON.stringify(curveFile.rows.map((r) => [r.session, r.sharePct, r.nettingCounterpartyPct, r.nettingGrossPct]))};`,
+      `  pm.expect(body.rows.map((r) => [r.session, r.sharePct, r.nettingCounterpartyPct, r.nettingGrossPct])).to.eql(want);`,
+      `});`,
+      `pm.test("off hours at 10 to 20 percent share is the 27 to 33 the pitch quotes", () => {`,
+      `  const at = (s) => body.rows.find((r) => r.session === "off_hours_weekday" && r.sharePct === s).nettingCounterpartyPct;`,
+      `  pm.expect(Math.round(at(10))).to.eql(27);`,
+      `  pm.expect(Math.round(at(20))).to.eql(33);`,
+      `});`,
+    ],
+    why: "F30. A simulation over real August trades, not a measurement of Nokturn, and the label travels in the data so no screen can drop it. The expected rows are read from data/backtest when this file is generated.",
+  },
+);
+
 const stubs = [{method: "GET", path: "/v1/auctions/1", needs: "an auction"}];
 
 // GET /v1/batches is real since Hari 5. It answers live, so its shape is
@@ -400,9 +625,11 @@ const item = (r, index) => ({
         type: "text/javascript",
         exec: [
           `// ${r.why}`,
-          r.expectStatus
-            ? `pm.test("http ${r.expectStatus}", () => pm.response.to.have.status(${r.expectStatus}));`
-            : `pm.test("http 200", () => pm.response.to.have.status(200));`,
+          Array.isArray(r.expectStatus)
+            ? `pm.test("http ${r.expectStatus.join(" or ")}", () => pm.expect(${JSON.stringify(r.expectStatus)}).to.include(pm.response.code));`
+            : r.expectStatus
+              ? `pm.test("http ${r.expectStatus}", () => pm.response.to.have.status(${r.expectStatus}));`
+              : `pm.test("http 200", () => pm.response.to.have.status(200));`,
           `const body = pm.response.json();`,
           ...r.tests,
         ],
@@ -425,16 +652,17 @@ const collection = {
       "The HTTP surface the frontend codes against. Generated by",
       "infra/scripts/postman-api.mjs against the running server.",
       "",
-      "Chain reads, and the coordinator's own accept and reject paths for",
-      "POST /v1/intents, answer for real. Three routes still answer 503 in the",
-      "frozen error shape because they need the indexer or an open auction.",
-      "None of them invent data. WS /v1/stream is live, and a plain GET on it",
-      "answers 426. Its events are tested by torture group f10, not here.",
+      "Every route the api serves is here. Chain reads, the accept and reject",
+      "paths for POST /v1/intents, the D4 balance hold, the solver feed with its",
+      "withdrawn list, nonces, the escape hatch, receipts and the backtest curve.",
+      "GET /v1/auctions/:id still answers 503 in the frozen error shape, because",
+      "the api does not serve auctions yet. WS /v1/stream is live, and a plain",
+      "GET on it answers 426. Its events are tested by torture group f10.",
       "",
-      "The happy path for submitting an intent does not live here, because",
-      "running this collection twice against the same batch would hit its own",
-      "duplicate. Run make sign-intent for that, and for the two cases that",
-      "mutate fork state, --case nonce-used and --case no-approve.",
+      "Signatures bind the Settlement and the batch this file was generated",
+      "against, so regenerate before each run with make postman-api. The D4 hold",
+      "asks for an impossible amount and never trades, and it holds the signer's",
+      "USDG only until its batch closes. Do not run it during make replay.",
       "",
       `Settlement ${config.contracts.settlement}`,
       `Network ${config.source.kind}`,
@@ -444,6 +672,11 @@ const collection = {
   variable: [
     {key: "api", value: API},
     {key: "settlement", value: ""},
+    // A batch id the contract accepts even if both requests that set it are
+    // skipped, the one M2 settled at the pinned block.
+    {key: "feedBatch", value: "1789893840"},
+    {key: "nextNonce", value: "0"},
+    {key: "holdPending", value: "no"},
   ],
   item: requests.map(item),
 };
