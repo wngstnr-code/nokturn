@@ -133,7 +133,7 @@ sama, jangan ditunda.
 ## Langkah empat, sumber harga, dua hari setelahnya
 
 ```bash
-forge script script/SetFeeds.s.sol:SetFeeds --rpc-url $RPC --account nokturn --broadcast
+forge script script/SetFeeds.s.sol:SetFeeds --rpc-url $RPC --account <proposer> --broadcast
 ```
 
 Feed sengaja tidak ikut `Bootstrap`. Bootstrap berjalan saat delay masih nol, dan
@@ -396,6 +396,73 @@ selama demo dan menyalakannya lagi saat keluar, termasuk saat gagal.
 **Urutan dua panggilan anvil itu penting.** `evm_setIntervalMining 0` ikut mematikan
 automine, jadi node yang disuruh automine dulu lalu diberi interval nol berhenti
 menambang sama sekali dan setiap transaksi menggantung, bukan revert.
+
+## Mainnet 4663, 29 September 2026
+
+Deploy, Bootstrap, dan Lock selesai di hari yang sama dengan gladi keenam, dari kode
+yang sama. Dua gerbang §10 dilewati dengan sengaja, lihat bagian gerbang di akhir
+dokumen ini.
+
+| Kontrak | Alamat |
+|---|---|
+| `TimelockController` | `0x578368Fff29f855A44f6535a07C75fb8dFF9b473` |
+| `SessionManager` | `0x28bc715F1B0c5c22133A6767B1b6F01bEA7BF75D` |
+| `ClearingVerifier` | `0xcA49295aa440F6ff76102Ca7eD7F746e7515d219` |
+| `PriceOracle` | `0x6AFD60892bf88E0b36ce0b2F7B143CFd12A0935c` |
+| `SolverRegistry` | `0x1003F2A873F86af103cAca69201445b25705b25a` |
+| `Settlement` | `0x92075BaA431Cb3A4CeaD3F6E676d26F6c0bCb934` |
+| `AuctionHouse` | `0x8E3e3e9c0a91e8a4be68F3B558D4843bCF86450b` |
+| `AgentMandate` | `0xf2DB7fdc6DCc90A6Aa4cD66AE7A81C1b0Dd32eaD` |
+| `UniswapV3Adapter` | `0x179452d18FaF107F50e08422C8Dd5be39a353C19` |
+
+| Peran | Keystore | Alamat |
+|---|---|---|
+| Deployer | `nokturn-mainnet` | `0x10B19379131a5b4590903187E5ec7b304C74F633` |
+| Proposer dan executor | `nokturn-mainnet-gov` | `0x3EBC27c8Cc6408ea2fC8b649508B3B095F929E5d` |
+| Treasury | `nokturn-treasury` | `0x5d0aacA3933388454a916662CFD429458cb36A0d` |
+| Guardian | `nokturn-guardian` | `0xfa15dD037d1f6c0F8288dD1b530dd4F3f01eEB99` |
+
+Proposer mainnet adalah kunci baru, terpisah dari `nokturn-gov` yang dipakai di
+testnet, sesuai aturan dua kunci di atas.
+
+| Langkah | Gas | Biaya |
+|---|---|---|
+| `Deploy`, 9 kontrak dalam dua kali kirim | 26.026.570 | 0,00052720 ETH |
+| `Bootstrap`, 22 panggilan | 4.134.629 | 0,00008396 ETH |
+| `Lock` | 115.270 | 0,00000234 ETH |
+
+Totalnya 30.276.469 gas dan 0,00061349 ETH, sekitar $1,68 pada ETH $2.733. Base fee
+berkisar 0,0200 sampai 0,0204 gwei, dua kali testnet.
+
+**Yang dibuktikan dengan membaca rantai.** `VerifyDeployment` 47 dari 47, `every check
+passed`. Sourcify mencatat kesembilannya `match`, dikonfirmasi lewat API per alamat.
+Pemantau melaporkan `M4` di kelima token, dan itu benar sampai `SetFeeds` dieksekusi,
+karena oracle belum punya feed.
+
+**Estimasi gas mainnet 29 persen di atas testnet.** Deploy yang sama diperkirakan
+35,5 juta gas di mainnet dan 27,4 juta di testnet. Pemakaian nyatanya hampir sama,
+26,0 juta lawan 20,7 juta. Anggarkan saldo dari estimasi mainnet, bukan dari angka
+gladi.
+
+**Plafon fee yang terlalu mepet menghentikan deploy di tengah.** Dengan
+`--with-gas-price` 0,022 gwei, base fee melonjak ke 0,0221 lalu 0,0276 dan empat
+kontrak pertama saja yang mendarat. `--resume` dengan plafon 0,026 gwei mengirim lima
+sisanya ke alamat yang sama. Tidak ada yang hilang, tapi selama jeda itu timelock
+berdiri dengan delay nol. Pakai plafon setidaknya 50 persen di atas base fee.
+
+**drpc mainnet berhenti melayani state di nomor blok di tengah hari.** Pagi harinya
+ia menjawab riwayat penuh, sorenya menolak dengan pesan yang sama seperti testnet.
+Deploy berjalan lewat proxy lokal ke `rpc.mainnet.chain.robinhood.com` di IP aslinya
+`172.66.147.70`.
+
+**Pemantau membawa kursor testnet ke mainnet.** File kursornya satu untuk semua chain,
+jadi run mainnet pertama membaca dari blok 126 juta di chain yang head-nya 75 juta dan
+tidak membaca apa pun. Sejak hari ini kursornya satu file per chain, dan kursor di atas
+head ditolak dengan peringatan.
+
+`SetFeeds` belum dijadwalkan saat catatan ini ditulis. Setelah dijadwalkan ia baru
+bisa dieksekusi 48 jam kemudian, dan sebelum itu oracle tidak punya harga sehingga
+tidak ada batch yang bisa selesai.
 
 ## Gladi resik testnet 46630, keenam, 29 September 2026
 
