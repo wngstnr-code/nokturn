@@ -75,6 +75,7 @@ interface ISettlement {
     error PriceOutsideBand(address token, uint256 price, uint256 ref, uint16 maxBps);
     error SavingsMismatch(uint256 claimed, uint256 computed);
     error ExposureCapExceeded(bytes32 capKind, uint256 attempted, uint256 cap);
+    error ExposureCapOutOfRange(bytes32 capKind, uint256 value);
     error IntentExpired(uint256 intentIndex);
     error NonceAlreadyUsed(address owner, uint256 nonce);
     error SessionNotAllowed(uint256 intentIndex, uint8 session);
