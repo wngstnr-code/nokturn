@@ -50,31 +50,61 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 5, baseDelayMs = 25
 }
 
 /**
- * The deployment record and its first block. Deploy.s.sol does not record the
- * block it deployed at, so on a fork the pinned block stands in. Nothing of
- * Nokturn can exist at or below it, because the fork starts empty of Nokturn.
+ * The deployment record and its first block. Which record is decided by asking
+ * the node, not by which file happens to exist, because a laptop that ran the
+ * fork keeps infra/fork-deployment.json and would otherwise index a fork
+ * Settlement address on mainnet and find nothing, silently.
+ *
+ * Deploy.s.sol does not record the block it deployed at. On a fork the pinned
+ * block stands in, since the fork starts empty of Nokturn. Elsewhere the first
+ * block where Settlement has code is found on chain.
  */
 export async function loadDeployment(c: PublicClient): Promise<Deployment> {
   const chainId = await withRetry(() => c.getChainId());
-  const forkRecord = process.env.NOKTURN_INDEXER_DEPLOYMENT ?? join(REPO_ROOT, "infra", "fork-deployment.json");
-  let record: Record<string, unknown>;
+  const fork = await isFork(c);
+  const path =
+    process.env.NOKTURN_INDEXER_DEPLOYMENT ??
+    (fork ? join(REPO_ROOT, "infra", "fork-deployment.json") : join(REPO_ROOT, "contracts", "deployments", `${chainId}.json`));
+  const record = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+  if (typeof record.settlement !== "string") throw new Error(`${path} names no settlement. run make deploy`);
+  const settlement = record.settlement.toLowerCase();
+
   let fromBlock: bigint;
-  try {
-    record = JSON.parse(readFileSync(forkRecord, "utf8"));
+  if (fork) {
     fromBlock = BigInt(JSON.parse(readFileSync(join(REPO_ROOT, "infra", "pinned-block.json"), "utf8")).block) + 1n;
-  } catch {
-    const path = join(REPO_ROOT, "contracts", "deployments", `${chainId}.json`);
-    record = JSON.parse(readFileSync(path, "utf8"));
-    if (record.deployBlock === undefined) throw new Error(`${path} names no deployBlock, and without one the indexer does not know where to start`);
+  } else if (record.deployBlock !== undefined) {
     fromBlock = BigInt(String(record.deployBlock));
+  } else {
+    fromBlock = await firstBlockWithCode(c, settlement as Address);
   }
+
   const contracts = new Map<string, ContractKey>();
   for (const key of Object.keys(INDEXED) as ContractKey[]) {
     const address = record[key];
     if (typeof address === "string") contracts.set(address.toLowerCase(), key);
   }
-  if (typeof record.settlement !== "string") throw new Error(`${forkRecord} names no settlement. run make deploy`);
-  return {chainId, settlement: record.settlement.toLowerCase(), contracts, fromBlock};
+  return {chainId, settlement, contracts, fromBlock};
+}
+
+/**
+ * Binary search on eth_getCode, about thirty reads. Needs an archive endpoint,
+ * and a node that only serves latest fails here loudly rather than starting
+ * the indexer at the head and skipping every earlier event.
+ */
+export async function firstBlockWithCode(c: PublicClient, address: Address): Promise<bigint> {
+  const hasCode = async (blockNumber: bigint) => {
+    const code = await withRetry(() => c.getCode({address, blockNumber}));
+    return code !== undefined && code !== "0x";
+  };
+  let hi = await withRetry(() => c.getBlockNumber());
+  if (!(await hasCode(hi))) throw new Error(`${address} has no code at head ${hi}, so this is not the chain it was deployed to`);
+  let lo = 0n;
+  while (lo < hi) {
+    const mid = (lo + hi) / 2n;
+    if (await hasCode(mid)) hi = mid;
+    else lo = mid + 1n;
+  }
+  return lo;
 }
 
 /**
@@ -184,7 +214,10 @@ export async function reconcileCommand(atBlock?: bigint, log: (line: string) => 
   const at = atBlock ?? cp.lastBlock;
   if (at > cp.lastBlock) throw new Error(`block ${at} is above the checkpoint ${cp.lastBlock}. reconcile at or below what is indexed`);
   const adapter = (await c.readContract({address: d.settlement as Address, abi: loadAbi("Settlement"), functionName: "baselineAdapter", blockNumber: at})) as Address;
-  const accounts = JSON.parse(readFileSync(join(REPO_ROOT, "infra", "accounts.json"), "utf8")) as {solverA?: string; solverB?: string};
+  // The anvil solver accounts mean nothing off the fork.
+  const accounts = (await isFork(c))
+    ? (JSON.parse(readFileSync(join(REPO_ROOT, "infra", "accounts.json"), "utf8")) as {solverA?: string; solverB?: string})
+    : {};
   const checks = await reconcile(db(), viemReader(c, d, at, adapter), d.settlement, at, {solvers: [accounts.solverA, accounts.solverB].filter((s): s is string => Boolean(s))});
   log(`reconciling ${d.settlement} on chain ${d.chainId} at block ${at}`);
   log(report(checks));
