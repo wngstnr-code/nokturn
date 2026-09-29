@@ -460,9 +460,10 @@ jadi run mainnet pertama membaca dari blok 126 juta di chain yang head-nya 75 ju
 tidak membaca apa pun. Sejak hari ini kursornya satu file per chain, dan kursor di atas
 head ditolak dengan peringatan.
 
-`SetFeeds` belum dijadwalkan saat catatan ini ditulis. Setelah dijadwalkan ia baru
-bisa dieksekusi 48 jam kemudian, dan sebelum itu oracle tidak punya harga sehingga
-tidak ada batch yang bisa selesai.
+`SetFeeds` dijadwalkan 29 September 2026 di blok 75.702.583, transaksi
+`0x062c17ef0d8406192c8ab2a844699aeb3e75afe6ee91565667190d5b563d252b`, 153.368 gas.
+Ia bisa dieksekusi mulai 1 Oktober 2026 pukul 13.45.39 UTC. Sebelum itu oracle tidak
+punya harga dan tidak ada batch yang bisa selesai.
 
 ## Gladi resik testnet 46630, keenam, 29 September 2026
 
