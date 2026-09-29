@@ -1187,6 +1187,44 @@ yang tidak cukup untuk `make demo`.
 
 Dukungan deck dan video. Tidak ada kode baru.
 
+**Yang terjadi, 29 dan 30 September 2026.** Rencana di atas berubah atas permintaan
+Dharu. Butir yang tidak menunggu kontrak dikerjakan, yaitu D4, N3, keeper lelang, dan
+port baseline TypeScript. N25 dan N26 tidak disentuh.
+
+Deploy mainnet Wangsit mematahkan tiga hal di backend, dan ketiganya sudah diperbaiki.
+
+- `deploy.sh` menolak setiap deploy fork karena `contracts/deployments/4663.json` kini
+  ter-commit. Di container `deploy` yang tidak punya `.git`, pemeriksaan yang sama
+  malah menghapus catatan mainnet di host. Kini catatan itu disisihkan ke
+  `infra/.mainnet-record.json` dan dikembalikan saat keluar.
+- Indexer memilih catatan deployment dari berkas yang ada, bukan dari node. Di mainnet,
+  blok awalnya dicari lewat `eth_getCode`, dan hasilnya blok 75.694.415.
+- ABI `Settlement` di `packages/shared/abi` belum memuat `ExposureCapOutOfRange`.
+
+| Butir | Keadaan |
+|---|---|
+| D4 | Coordinator menghitung saldo yang masih dipegang intent sebelumnya per pemilik per token, dan menolak intent yang tidak tertutup sisanya. Unit test lulus. C2-20 kini asersi, belum dijalankan di fork |
+| N3 | Feed dan route status menyaring ulang batch terhadap nonce, saldo, allowance, dan total berjalan. Feed beku disaring sekali di blok paling lambat `solveEnd` dan dibagi ke semua solver. Field `withdrawn` ditambahkan ke `BatchIntentsResponse`. C2-21 kini asersi, belum dijalankan di fork |
+| Keeper lelang | `solver/src/keeper.ts`, `make keeper-fork`, `make keeper`. K1 sampai K3 tertulis di `solver/test/fork/keeper.test.ts`, belum dijalankan |
+| Port baseline | `solver/src/v3math.ts`. Batas `TickMath` dan 300 round trip lulus di unit test. Gerbang nol selisih terhadap `quoteWithStats` tertulis di `solver/test/fork/v3math.test.ts`, belum dijalankan. Sampai gerbang itu hijau, port ini tidak boleh dipakai untuk angka apa pun |
+
+Suite fork indexer terhenti di tengah pada 29 September karena memori laptop habis,
+bukan karena test gagal. Suite fork solver, `demo-fail`, `demo-compete`, dan replay
+belum dijalankan ulang sejak perubahan di atas.
+
+**Temuan baru.**
+
+- **N27, untuk Wangsit.** Di `AuctionHouse`, cross yang pembelinya membawa lebih banyak
+  dari yang dipegang penjual hampir tidak pernah bisa dirakit pada harga yang dipilih
+  `indicative()`. Penjual terisi penuh, dan `_applyCross` menuntut token pembeli berada
+  dalam satu unit per fill dari token penjual. Padahal token satu pembeli bergerak
+  dalam langkah 1e18 dibagi harga, sekitar 5,5 miliar unit untuk NVDA terhadap USDG.
+  Keeper karena itu menaikkan harga ke titik terkecil di dalam collar tempat permintaan
+  tidak lagi melebihi suplai. Kontrak menerima harga itu, tapi `challenge` bisa
+  menggulirkannya kembali dengan harga `indicative()` yang volumenya lebih besar, dan
+  harga itu tidak bisa di-cross siapa pun. Hasil akhirnya perpanjangan lalu abort,
+  bukan kehilangan dana.
+
 ---
 
 ## 6. Gerbang yang mengikat backend

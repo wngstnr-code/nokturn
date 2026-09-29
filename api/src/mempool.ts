@@ -8,6 +8,7 @@ import {createChainReader} from "../../packages/shared/batch-viem.ts";
 import {chain} from "./chain.ts";
 import {fail} from "./errors.ts";
 import type {BlockStamp} from "./provenance.ts";
+import type {Withdrawal} from "./revalidate.ts";
 
 /**
  * Settlement.SOLUTION_WINDOW and Settlement.FINALIZE_DEADLINE, parameter.md
@@ -36,6 +37,12 @@ export interface StoredIntent {
 
 const byBatch = new Map<bigint, SignedIntent[]>();
 const byHash = new Map<string, StoredIntent>();
+/**
+ * The feed of a frozen batch, screened once and then served unchanged, so every
+ * solver builds on the same set no matter when it asks. F10.
+ */
+const frozenFeeds = new Map<bigint, Promise<SignedIntent[]>>();
+const withdrawnByBatch = new Map<bigint, Withdrawal[]>();
 /** Carries its own validUntil, so a nonce stays held after its status entry is forgotten. D5, D6. */
 const byOwnerNonce = new Map<string, {intentHash: string; validUntil: bigint}>();
 
@@ -58,6 +65,8 @@ export function sweep(now: bigint): void {
   for (const [batchId, list] of byBatch) {
     if (now <= batchId + SOLUTION_WINDOW + FINALIZE_DEADLINE) continue;
     byBatch.delete(batchId);
+    frozenFeeds.delete(batchId);
+    withdrawnByBatch.delete(batchId);
     for (const signed of list) {
       const stored = byHash.get(signed.intentHash);
       if (stored && stored.status === "pending") stored.status = "expired";
@@ -149,6 +158,67 @@ export function admit(intentHash: string, signed: SignedIntent, batchId: bigint)
   const list = byBatch.get(batchId);
   if (list) list.push(signed);
   else byBatch.set(batchId, [signed]);
+}
+
+/**
+ * Takes an intent out of its batch because it can no longer be collected. Its
+ * nonce is released, since the coordinator will not relay this signature again
+ * and the owner may want to sign a funded replacement with the same nonce.
+ */
+export function withdraw(intentHash: string, rejection: ApiError): void {
+  const stored = byHash.get(intentHash);
+  if (!stored || stored.status !== "pending") return;
+  stored.status = "rejected";
+  stored.rejection = rejection;
+  const list = byBatch.get(stored.batchId);
+  if (list) {
+    const i = list.findIndex((s) => s.intentHash === intentHash);
+    if (i >= 0) list.splice(i, 1);
+  }
+  const gone = withdrawnByBatch.get(stored.batchId) ?? [];
+  gone.push({intentHash: stored.signed.intentHash, owner: stored.signed.intent.owner, rejection});
+  withdrawnByBatch.set(stored.batchId, gone);
+  const k = ownerNonceKey(stored.signed.intent.owner, stored.signed.intent.nonce);
+  if (byOwnerNonce.get(k)?.intentHash === intentHash) byOwnerNonce.delete(k);
+}
+
+/**
+ * Pending intents of this owner selling this token, in batches the mempool
+ * still holds. Each can still be pulled until its batch is finalized or its
+ * deadline passes, so each still has a claim on the owner's balance. D4.
+ */
+export function committed(owner: string, sellToken: string): {signed: SignedIntent; batchId: bigint}[] {
+  const out: {signed: SignedIntent; batchId: bigint}[] = [];
+  for (const [batchId, list] of byBatch) {
+    for (const signed of list) {
+      if (signed.intent.owner.toLowerCase() !== owner.toLowerCase()) continue;
+      if (signed.intent.sellToken.toLowerCase() !== sellToken.toLowerCase()) continue;
+      if (byHash.get(signed.intentHash)?.status === "pending") out.push({signed, batchId});
+    }
+  }
+  return out;
+}
+
+export function withdrawnFrom(batchId: bigint): Withdrawal[] {
+  return withdrawnByBatch.get(batchId) ?? [];
+}
+
+/**
+ * The frozen feed for a batch, built once. A promise rather than a result, so
+ * two solvers asking in the same instant share one screening instead of racing
+ * two, where the second would see a set the first had already cut. A failed
+ * build is forgotten so the next request tries again.
+ */
+export function frozenFeed(batchId: bigint, build: () => Promise<SignedIntent[]>): Promise<SignedIntent[]> {
+  let feed = frozenFeeds.get(batchId);
+  if (!feed) {
+    feed = build().catch((error) => {
+      frozenFeeds.delete(batchId);
+      throw error;
+    });
+    frozenFeeds.set(batchId, feed);
+  }
+  return feed;
 }
 
 export function getByHash(intentHash: string): StoredIntent | null {

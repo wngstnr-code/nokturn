@@ -383,6 +383,13 @@ export interface BatchIntentsResponse {
    * and Settlement would revert any solution that includes it.
    */
   oracleUnavailable: {token: Address; symbol: string; reason: string}[];
+  /**
+   * Intents accepted into this batch and taken out again because Permit2 would
+   * refuse to pull them. The owner spent the nonce, moved the balance, revoked
+   * the allowance, or signed more intents than the balance covers. They are not
+   * in intents, and each carries the same code admission would have given it.
+   */
+  withdrawn: {intentHash: Hex; owner: Address; rejection: ApiError}[];
   /** The band a clearing price has to sit inside for this batch's session. */
   maxDeviationBps: number;
   provenance: Provenance;

@@ -41,8 +41,16 @@ help:
 	@echo "demo-compete solverA against solverB, ARGS=\"--batches 3\" or \"--same-side\""
 	@echo "expire       expireBatch from another account, BATCH=<batchId>"
 	@echo "replay       play the august fixture through the live stack, ARGS=\"--duration 5\" required"
+	@echo "keeper-fork  a fork inside a closing session with the clock frozen, deployed and funded, foreground"
+	@echo "keeper       run the auction keeper, ARGS=\"--duration 10\" bounds it in chain minutes"
 
-.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo
+.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo keeper-fork keeper
+
+keeper-fork:
+	@$(S)/keeper-fork.sh
+
+keeper:
+	@node ../solver/src/keeper.ts $(ARGS)
 
 up:
 	@$(S)/stack.sh up
