@@ -444,7 +444,7 @@ describe("C2 POST /v1/intents", () => {
     assert.ok(ok);
   });
 
-  test("C2-20 one owner sells the same balance twenty times", {todo: "KEPUTUSAN D4"}, async () => {
+  test("C2-20 one owner sells the same balance twenty times", async () => {
     const user = users[2];
     const balance = await balanceOf(USDG().address, user.address);
     await freshWindow(g.api, 30);
@@ -456,12 +456,12 @@ describe("C2 POST /v1/intents", () => {
       outcome: accepted > 1 ? "finding" : "pass",
       suspect: "D4",
       summary: `${accepted} dari 20 intent diterima, masing masing menjual seluruh saldo ${balance} unit USDG, di ${batchIds.size} batch`,
-      evidence: {keputusan: true},
+      evidence: {codes: [...new Set(answers.map((a) => a.body?.code ?? a.status))]},
     });
-    assert.ok(accepted <= 1, "KEPUTUSAN D4");
+    assert.ok(accepted <= 1, "one balance accepted into more than one intent");
   });
 
-  test("C2-21 conditions that change after an intent is accepted", {todo: "KEPUTUSAN N3"}, async () => {
+  test("C2-21 conditions that change after an intent is accepted", async () => {
     await withSnapshot(async () => {
       const user = users[3];
       await freshWindow(g.api, 40);
@@ -487,7 +487,7 @@ describe("C2 POST /v1/intents", () => {
       g.record("C2-21", {suspect: "N3", 
         outcome: silent.length === 0 ? "pass" : "finding",
         summary: steps.map((st) => `${st.label}: ${st.status}, di feed ${st.inFeed}`).join("; "),
-        evidence: {steps, keputusan: true},
+        evidence: {steps},
       });
       assert.equal(silent.length, 0, "feed serves intents that will certainly fail with no mark");
     });
