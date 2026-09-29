@@ -42,11 +42,12 @@ mesin virtual Docker (WSL), Chrome, dan aplikasi lain. Kalau RAM bebas di bawah 
 proses latar belakang bisa dihentikan sistem di tengah jalan. Batasi WSL lewat
 `C:\Users\<nama>\.wslconfig` berisi `[wsl2]` dan `memory=3GB`, lalu `wsl --shutdown`.
 
-**Port database.** Kalau port 5433 sudah dipakai proyek lain, pakai 5440.
+**Port database.** Bawaannya 5440 di semua tempat, yaitu `db.sh`, compose, indexer,
+dan test fork indexer. Kalau 5440 juga terpakai, pindahkan keduanya bersamaan.
 
 ```
-export NOKTURN_DB_PORT=5440
-export NOKTURN_DATABASE_URL=postgres://nokturn:nokturn@127.0.0.1:5440/nokturn
+export NOKTURN_DB_PORT=5441
+export NOKTURN_DATABASE_URL=postgres://nokturn:nokturn@127.0.0.1:5441/nokturn
 ```
 
 ---

@@ -8,7 +8,10 @@ import {join} from "node:path";
 import pg from "pg";
 import {REPO_ROOT} from "./abi.ts";
 
-export const DATABASE_URL = process.env.NOKTURN_DATABASE_URL ?? "postgres://nokturn:nokturn@127.0.0.1:5433/nokturn";
+// Same default port as infra/scripts/db.sh and docker-compose.yml. 5433 is taken
+// by another project's Postgres on at least one laptop, and a stray server there
+// answers with a password failure rather than a refused connection.
+export const DATABASE_URL = process.env.NOKTURN_DATABASE_URL ?? "postgres://nokturn:nokturn@127.0.0.1:5440/nokturn";
 const SQL_DIR = join(REPO_ROOT, "indexer", "sql");
 
 // numeric(78,0) comes back as a string by default, which is what every caller

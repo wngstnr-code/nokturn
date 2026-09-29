@@ -33,7 +33,7 @@ help:
 	@echo "logs         follow every service of the stack"
 	@echo "down         remove every container and volume the stack made"
 	@echo "clean        remove the fork deployment record and the snapshot id"
-	@echo "db-up        start the indexer postgres on 127.0.0.1:5433"
+	@echo "db-up        start the indexer postgres on 127.0.0.1:5440"
 	@echo "db-down      stop it, keeping the data"
 	@echo "db-reset     delete its volume, asks first"
 	@echo "indexer      start the event indexer, ARGS=\"--duration 10\" bounds it"

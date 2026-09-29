@@ -28,19 +28,19 @@ import {intentFor, sign, users} from "../../../solver/test/fork/lib.ts";
 import {REPO_ROOT, loadAbi} from "../../src/abi.ts";
 import {buildReceipt, loadFacts, type ReceiptContext} from "../../src/receipt.ts";
 
-const ADMIN_URL = process.env.NOKTURN_DATABASE_ADMIN_URL ?? "postgres://nokturn:nokturn@127.0.0.1:5433/nokturn";
+const ADMIN_URL = process.env.NOKTURN_DATABASE_ADMIN_URL ?? "postgres://nokturn:nokturn@127.0.0.1:5440/nokturn";
 const TEST_DB = "nokturn_fork_test";
 const TEST_URL = ADMIN_URL.replace(/\/[^/]+$/, `/${TEST_DB}`);
 process.env.NOKTURN_DATABASE_URL = TEST_URL;
 const API = process.env.NOKTURN_API_URL ?? "http://127.0.0.1:3000";
 /**
  * db.sh reads NOKTURN_DB_PORT to pick docker-compose.yml's port mapping, and
- * falls back to 5433. execFileSync does not inherit a shell's env vars from a
+ * falls back to 5440. execFileSync does not inherit a shell's env vars from a
  * separate session, only this process's own, so I4 passes it through by hand.
  * Without this, "up" after "down" can recreate the container on the wrong
  * port when the default collides with something else on this machine.
  */
-const DB_PORT = new URL(ADMIN_URL).port || "5433";
+const DB_PORT = new URL(ADMIN_URL).port || "5440";
 
 // Imported after the database url is set, because db.ts reads it at import.
 const {closeDb, db, migrate} = await import("../../src/db.ts");

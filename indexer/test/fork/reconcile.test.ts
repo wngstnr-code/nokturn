@@ -12,7 +12,7 @@ import pg from "pg";
 import {encodeFunctionData, type Address, type Hex, type PublicClient} from "viem";
 import {loadAbi} from "../../src/abi.ts";
 
-const ADMIN_URL = process.env.NOKTURN_DATABASE_ADMIN_URL ?? "postgres://nokturn:nokturn@127.0.0.1:5433/nokturn";
+const ADMIN_URL = process.env.NOKTURN_DATABASE_ADMIN_URL ?? "postgres://nokturn:nokturn@127.0.0.1:5440/nokturn";
 const TEST_DB = "nokturn_reconcile_test";
 process.env.NOKTURN_DATABASE_URL = ADMIN_URL.replace(/\/[^/]+$/, `/${TEST_DB}`);
 
