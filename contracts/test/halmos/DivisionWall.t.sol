@@ -20,6 +20,12 @@ import {ClearingMath} from "../../src/libraries/ClearingMath.sol";
 /// between 2 to the 65 and 2 to the 73. Four solvers land on it in the same place,
 /// and neither reducing the number of divisions nor moving them behind witnesses
 /// moves it.
+///
+/// Corrected 29 September 2026. The four were all bitvector solvers. cvc5-int
+/// closes floor72 and euclid256 in under half a second, so the wall belongs to the
+/// encoding and not to the statements. What still times out under cvc5-int is the
+/// composed form, where two symbolic values are multiplied, and a floor lemma with a
+/// symbolic divisor. RoundingProofs holds what now closes.
 contract DivisionWall is Test {
     uint256 internal constant WAD = 1e18;
 

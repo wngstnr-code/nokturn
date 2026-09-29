@@ -140,10 +140,55 @@ properti yang terbaca seperti terbukti padahal tidak.
 | Pemeriksaan limit | Terbukti, uint128 penuh |
 | Ekuivalensi perkalian silang | Terbukti, uint128 penuh |
 | Batas fee | Terbukti, uint128 penuh |
-| Pembulatan pro rata | **Sebagian.** Distributivitas terbukti di uint128. Lema pembulatan terbukti di uint64, yaitu sisi tembok pembagian yang bisa ditutup solver |
-| Konservasi nilai | **Sebagian.** Tanda dan luapan terbukti di uint128. Bentuk gabungan terbukti di uint32, naik dari fuzz saja pada 20 September 2026 |
+| Pembulatan pro rata | **Sebagian, menyempit 29 September 2026.** Pembagian lewat `quoteOf` terbukti sebagai rantai lema di uint128. Pembagian lewat `tokenOf` masih fuzz saja, karena butuh lema lantai dengan pembagi simbolis |
+| Konservasi nilai | **Terbukti sebagai rantai lema, 29 September 2026.** Bentuk gabungan di uint128 disusun dari lema yang semuanya terbukti mesin. Satu langkah substitusi ditulis terbuka di bawah |
 | `sessionAt()` | **Sebagian.** Tiga properti parameter tuntas lewat enumerasi, tiga properti tanggal terbukti simbolis. Tabelnya tuntas lewat `CivilDate.t.sol` |
 | Kekuasaan guardian | **Terbukti, dua paruh.** Lima properti simbolis atas `Guarded`, plus gerbang sumber di CI |
+
+**Koreksi 29 September 2026. Temboknya milik encoding bitvector, bukan milik
+soalnya.** halmos 0.3.3 punya solver `cvc5-int` yang tidak ikut diuji di bawah. Ia
+bernalar atas bilangan bulat, dan di sana pembagian dengan konstanta jadi linear.
+Aksioma Euclid 256 bit, yang di bawah disebut tidak bisa ditutup, terbukti dalam
+0,41 detik. `floor72` terbukti dalam 0,40 detik.
+
+Sebelum hasil itu dipercaya, `cvc5-int` diberi tiga pernyataan yang sengaja salah.
+Ketiganya ditolak dengan counterexample yang valid, termasuk luapan di 2 pangkat 256
+dikurangi satu, jadi ia memodelkan aritmetika modular EVM dengan benar.
+
+Yang sekarang terbukti di `test/halmos/RoundingProofs.t.sol`, dijalankan
+`halmos.sh` dengan `cvc5-int`, semuanya di bawah setengah detik.
+
+| Lema | Lebar |
+|---|---|
+| Lantai dua bagian tidak pernah melebihi lantai jumlahnya, selisih paling banyak satu | uint256 penuh |
+| `(x / d) * d <= x` untuk pembagi simbolis | uint256 penuh |
+| Lantai monoton terhadap pembilang | uint256 penuh |
+| `(t * p) / p == t` | uint128 |
+| Round trip lewat token tidak pernah untung | uint128, langsung tanpa rantai |
+| Tanda `conserved` tidak pernah salah | uint248, cukup untuk pool hasil konversi |
+
+Bentuk gabungan tetap timeout sebagai satu query, karena perkalian dua nilai
+simbolis membuatnya nonlinear. Yang menutupnya adalah rantai.
+
+- **Pembagian fill lewat `quoteOf`.** Distributivitas (`AuctionMathProofs`, uint128),
+  lalu lema lantai uint256 dengan `x = a * p` dan `y = b * p`.
+- **Konservasi saat fill dibayar dari satu pool.** Rantai di atas memberi
+  `delivered <= pool`, lalu lema tanda di uint248 memberi saldo tidak negatif.
+- **Round trip lewat harga.** `(t * p / W) * W <= t * p`, lalu monoton terhadap
+  pembagian dengan `p`, lalu `(t * p) / p == t`.
+
+Satu langkahnya tidak diperiksa mesin, yaitu mengganti variabel lema dengan hasil
+kali. Itu instansiasi pernyataan universal, bukan aritmetika, dan ditulis terbuka di
+sini supaya tidak terbaca sebagai bukti satu query.
+
+Yang tetap tidak tertutup adalah lema lantai dengan **pembagi simbolis**. Ia timeout
+di `cvc5-int`, yices, z3, dan bitwuzla, di uint256 maupun uint128. Karena itu
+pembagian quote lewat `tokenOf` tetap fuzz saja, dan baris pembulatan pro rata
+tetap sebagian.
+
+Uraian 20 September di bawah dipertahankan apa adanya sebagai catatan pengukuran.
+Angkanya benar untuk keempat solver bitvector. Kesimpulannya, bahwa pembagian 256 bit
+tidak bisa ditutup solver, yang gugur.
 
 **Kenapa pembulatan pro rata berhenti, dan di mana persis.** Diselidiki tuntas
 20 September 2026. Hasilnya bukan "solver kurang kuat" melainkan satu batas yang bisa
@@ -497,7 +542,7 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 
 - [x] 14 invarian hijau di Foundry **dan** Echidna · lima target Echidna, nol falsifikasi, 19 September 2026
 - [x] Differential ≥ 1 juta input, nol perbedaan · laporan `verifier/reports/differential-2026-09-18.md`
-- [ ] Semua properti Halmos terbukti · 4 dari 7 penuh, 3 sebagian, dan batas ketiganya sekarang terukur bukan ditebak. Tembok pembagian dipetakan tuntas 20 September 2026 lewat empat solver, tiga bentuk pernyataan, dan seluruh lebar yang dipunyai Solidity. Bentuk gabungan naik dari fuzz ke terbukti di uint32. Lihat §4.1
+- [ ] Semua properti Halmos terbukti · 5 dari 7 penuh sejak 29 September 2026, 2 sebagian. Konservasi nilai naik lewat rantai lema `cvc5-int`. Yang tersisa adalah pembagian quote lewat `tokenOf` dan `sessionAt`. Sebelumnya 4 dari 7 penuh, 3 sebagian, dan batas ketiganya sekarang terukur bukan ditebak. Tembok pembagian dipetakan tuntas 20 September 2026 lewat empat solver, tiga bentuk pernyataan, dan seluruh lebar yang dipunyai Solidity. Bentuk gabungan naik dari fuzz ke terbukti di uint32. Lihat §4.1
 - [x] Skor mutasi ≥ 90% pada kontrak inti · 100% atas 156 mutan yang dihitung di `Settlement` dan `SessionManager`, 19 September 2026. Seluruh kontrak lain juga sudah diukur dan berada di 100%
 - [x] Semua fork test lulus terhadap mainnet nyata · 18 hijau, 19 September 2026. Sebelum hari itu fork-nya membaca state 2 Agustus, lihat `pertanyaan-terbuka.md` pelajaran ketujuh
 - [x] 15 skenario adversarial lulus · enam belas hijau setelah A16 ditambahkan 20 September 2026, peta ke nama test di §7.1
