@@ -679,6 +679,16 @@ Arah pembulatan itu berpihak ke pemilik, sesuai aturan pembulatan §9.
 | `CAP_PER_TOKEN_DAILY` | **$50.000** | $5.000.000 |
 | `CAP_GLOBAL_DAILY` | **$200.000** | $20.000.000 |
 
+**Plafonnya ditegakkan di kontrak, bukan hanya ditulis.** Diputuskan 29 September
+2026. `setExposureCaps` menolak nilai di atas kolom plafon dengan
+`ExposureCapOutOfRange`, sama seperti `setMinBond` menolak nilai di luar rentang
+§5A. Timelock 48 jam memberi waktu untuk melihat perubahan datang, dan plafon
+memastikan kunci timelock yang bocor pun tidak bisa membuka cap tanpa batas.
+Settlement immutable, jadi batas ini hanya bisa dipasang sebelum deploy mainnet.
+
+Tidak ada lantai. Cap nol hanya membuat setiap batch baru ditolak dengan
+`ExposureCapExceeded`, dan itu arah yang aman.
+
 **Aturan kenaikan:** boleh digandakan setelah **7 hari berturut-turut tanpa insiden**
 (nol pelanggaran invarian, nol `finalize` gagal, nol masuk `PROTECTIVE` yang tidak
 dijelaskan). Kenaikan lewat time-lock seperti perubahan parameter lain.
