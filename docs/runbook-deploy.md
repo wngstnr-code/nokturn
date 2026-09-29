@@ -701,5 +701,13 @@ testnet sekarang ikut dicegat DNS ISP Indonesia, lihat `parameter.md` §10.6.
 ## Gerbang sebelum mainnet
 
 `rencana-uji.md` §10 adalah daftarnya, dan deploy mainnet hanya jalan kalau semuanya
-hijau. Per 29 September 2026 dua belas dari empat belas tercentang. Testnet 46630 tidak menunggu
+hijau. Per 29 September 2026 dua belas dari empat belas tercentang.
+
+**Pengecualian, 29 September 2026.** Pemilik proyek, Wangsit, memutuskan deploy
+mainnet dijalankan sebelum dua gerbang terakhir hijau, dan melewatinya dengan sengaja.
+Yang terbuka adalah Halmos, dengan pembagian quote lewat `tokenOf` dan `sessionAt`
+belum terbukti penuh, serta audit provenansi §11 bagian frontend. Yang membatasi
+kerugian selama keduanya terbuka adalah exposure cap `parameter.md` §6, yaitu $5.000
+per batch dan $200.000 global per hari, yang plafonnya ditegakkan di kontrak sejak hari
+yang sama. Kedua gerbang tetap dikerjakan setelah deploy, bukan dicoret. Testnet 46630 tidak menunggu
 itu, karena ia gladi resik dan tokennya token uji. Sebut begitu apa adanya.
