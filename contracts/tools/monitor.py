@@ -147,6 +147,11 @@ def once(args, state):
     skipped = 0
     if since is None:
         since = until
+    elif since > until + 1:
+        # A cursor past head belongs to another chain, and reading from it would
+        # silently cover nothing.
+        print(f"monitor: cursor {since} is past head {until}, starting from head")
+        since = until
     elif until - since > MAX_CATCHUP_BLOCKS:
         skipped = until - since - MAX_CATCHUP_BLOCKS
         since = until - MAX_CATCHUP_BLOCKS
@@ -179,7 +184,7 @@ def main():
     p.add_argument("--chain-id", default="4663")
     p.add_argument("--interval", type=int, default=60)
     p.add_argument("--once", action="store_true")
-    p.add_argument("--state", default=str(ROOT / ".monitor-state.json"))
+    p.add_argument("--state", help="cursor file, one per chain by default")
     p.add_argument(
         "--broadcast",
         action="store_true",
@@ -197,7 +202,7 @@ def main():
     args.settlement = record["settlement"]
     args.house = record["auctionHouse"]
 
-    journal = Path(args.state)
+    journal = Path(args.state or ROOT / f".monitor-state-{args.chain_id}.json")
     state = json.loads(journal.read_text()) if journal.exists() else {}
 
     while True:

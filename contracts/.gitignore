@@ -4,4 +4,4 @@ broadcast/
 .env
 
 # The monitor's cursor and its rolling count of unfinalized batches.
-.monitor-state.json
+.monitor-state*.json
