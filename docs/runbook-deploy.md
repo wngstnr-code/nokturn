@@ -397,6 +397,53 @@ selama demo dan menyalakannya lagi saat keluar, termasuk saat gagal.
 automine, jadi node yang disuruh automine dulu lalu diberi interval nol berhenti
 menambang sama sekali dan setiap transaksi menggantung, bukan revert.
 
+## Gladi resik testnet 46630, keenam, 29 September 2026
+
+Digelar ulang karena `Settlement` berubah. `setExposureCaps` sekarang menolak nilai di
+atas plafon `parameter.md` §6, jadi bytecode angkatan kelima tidak lagi berasal dari
+sumber di repo. Umpan testnet tidak ikut diganti.
+
+| Kontrak | Alamat |
+|---|---|
+| `TimelockController` | `0x9EF56008c65061319De8cF5eD78793d4b6a79d3e` |
+| `SessionManager` | `0x6cb5ea86251367bA0fb542787203116F6e054c80` |
+| `ClearingVerifier` | `0x2A49E9Fe2A69038ECd94890D44AEf89eF89Ba445` |
+| `PriceOracle` | `0x31569a806c6D09e04a69AE883A134336E1F8FB21` |
+| `SolverRegistry` | `0xe3F17fbe35b81cE4d3E1e74591d7919bFf8D5196` |
+| `Settlement` | `0xEa3Fa76a9DE819dD98bAC8773cD1027D3D09EEB9` |
+| `AuctionHouse` | `0x176147FcfC926f5200e4591F119AF0115199d599` |
+| `AgentMandate` | `0x2f63a69a626753aEF14273aE418224CAB6eF8B07` |
+| `UniswapV3Adapter` | `0xb7d1A3A14d8d3D393b6093e73A9C4aaA0b7e32b7` |
+
+| Langkah | Gas | Biaya | Perkiraan script | Rasio |
+|---|---|---|---|---|
+| `Deploy`, 9 kontrak | 20.719.000 | 0,00020719 ETH | 27.447.294 | 75% |
+| `Bootstrap`, 22 panggilan | 4.269.431 | 0,00004269 ETH | 6.091.598 | 70% |
+| `Lock` | 137.436 | 0,00000137 ETH | 173.848 | 79% |
+
+Totalnya 25.125.867 gas dan 0,00025126 ETH. `Settlement` naik dari 4.838.119 ke
+**4.916.667** gas, selisih 78.548 atau 1,6 persen, harga dari tiga konstanta plafon
+dan tiga pemeriksaannya. Runtime-nya 19.960 byte dari 24.576, jadi marginnya 4.616.
+
+**Yang dibuktikan dengan membaca rantai.** `VerifyDeployment` menjalankan 47
+pemeriksaan dan hasilnya `every check passed`. Enam di antaranya baru, yaitu ketiga
+cap peluncuran dan ketiga plafonnya, dibaca dari kontrak dan bukan dari catatan.
+Sourcify mencatat kesembilannya `match`, dikonfirmasi lewat API per alamat. Pemantau
+melaporkan `M1` sampai `M3` bersih dan `M4` menyala di kelima token, sama seperti
+lima angkatan sebelumnya.
+
+**drpc testnet berhenti melayani state di nomor blok.** Ia menjawab `latest` tapi
+menolak setiap permintaan di blok tertentu dengan `Unknown state. First available
+state is 1`. `forge script` selalu mem-fork di nomor blok, jadi simulasi pun tidak
+bisa jalan. Endpoint resmi lewat IP aslinya `172.66.147.70` menjawab dengan benar,
+tapi forge tidak punya `--resolve`. Yang dipakai adalah proxy lokal sementara di
+`127.0.0.1:8546` yang meneruskan ke IP itu dengan nama TLS
+`rpc.testnet.chain.robinhood.com`. Proxy-nya tidak di-commit. Alternatifnya satu
+baris di `/etc/hosts`.
+
+Deployer adalah keystore `nokturn-testnet` di `0xcf9d130498657617b26e119d27cdc469f7d6b8c4`,
+proposer adalah `nokturn-gov` di `0xF7354707BC51d1299B19c43B8B3cc79420Bc9c7B`.
+
 ## Gladi resik testnet 46630, kelima, 22 September 2026
 
 Digelar ulang karena `Settlement` berubah, dan `SolverRegistry` sudah berubah
