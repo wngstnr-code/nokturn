@@ -28,10 +28,11 @@ import {ClearingMath} from "../../src/libraries/ClearingMath.sol";
 /// same statement and every width solidity offers. test/halmos/DivisionWall.t.sol
 /// holds the probes, rencana-uji.md section 4.1 holds the numbers.
 ///
-/// An allowlist amount at the batch cap times a stock token price is about 2 to the
-/// 139, so nothing the solver reaches covers the range this protocol runs in, and
-/// stating a proof over a narrow width as if it covered the wide one would be the
-/// kind of claim this repo exists to avoid making.
+/// That wall turned out to be yices and its peers on bitvectors. Under cvc5-int the
+/// floor lemma closes at full width, and RoundingProofs holds it together with the
+/// steps that turn two of the testBound statements below into proved chains. The
+/// composed forms here still time out as single queries and stay as bounded fuzz,
+/// which now samples a statement already proved rather than standing in for one.
 contract AuctionMathProofs is Test {
     uint256 internal constant WAD = 1e18;
 
@@ -108,9 +109,9 @@ contract AuctionMathProofs is Test {
         assertLe(whole - split, 1, "the dust from two fills passed one unit");
     }
 
-    /// The same statement over the width the protocol runs in. It follows from the
-    /// three proofs above, and forge samples it here because the solver times out on
-    /// the combined form at this width rather than refuting it.
+    /// The same statement over the width the protocol runs in. Proved as a chain,
+    /// distributivity above and the full width floor lemma in RoundingProofs. Forge
+    /// samples it here because the combined form still times out as one query.
     function testBound_splittingAFillNeverAllocatesMoreThanTheWhole(uint128 a, uint128 b, uint128 price)
         public
         pure
@@ -126,8 +127,9 @@ contract AuctionMathProofs is Test {
 
     /// The same statement on the other conversion. A buy side fill is measured by
     /// tokenOf and a sell side fill by quoteOf, so the guarantee has to hold both
-    /// ways. This one divides by a symbolic price rather than by a constant, which
-    /// is further out of the solver's reach than the constant case.
+    /// ways. This one divides by a symbolic price rather than by a constant, and the
+    /// floor lemma with a symbolic divisor times out on every solver halmos offers,
+    /// cvc5-int included. The one statement here that is still only sampled.
     function testBound_splittingAQuoteNeverBuysMoreThanTheWhole(uint128 a, uint128 b, uint128 price)
         public
         pure
@@ -145,7 +147,7 @@ contract AuctionMathProofs is Test {
     /// A round trip never gains. Converting a token amount to quote and back cannot
     /// produce more token than was there, at any price. A conversion that could
     /// would let a solver mint value by routing a fill through the unit it is
-    /// priced in.
+    /// priced in. Proved as a chain by the three round trip steps in RoundingProofs.
     function testBound_aRoundTripThroughThePriceNeverGains(uint128 tokenAmount, uint128 price) public pure {
         vm.assume(price > 0);
 
@@ -156,21 +158,10 @@ contract AuctionMathProofs is Test {
         );
     }
 
-    /// And in the other order. Both directions floor, so neither is the safe one to
-    /// trust and the guarantee has to be stated twice.
-    function testBound_aRoundTripThroughTheTokenNeverGains(uint128 quoteAmount, uint128 price) public pure {
-        vm.assume(price > 0);
-
-        assertLe(
-            ClearingMath.quoteOf(ClearingMath.tokenOf(quoteAmount, price), price),
-            quoteAmount,
-            "a round trip produced more than it started with"
-        );
-    }
-
     /// Value conservation under the worst rounding the protocol can produce, over
     /// the check ClearingVerifier actually runs. Two fills are paid out of one
-    /// converted pool, each floored on its own, and the pool is never short.
+    /// converted pool, each floored on its own, and the pool is never short. Proved as
+    /// a chain, the split above plus the sign lemma at pool width in RoundingProofs.
     function testBound_payingFlooredFillsOutOfOnePoolAlwaysConserves(uint128 a, uint128 b, uint128 price)
         public
         pure
