@@ -88,10 +88,15 @@ borrow_chain_record() {
   if [ -f "$CHAIN_RECORD" ]; then
     mv -f "$CHAIN_RECORD" "$PARKED_RECORD"
   fi
+  CHAIN_RECORD_BORROWED=1
   trap return_chain_record EXIT
 }
 
+# Runs twice on a clean exit, once called and once from the trap. Without the
+# flag the second run finds no park and deletes the record the first put back.
 return_chain_record() {
+  [ "${CHAIN_RECORD_BORROWED:-0}" = "1" ] || return 0
+  CHAIN_RECORD_BORROWED=0
   if [ -f "$PARKED_RECORD" ]; then
     mv -f "$PARKED_RECORD" "$CHAIN_RECORD"
   else
