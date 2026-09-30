@@ -53,7 +53,7 @@ lengkap dengan blok patokannya.
 | `GET /v1/quote` | Baseline indikatif | `quoteFromState`, dengan `verify.castCommand` | ON / FK | Lolos |
 | `GET /v1/batches` | Ringkasan batch | Tabel indexer dari event | FK | Lolos |
 | `GET /v1/health` | Status komponen | Diukur saat request (N18) | Bukan klaim ke juri | Lolos |
-| `GET /v1/auctions/:id` | Belum ada lelang di fork | Menjawab 503 dengan alasan, bukan data | Tidak menampilkan angka | Lolos. Tidak ada yang dikarang (N17) |
+| `GET /v1/auctions/:id` | Fase, indikatif, imbalance, hasil cross, peserta | View `AuctionHouse` (`auctionState`, `auctionResult`, `indicative`, buku komitmen) di blok yang disebut provenansi. Harga dikonversi ke USD 18 desimal seperti `_publishPrint`. 404 sebelum lelang dibuka. Diperbarui 30 September 2026, sebelumnya 503 | FK | Lolos. Dicocokkan ke `auctionResult` di fork keeper, dan juri bisa memanggil view yang sama di blok itu |
 
 ## 3. Angka backtest dan replay
 
