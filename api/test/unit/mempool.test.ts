@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import {describe, test} from "node:test";
+import {setFlagsFromString} from "node:v8";
+import {runInNewContext} from "node:vm";
 import type {SignedIntent} from "../../../packages/shared/api-types.ts";
 import {FINALIZE_DEADLINE, STATUS_RETENTION, admit, getByHash, heldNonces, remembered, sweep} from "../../src/mempool.ts";
 
@@ -42,5 +44,39 @@ describe("mempool retention, D6", () => {
 
     sweep(BigInt(validUntil) + 1n);
     assert.ok(!heldNonces(OWNER).has(2n));
+  });
+
+  // The heap after a forced collection, which is what C1-7 cannot see from
+  // outside the process. There the RSS keeps a step V8 took while sizing its
+  // old space, and a slope over it reads as a leak that is not there.
+  test("the heap stays flat across 20000 intents in 200 swept batches", () => {
+    setFlagsFromString("--expose-gc");
+    const gc = runInNewContext("gc") as () => void;
+    const heap = () => {
+      gc();
+      gc();
+      return process.memoryUsage().heapUsed;
+    };
+    // Batches a thousand seconds apart, so the default day of retention is
+    // passed inside the first hundred and the second hundred is steady state.
+    const step = 1_000n;
+    const retained = Number((10n + FINALIZE_DEADLINE + STATUS_RETENTION) / step + 2n) * 100;
+    const start = 3_000_000n;
+    let warm = 0;
+    let most = 0;
+    for (let b = 0; b < 200; b += 1) {
+      const batch = start + BigInt(b) * step;
+      for (let i = 0; i < 100; i += 1) {
+        const hash = `0x${(b * 100 + i).toString(16).padStart(64, "0")}`;
+        const owner = `0x${(b * 100 + i).toString(16).padStart(40, "0")}`;
+        admit(hash, {...signed(hash, String(b * 100 + i), Number(batch + 70n)), intent: {owner, nonce: String(b * 100 + i), validUntil: Number(batch + 70n)} as unknown as SignedIntent["intent"]}, batch);
+      }
+      sweep(batch + 1n);
+      most = Math.max(most, remembered());
+      if (b === 100) warm = heap();
+    }
+    const perIntent = (heap() - warm) / 10_000;
+    assert.ok(most <= retained, `${most} intents remembered at once, the retention allows ${retained}`);
+    assert.ok(perIntent < 64, `the heap grew ${perIntent.toFixed(1)} bytes per intent across the second hundred batches`);
   });
 });
