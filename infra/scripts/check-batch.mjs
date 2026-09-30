@@ -8,12 +8,19 @@
 // checked here, because a helper that is merely conservative would pass a one
 // sided test while quietly skipping usable batches.
 //
-// It moves the fork clock, so it snapshots first and reverts at the end. The
-// clock only ever moves forward inside a run, because evm_setNextBlockTimestamp
-// refuses to go backwards and the walk below ends hours ahead of where it began.
+// On a fork it moves the clock, so it snapshots first and reverts at the end.
+// The clock only ever moves forward inside a run, because
+// evm_setNextBlockTimestamp refuses to go backwards and the walk below ends
+// hours ahead of where it began.
+//
+// Against a real chain it moves nothing. batchWindow is a function of the
+// batchId and the calendar alone, so every timestamp is asked about as an
+// argument, from the chain's present forward. make check-batch-mainnet runs it
+// against the mainnet Settlement through make rpc-proxy.
 
 import {readFileSync} from "node:fs";
 import {createPublicClient, http} from "viem";
+import {unknownMethod} from "../../packages/shared/rpc.ts";
 import {
   nextValidBatchId,
   solvableBatchId,
@@ -22,20 +29,28 @@ import {
 } from "../../packages/shared/batch.ts";
 import {createChainReader} from "../../packages/shared/batch-viem.ts";
 
-const RPC = process.env.NOKTURN_FORK_RPC ?? "http://127.0.0.1:8545";
+const RPC = process.env.NOKTURN_CHECK_RPC ?? process.env.NOKTURN_FORK_RPC ?? "http://127.0.0.1:8545";
 const here = new URL(".", import.meta.url);
 const readJson = (p) => JSON.parse(readFileSync(new URL(p, here), "utf8"));
-const d = readJson("../fork-deployment.json");
 
 const client = createPublicClient({
   chain: {
     id: 4663,
-    name: "fork",
+    name: "robinhood",
     nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
     rpcUrls: {default: {http: [RPC]}},
   },
-  transport: http(RPC),
+  transport: http(RPC, {retryCount: 4}),
 });
+
+const isFork = await client.request({method: "anvil_nodeInfo", params: []}).then(
+  () => true,
+  (error) => {
+    if (unknownMethod(error)) return false;
+    throw error;
+  },
+);
+const d = isFork ? readJson("../fork-deployment.json") : readJson(`../../contracts/deployments/${await client.getChainId()}.json`);
 
 const settlementAbi = [
   {
@@ -89,6 +104,7 @@ async function chainWindow(batchId) {
 }
 
 async function jumpTo(timestamp) {
+  if (!isFork) return;
   await rpc("evm_setNextBlockTimestamp", [`0x${timestamp.toString(16)}`]);
   await rpc("evm_mine", []);
 }
@@ -152,8 +168,8 @@ async function checkAt(label, timestamp) {
 }
 
 async function main() {
-  const snap = await rpc("evm_snapshot", []);
-  console.log(`snapshot ${snap}\n`);
+  const snap = isFork ? await rpc("evm_snapshot", []) : null;
+  console.log(isFork ? `snapshot ${snap}\n` : `chain ${await client.getChainId()}, Settlement ${d.settlement}, nothing is moved\n`);
 
   try {
     const start = (await client.getBlock()).timestamp;
@@ -204,8 +220,10 @@ async function main() {
       }
     }
   } finally {
-    const reverted = await rpc("evm_revert", [snap]);
-    console.log(`\nreverted ${snap} -> ${reverted}`);
+    if (isFork) {
+      const reverted = await rpc("evm_revert", [snap]);
+      console.log(`\nreverted ${snap} -> ${reverted}`);
+    }
   }
 
   console.log(`\n${pass} pass, ${fail} fail`);
