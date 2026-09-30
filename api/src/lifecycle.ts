@@ -5,13 +5,15 @@
 // chain has not reached.
 //
 // It sends no transaction, and it publishes only what a chain read or the
-// mempool can back. Settlement outcomes and auction events need the indexer and
-// the auction keeper, and until those exist nothing here pretends to know them.
+// mempool can back, plus the auction events AuctionHouse itself emitted.
+// Settlement outcomes need the indexer, and nothing here pretends to know them.
 
 import type {FastifyBaseLogger} from "fastify";
+import type {AbiEvent} from "viem";
 import type {Address} from "../../packages/shared/api-types.ts";
 import {chain, oracleAbi, read, revertReason, rpcRequestCount, sessionAbi} from "./chain.ts";
 import {publish} from "./events.ts";
+import {auctionHouseAbi, buildAuction} from "./routes/auctions.ts";
 import {FINALIZE_DEADLINE, counts} from "./mempool.ts";
 import type {BlockStamp} from "./provenance.ts";
 import {isCollectClosed} from "./routes/intents.ts";
@@ -20,6 +22,13 @@ import {FROZEN_SESSIONS, WEEKEND_DRIFT_CAP_BPS, buildCurrentBatch, buildSession}
 const POLLING_INTERVAL_MS = 500;
 const MAX_TRACKED = 8;
 const PROTECTIVE = 8;
+// Bounds one catch up after a stall, well inside what a public endpoint serves.
+const MAX_LOG_RANGE = 1_000n;
+// CrossExecuted rather than CrossSubmitted, because a submitted cross can still
+// be challenged and rolled back, and an executed one is what paid out.
+const AUCTION_EVENTS = auctionHouseAbi.filter(
+  (item): item is AbiEvent => item.type === "event" && (item.name === "IndicativePublished" || item.name === "CrossExecuted"),
+);
 
 interface Tracked {
   collectEnd: bigint;
@@ -34,6 +43,7 @@ interface State {
   session: number | null;
   tokenSessions: Map<Address, number> | null;
   healthy: Map<Address, boolean> | null;
+  auctionsFrom: bigint | null;
 }
 
 /** Wall clock of the last tick that completed, for /v1/health. Null before the first. */
@@ -47,6 +57,7 @@ const fresh = (): State => ({
   session: null,
   tokenSessions: null,
   healthy: null,
+  auctionsFrom: null,
 });
 
 export function startLifecycle(log: FastifyBaseLogger): () => void {
@@ -165,7 +176,31 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
     }
     state.healthy = healthy;
 
+    await announceAuctions(at);
+
     log.debug({block: String(blockNumber), chainTime: String(T), reads: rpcRequestCount() - readsBefore, tracked: state.tracked.size, concurrent}, "lifecycle tick");
+  }
+
+  // Read from AuctionHouse logs rather than from the keeper, so an auction any
+  // keeper drives is announced, and the body is the same one the REST route
+  // builds at the block that emitted the log.
+  async function announceAuctions(at: BlockStamp): Promise<void> {
+    const from = state.auctionsFrom;
+    state.auctionsFrom = at.number + 1n;
+    if (from === null || from > at.number) return;
+    const logs = await chain().client.getLogs({
+      address: chain().deployment.auctionHouse,
+      events: AUCTION_EVENTS,
+      fromBlock: at.number - from > MAX_LOG_RANGE ? at.number - MAX_LOG_RANGE : from,
+      toBlock: at.number,
+    });
+    for (const entry of logs) {
+      const type = entry.eventName === "IndicativePublished" ? "auction.indicative" : "auction.crossed";
+      const blockNumber = entry.blockNumber!;
+      const {timestamp} = await chain().client.getBlock({blockNumber});
+      const body = await buildAuction((entry.args as {auctionId: bigint}).auctionId, {number: blockNumber, timestamp});
+      if (body) publish({type, at: Number(timestamp), data: body});
+    }
   }
 
   // Never two ticks at once, and never more than one waiting. A slow node
