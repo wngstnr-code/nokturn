@@ -2,7 +2,7 @@
 // open by chain time, and only after the dry run says it would land.
 
 import {createWalletClient, http, parseEventLogs, stringToHex, type Hex, type PublicClient, type TransactionReceipt} from "viem";
-import type {HDAccount} from "viem/accounts";
+import type {LocalAccount} from "viem/accounts";
 import {settlementAbi} from "./abi.ts";
 import {RPC, type Contracts} from "./chain.ts";
 import {encodeSolution, type Solution} from "./solution.ts";
@@ -24,7 +24,7 @@ export const FINALIZE_DEADLINE = 300n;
 /** Gives the receipt this long past solveEnd, in chain seconds, before calling it lost. */
 const RECEIPT_GRACE_SECONDS = 5n;
 
-export function wallet(account: HDAccount, rpc = RPC) {
+export function wallet(account: LocalAccount, rpc = RPC) {
   return createWalletClient({account, transport: http(rpc, {timeout: 8_000, retryCount: 0})});
 }
 
@@ -33,7 +33,7 @@ function isNonceTooLow(error: unknown): boolean {
 }
 
 /** Sends data to Settlement with a pending nonce, refetching it once on "nonce too low". */
-export async function sendToSettlement(c: PublicClient, account: HDAccount, k: Contracts, data: Hex): Promise<Hex> {
+export async function sendToSettlement(c: PublicClient, account: LocalAccount, k: Contracts, data: Hex): Promise<Hex> {
   const w = wallet(account);
   const gas = await c.estimateGas({account: account.address, to: k.settlement, data});
   // A fifth over the estimate, because the estimate is taken one block before
@@ -60,7 +60,7 @@ export async function replayRevert(c: PublicClient, receipt: TransactionReceipt,
   }
 }
 
-export async function submit(c: PublicClient, account: HDAccount, k: Contracts, s: Solution, store: Store): Promise<SendOutcome> {
+export async function submit(c: PublicClient, account: LocalAccount, k: Contracts, s: Solution, store: Store): Promise<SendOutcome> {
   const solveEnd = s.batchId + SOLUTION_WINDOW;
   const now = (await c.getBlock()).timestamp;
   if (now > solveEnd) return {status: "window_missed", reason: `chain time ${now} is past solveEnd ${solveEnd}`};

@@ -8,6 +8,7 @@
 import {readFileSync} from "node:fs";
 import {join} from "node:path";
 import {BaseError, ContractFunctionRevertedError, createPublicClient, decodeErrorResult, http, type Abi, type Address, type Hex, type PublicClient} from "viem";
+import {unknownMethod} from "../../packages/shared/rpc.ts";
 import {REPO_ROOT, settlementAbi} from "./abi.ts";
 
 export const RPC = process.env.NOKTURN_SOLVER_RPC ?? "http://127.0.0.1:8545";
@@ -18,6 +19,31 @@ export function client(rpc = RPC): PublicClient {
   // No block number cache, so a batch is solved at the real head and not at one
   // up to four seconds old, which after an evm_revert may not exist at all.
   return createPublicClient({cacheTime: 0, transport: http(rpc, {timeout: 8_000, retryCount: 2})});
+}
+
+/** Asked of the node. Only a node that does not know anvil_nodeInfo is a real chain. */
+export async function isFork(c: PublicClient): Promise<boolean> {
+  try {
+    await withRetry(() => c.request({method: "anvil_nodeInfo" as never, params: [] as never}), 3);
+    return true;
+  } catch (error) {
+    if (unknownMethod(error)) return false;
+    throw error;
+  }
+}
+
+/**
+ * The deployment record for the chain the node is on. A solver pointed at
+ * mainnet with the fork record would read a Settlement address that on mainnet
+ * is nobody's.
+ */
+export async function deploymentRecord(c: PublicClient): Promise<{path: string; record: Record<string, Address>}> {
+  const path =
+    process.env.NOKTURN_SOLVER_DEPLOYMENT ??
+    ((await isFork(c)) ? join(REPO_ROOT, "infra", "fork-deployment.json") : join(REPO_ROOT, "contracts", "deployments", `${await c.getChainId()}.json`));
+  const record = JSON.parse(readFileSync(path, "utf8")) as Record<string, Address>;
+  if (!record.settlement) throw new Error(`${path} names no settlement`);
+  return {path, record};
 }
 
 export function settlementAddress(): Address {

@@ -7,7 +7,7 @@
 // let go, because nothing sent after it can land.
 
 import type {PublicClient} from "viem";
-import type {HDAccount} from "viem/accounts";
+import type {LocalAccount} from "viem/accounts";
 import type {Contracts} from "./chain.ts";
 import {finalizeWon, type FinalizeOutcome} from "./finalize.ts";
 import {FINALIZE_DEADLINE, SOLUTION_WINDOW} from "./send.ts";
@@ -20,7 +20,7 @@ export interface Recovered {
   outcome: Promise<FinalizeOutcome | {status: "abandoned"; result: string}>;
 }
 
-export async function recover(c: PublicClient, account: HDAccount, k: Contracts, store: Store, log: (line: string) => void): Promise<Recovered[]> {
+export async function recover(c: PublicClient, account: LocalAccount, k: Contracts, store: Store, log: (line: string) => void): Promise<Recovered[]> {
   const head = (await c.getBlock()).timestamp;
   const out: Recovered[] = [];
   for (const id of store.batchIds()) {

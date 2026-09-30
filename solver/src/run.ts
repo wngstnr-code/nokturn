@@ -7,11 +7,11 @@
 
 import {writeFileSync} from "node:fs";
 import type {Hex, PublicClient} from "viem";
-import type {HDAccount} from "viem/accounts";
+import type {LocalAccount} from "viem/accounts";
 import type {StreamEvent} from "../../packages/shared/api-types.ts";
 import {settlementAbi} from "./abi.ts";
-import {solverAccount, type Profile} from "./account.ts";
-import {API, client, contracts, settlementAddress, type Contracts} from "./chain.ts";
+import {signer, type Profile} from "./account.ts";
+import {API, client, contracts, deploymentRecord, type Contracts} from "./chain.ts";
 import {feed, solveAt} from "./feed.ts";
 import {finalizeWon, untilBlock} from "./finalize.ts";
 import {assertReady} from "./preflight.ts";
@@ -88,7 +88,7 @@ async function usable(c: PublicClient, k: Contracts, signed: SignedIntent[], sol
   return {keep, dropped};
 }
 
-async function processBatch(c: PublicClient, account: HDAccount, k: Contracts, store: Store, batchId: bigint, closedAt: number, log: (line: string) => void, profile: Profile): Promise<BatchLine> {
+async function processBatch(c: PublicClient, account: LocalAccount, k: Contracts, store: Store, batchId: bigint, closedAt: number, log: (line: string) => void, profile: Profile): Promise<BatchLine> {
   const line: BatchLine = {batchId, intents: 0, status: "error", submitTx: null, finalizeTx: null, savingsUsd: 0n, closeToSubmitMs: null, detail: ""};
   const solveEnd = batchId + SOLUTION_WINDOW;
 
@@ -158,8 +158,8 @@ export async function run(opts: {durationMinutes?: number; profile?: Profile; lo
   const log = opts.log ?? ((line: string) => console.log(line));
   const profile = opts.profile ?? "a";
   const c = client();
-  const account = solverAccount(profile);
-  const settlement = settlementAddress();
+  const account = await signer(c, profile);
+  const settlement = (await deploymentRecord(c)).record.settlement!;
   const k = await contracts(c, settlement);
   const ready = await assertReady(c, k, account.address);
   const chainId = await c.getChainId();
