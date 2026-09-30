@@ -102,8 +102,11 @@ export function configRoutes(app: FastifyInstance) {
     const c = chain();
     let rpcUp = true;
     let blockNumber = 0n;
+    let headTime = 0n;
     try {
-      blockNumber = await c.client.getBlockNumber();
+      const head = await c.client.getBlock();
+      blockNumber = head.number;
+      headTime = head.timestamp;
     } catch {
       rpcUp = false;
     }
@@ -119,7 +122,12 @@ export function configRoutes(app: FastifyInstance) {
     // With no checkpoint or no database the lag cannot be measured, so it reads
     // zero and the indexer component says down rather than implying it is current.
     const lag = rpcUp && indexedTo !== null && blockNumber > indexedTo ? blockNumber - indexedTo : 0n;
-    const indexer = !databaseUp || indexedTo === null ? "down" : lag <= INDEXER_UP_LAG ? "up" : lag <= INDEXER_DEGRADED_LAG ? "degraded" : "down";
+    let lagSeconds = 0n;
+    if (lag > 0n) {
+      const indexedAt = await c.client.getBlock({blockNumber: indexedTo!}).then((b) => b.timestamp, () => null);
+      lagSeconds = indexedAt === null ? INDEXER_DEGRADED_LAG_SECONDS + 1n : headTime - indexedAt;
+    }
+    const indexer = !databaseUp || indexedTo === null ? "down" : lagSeconds <= INDEXER_UP_LAG_SECONDS ? "up" : lagSeconds <= INDEXER_DEGRADED_LAG_SECONDS ? "degraded" : "down";
 
     const rpc = rpcStatus();
     const tick = lastLifecycleTick();
@@ -140,11 +148,13 @@ export function configRoutes(app: FastifyInstance) {
 }
 
 /**
- * The indexer steps once a block and the fork mines one a second, so a few
- * blocks behind is normal and a minute behind means it has stalled. N18.
+ * In chain seconds, not blocks. A few seconds behind is normal and a minute
+ * behind means it has stalled, N18. Counted in blocks this assumed the fork's
+ * one a second, and mainnet seals about ten, so twenty confirmations alone read
+ * as degraded there. Measured 1 October 2026.
  */
-const INDEXER_UP_LAG = 10n;
-const INDEXER_DEGRADED_LAG = 60n;
+const INDEXER_UP_LAG_SECONDS = 10n;
+const INDEXER_DEGRADED_LAG_SECONDS = 60n;
 /** The lifecycle polls every 500 ms. Ten seconds without a tick is a stall. */
 const SCHEDULER_UP_MS = 10_000;
 const SCHEDULER_DEGRADED_MS = 60_000;
