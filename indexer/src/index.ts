@@ -71,7 +71,10 @@ export async function loadDeployment(c: PublicClient): Promise<Deployment> {
 
   let fromBlock: bigint;
   if (fork) {
-    fromBlock = BigInt(JSON.parse(readFileSync(join(REPO_ROOT, "infra", "pinned-block.json"), "utf8")).block) + 1n;
+    // Asked of the node, because make keeper-fork forks 1.3 million blocks
+    // before the block in infra/pinned-block.json, and starting there would
+    // index nothing on it without saying so.
+    fromBlock = (await forkBlock(c)) + 1n;
   } else if (record.deployBlock !== undefined) {
     fromBlock = BigInt(String(record.deployBlock));
   } else {
@@ -124,6 +127,13 @@ export async function isFork(c: PublicClient): Promise<boolean> {
       throw error;
     }
   });
+}
+
+async function forkBlock(c: PublicClient): Promise<bigint> {
+  const info = await withRetry(() => c.request({method: "anvil_nodeInfo" as never, params: [] as never})) as {forkConfig?: {forkBlockNumber?: number}};
+  const block = info.forkConfig?.forkBlockNumber;
+  if (block) return BigInt(block);
+  return BigInt(JSON.parse(readFileSync(join(REPO_ROOT, "infra", "pinned-block.json"), "utf8")).block);
 }
 
 export class UnsafeConfirmations extends Error {}
