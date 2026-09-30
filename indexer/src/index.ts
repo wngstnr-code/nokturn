@@ -75,6 +75,11 @@ export async function loadDeployment(c: PublicClient): Promise<Deployment> {
     // before the block in infra/pinned-block.json, and starting there would
     // index nothing on it without saying so.
     fromBlock = (await forkBlock(c)) + 1n;
+  } else if (process.env.NOKTURN_INDEXER_FROM_BLOCK) {
+    // For a node without history, where the search below cannot run. The
+    // official mainnet RPC keeps about ten minutes of state. The mainnet start
+    // was found by that search against an archive endpoint, block 75694415.
+    fromBlock = BigInt(process.env.NOKTURN_INDEXER_FROM_BLOCK);
   } else if (record.deployBlock !== undefined) {
     fromBlock = BigInt(String(record.deployBlock));
   } else {

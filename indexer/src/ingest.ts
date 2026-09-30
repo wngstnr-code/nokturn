@@ -10,7 +10,10 @@ import {INDEXED, loadAbi, type ContractKey} from "./abi.ts";
 import type {DecodedLog, Op} from "./project.ts";
 import type {BlockRow, Checkpoint, IndexStore, UndecodedLog} from "./store.ts";
 
-export const MAX_RANGE = 500n;
+// The official mainnet RPC through make rpc-proxy served 460,000 blocks in one
+// getLogs, measured 1 October 2026, and the million blocks since the mainnet
+// deploy are two thousand steps at 500. Alchemy's free tier takes 10.
+export const MAX_RANGE = BigInt(process.env.NOKTURN_INDEXER_MAX_RANGE || 500);
 export const MAX_REWIND = 64;
 const FULL_RESET_WINDOW_MS = 10 * 60_000;
 
