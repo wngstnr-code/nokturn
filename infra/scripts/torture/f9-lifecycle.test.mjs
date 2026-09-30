@@ -30,11 +30,16 @@ function ticks() {
   return out;
 }
 
-/** Waits until the lifecycle has run on a block at or after chain time t. */
-async function waitTick(t, timeoutMs = 30_000) {
+/**
+ * Waits until the lifecycle has run on a block at or after chain time t. With
+ * `since`, only a tick logged at or after that wall clock time counts, because
+ * after an earlier test's evm_revert the old lines carry a later chain time
+ * than the chain now has and would answer at once.
+ */
+async function waitTick(t, timeoutMs = 30_000, since = 0) {
   const deadline = performance.now() + timeoutMs;
   while (performance.now() < deadline) {
-    if (ticks().some((l) => BigInt(l.chainTime) >= BigInt(t))) return true;
+    if (ticks().some((l) => l.time >= since && BigInt(l.chainTime) >= BigInt(t))) return true;
     await new Promise((r) => setTimeout(r, 100));
   }
   return false;
@@ -174,8 +179,12 @@ describe("F9 batch lifecycle", () => {
     const call = (functionName, args) => sendAs({from: governor, to: ctx.deployment.sessions, data: encodeFunctionData({abi: abis.session, functionName, args})});
     const result = await withSnapshot(async () => {
       const start = listener.frames.length;
+      // The first tick after the previous test's revert only records a
+      // baseline, so it has to happen before the token moves, or the entry
+      // and the exit both land before it and neither is a transition.
+      assert.ok(await waitTick(await chainNow(), 30_000, Date.now()));
       const r1 = await call("setProtective", [token, keccak256(toHex("torture F9-8"))]);
-      assert.ok(await waitTick((await chainNow()) + 1n));
+      assert.ok(await waitTick((await chainNow()) + 1n, 30_000, Date.now()));
       let exits = 0;
       for (let i = 0; i < 5; i += 1) {
         const session = await ctx.client.readContract({address: ctx.deployment.sessions, abi: abis.session, functionName: "tokenSession", args: [token]});
@@ -183,7 +192,7 @@ describe("F9 batch lifecycle", () => {
         await call("reportHealthy", [token]);
         exits += 1;
       }
-      assert.ok(await waitTick((await chainNow()) + 1n));
+      assert.ok(await waitTick((await chainNow()) + 1n, 30_000, Date.now()));
       // The tick's log line and its frame travel on different pipes, so the
       // frame is waited for rather than assumed to be there already.
       const isMine = (f) => f.frame.type === "token.protective" && f.frame.data.token.toLowerCase() === token.toLowerCase() && listener.frames.indexOf(f) >= start;
