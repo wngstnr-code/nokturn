@@ -44,7 +44,7 @@ help:
 	@echo "keeper-fork  a fork inside a closing session with the clock frozen, deployed and funded, foreground"
 	@echo "keeper       run the auction keeper, ARGS=\"--duration 10\" bounds it in chain minutes"
 
-.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo keeper-fork keeper rpc-proxy mainnet-api mainnet-indexer
+.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo keeper-fork keeper rpc-proxy mainnet-api mainnet-indexer check-batch-mainnet
 
 keeper-fork:
 	@$(S)/keeper-fork.sh
@@ -63,6 +63,9 @@ mainnet-api:
 
 mainnet-indexer:
 	@$(S)/mainnet.sh indexer $(ARGS)
+
+check-batch-mainnet:
+	@$(S)/mainnet.sh check-batch
 
 up:
 	@$(S)/stack.sh up

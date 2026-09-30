@@ -29,7 +29,8 @@ chain_id="$(curl -s -m 10 -H 'content-type: application/json' -d '{"jsonrpc":"2.
 [ -f "$CHAIN_RECORD" ] || die "no $CHAIN_RECORD, the mainnet deployment record"
 
 # The mainnet rows get a database of their own, so a fork run never mixes in.
-(cd "$REPO_ROOT/indexer" && node --input-type=module -e '
+ensure_database() {
+  (cd "$REPO_ROOT/indexer" && node --input-type=module -e '
   import pg from "pg";
   const url = new URL(process.argv[1]);
   const name = url.pathname.slice(1);
@@ -40,12 +41,13 @@ chain_id="$(curl -s -m 10 -H 'content-type: application/json' -d '{"jsonrpc":"2.
   if (!rowCount) await admin.query(`CREATE DATABASE "${name}"`);
   await admin.end();
 ' "$DB_URL") 2>/dev/null || die "cannot reach postgres at $(redact_url "$DB_URL"). run: make db-up"
-
-export NOKTURN_DATABASE_URL="$DB_URL"
+  export NOKTURN_DATABASE_URL="$DB_URL"
+}
 
 case "${1:-}" in
   api)
     shift
+    ensure_database
     [ -n "${NOKTURN_RPC_MAINNET:-}" ] || die "NOKTURN_RPC_MAINNET is not set in .env"
     export NOKTURN_API_RPC="$NOKTURN_RPC_MAINNET,$PROXY"
     export NOKTURN_API_PUBLIC_RPC="${NOKTURN_API_PUBLIC_RPC:-https://rpc.mainnet.chain.robinhood.com}"
@@ -56,13 +58,19 @@ case "${1:-}" in
     ;;
   indexer)
     shift
+    ensure_database
     export NOKTURN_INDEXER_RPC="$PROXY"
     export NOKTURN_INDEXER_MAX_RANGE="${NOKTURN_INDEXER_MAX_RANGE:-50000}"
     export NOKTURN_INDEXER_FROM_BLOCK="$FROM_BLOCK"
     log "starting the indexer on mainnet 4663 from block $FROM_BLOCK"
     cd "$REPO_ROOT" && exec node indexer/src/index.ts --confirmations "${NOKTURN_MAINNET_CONFIRMATIONS:-20}" "$@"
     ;;
+  check-batch)
+    # packages/shared/batch.ts against the mainnet Settlement, moving nothing.
+    export NOKTURN_CHECK_RPC="$PROXY"
+    cd "$REPO_ROOT" && exec node infra/scripts/check-batch.mjs
+    ;;
   *)
-    die "usage: mainnet.sh api | indexer"
+    die "usage: mainnet.sh api | indexer | check-batch"
     ;;
 esac
