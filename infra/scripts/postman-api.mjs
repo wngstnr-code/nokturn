@@ -538,7 +538,9 @@ requests.push(
   },
 );
 
-const stubs = [{method: "GET", path: "/v1/auctions/1", needs: "an auction"}];
+// Asked of the running api, so the case below checks a real auction when the
+// keeper has opened one and the 404 when it has not.
+const hasAuction = await fetch(`${API}/v1/auctions/1`).then((r) => r.status === 200);
 
 // GET /v1/batches is real since Hari 5. It answers live, so its shape is
 // checked directly rather than through the 503 stub loop below.
@@ -617,21 +619,41 @@ requests.push({
   why: "Newman cannot open a websocket, so this only proves the route is live and refuses plain http in the frozen shape. What travels over the socket is held by torture group f10.",
 });
 
-for (const s of stubs) {
+requests.push({
+  name: "/v1/auctions/0 is refused as not an auction id",
+  method: "GET",
+  path: "/v1/auctions/0",
+  expectStatus: 400,
+  tests: [`pm.test("code is COORDINATOR_INVALID_REQUEST", () => pm.expect(body.code).to.eql("COORDINATOR_INVALID_REQUEST"));`],
+  why: "AuctionHouse numbers auctions from one, and id zero is the NONE phase of every mapping. Refused before any chain read.",
+});
+
+if (hasAuction) {
   requests.push({
-    name: `${s.path} answers 503 in the frozen shape`,
-    method: s.method,
-    path: s.path,
-    expectStatus: 503,
+    name: "/v1/auctions/1 is read from AuctionHouse",
+    method: "GET",
+    path: "/v1/auctions/1",
     tests: [
-      `pm.test("503, not 404", () => pm.response.to.have.status(503));`,
-      `pm.test("code is COORDINATOR_NOT_IMPLEMENTED", () => pm.expect(body.code).to.eql("COORDINATOR_NOT_IMPLEMENTED"));`,
-      `pm.test("no invented payload rides along", () => {`,
-      `  pm.expect(body.batchId, "a stub must never return data").to.eql(undefined);`,
-      `  pm.expect(body.fills).to.eql(undefined);`,
-      `});`,
+      ...provenanceChecks,
+      `pm.test("auctionId matches", () => pm.expect(body.auctionId).to.eql("1"));`,
+      `pm.test("phase is one the contract can be in", () => pm.expect(["disclosing", "frozen", "crossed", "aborted"]).to.include(body.phase));`,
+      `pm.test("a result exists exactly when crossed", () => pm.expect(body.result === null).to.eql(body.phase !== "crossed"));`,
+      `pm.test("an indicative only while the book is live", () => { if (!["disclosing", "frozen"].includes(body.phase)) pm.expect(body.indicativePrice).to.eql(null); });`,
+      `pm.test("an opening cross never claims a print", () => { if (body.kind === "open" && body.result) pm.expect(body.result.sufficient).to.eql(false); });`,
     ],
-    why: `The route is frozen but needs ${s.needs}. It says so rather than returning a shape nobody planned for, and it never fills a screen with numbers that are not real.`,
+    why: "An auction the keeper opened on this fork when the collection was generated. Every field is a view on AuctionHouse at the provenance block.",
+  });
+} else {
+  requests.push({
+    name: "/v1/auctions/1 before any auction opened is a 404",
+    method: "GET",
+    path: "/v1/auctions/1",
+    expectStatus: 404,
+    tests: [
+      `pm.test("code is COORDINATOR_INVALID_REQUEST", () => pm.expect(body.code).to.eql("COORDINATOR_INVALID_REQUEST"));`,
+      `pm.test("no invented payload rides along", () => pm.expect(body.phase).to.eql(undefined));`,
+    ],
+    why: "No auction had opened on this fork when the collection was generated. Run make keeper-fork across a closing bell, then regenerate.",
   });
 }
 
@@ -674,9 +696,9 @@ const collection = {
       "Every route the api serves is here. Chain reads, the accept and reject",
       "paths for POST /v1/intents, the D4 balance hold, the solver feed with its",
       "withdrawn list, nonces, the escape hatch, receipts and the backtest curve.",
-      "GET /v1/auctions/:id still answers 503 in the frozen error shape, because",
-      "the api does not serve auctions yet. WS /v1/stream is live, and a plain",
-      "GET on it answers 426. Its events are tested by torture group f10.",
+      "GET /v1/auctions/:id reads AuctionHouse, and answers 404 until the keeper",
+      "has opened one. WS /v1/stream is live, and a plain GET on it answers 426.",
+      "Its events are tested by torture group f10.",
       "",
       "Signatures bind the Settlement and the batch this file was generated",
       "against, so regenerate before each run with make postman-api. The D4 hold",
