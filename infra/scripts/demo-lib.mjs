@@ -84,10 +84,13 @@ export async function freshBatch(after) {
       const r = await get("/v1/batches/current");
       if (r.status !== 200) throw new Error(`GET /v1/batches/current answered ${r.status}`);
       const w = r.body;
-      return w.batchId !== null && BigInt(w.batchId) > after && w.collectEndsAt - w.chainTime >= 25 ? w : undefined;
+      // Empty as well. Every caller asserts what its own intents did, and the
+      // mempool does not rewind with evm_revert, so a batch reused after a
+      // reverted run still holds that run's intents, and the solvers solve those.
+      return w.batchId !== null && BigInt(w.batchId) > after && w.intentCount === 0 && w.collectEndsAt - w.chainTime >= 25 ? w : undefined;
     },
     (await c.client.getBlock()).timestamp + 600n,
-    "an open batch with 25 seconds of collection left",
+    "an empty open batch with 25 seconds of collection left",
   );
 }
 
