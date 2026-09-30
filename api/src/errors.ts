@@ -4,7 +4,6 @@
 // so a rejection at the API and the same rejection on chain read identically
 // and the frontend keeps one message table rather than two.
 
-import type {FastifyReply} from "fastify";
 import type {ApiError, ApiErrorCode} from "../../packages/shared/api-types.ts";
 import type {Provenance} from "../../packages/shared/api-types.ts";
 
@@ -38,21 +37,4 @@ export function badRequest(code: ApiErrorCode, message: string, detail?: ApiErro
 
 export function notFound(code: ApiErrorCode, message: string) {
   return fail(404, code, message);
-}
-
-/**
- * The honest answer for a route whose shape is frozen and whose implementation
- * is not written yet. It is a 503 with the agreed body rather than a 404,
- * because the route exists, it simply cannot answer today.
- *
- * It never returns invented data. A stub that makes a screen look full is the
- * mock this project lost a competition to, CLAUDE.md rule 9.
- */
-export function notImplemented(reply: FastifyReply, needs: string) {
-  const body: ApiError = {
-    code: "COORDINATOR_NOT_IMPLEMENTED",
-    message: `this route is frozen in packages/shared/api-types.ts but not implemented yet. it needs ${needs}`,
-    detail: {needs},
-  };
-  return reply.code(503).send(body);
 }

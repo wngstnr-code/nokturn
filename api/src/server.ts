@@ -13,6 +13,7 @@ import {env} from "./config.ts";
 import {chain, deploymentMoved} from "./chain.ts";
 import {HttpError, fail} from "./errors.ts";
 import {allowlistRoutes} from "./routes/allowlist.ts";
+import {auctionRoutes} from "./routes/auctions.ts";
 import {backtestRoutes} from "./routes/backtest.ts";
 import {batchRoutes} from "./routes/batches.ts";
 import {configRoutes} from "./routes/config.ts";
@@ -23,7 +24,6 @@ import {quoteRoutes} from "./routes/quote.ts";
 import {sessionRoutes} from "./routes/session.ts";
 import {solverRoutes} from "./routes/solvers.ts";
 import {STREAM_MAX_MESSAGE_BYTES, streamRoutes} from "./routes/stream.ts";
-import {stubRoutes} from "./routes/stubs.ts";
 
 function bigintSafe(_key: string, value: unknown) {
   return typeof value === "bigint" ? value.toString() : value;
@@ -123,7 +123,7 @@ export function buildServer(): FastifyInstance {
   solverRoutes(app);
   batchRoutes(app);
   backtestRoutes(app);
-  stubRoutes(app);
+  auctionRoutes(app);
 
   // An oversized frame is closed with 1009 by ws itself, before any handler
   // allocates for it. The stream routes sit in their own scope so they are
