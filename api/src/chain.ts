@@ -60,6 +60,9 @@ export const INTENT_TYPE_STRING =
  * the slot rather than trusting the symbol is the whole point, because token
  * impersonation is a characteristic of this chain. CLAUDE.md section 5.
  */
+/** The canonical Multicall3, deployed at the same address on mainnet 4663. */
+const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const;
+
 export const BEACON_SLOT = "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50" as const;
 export const STOCK_TOKEN_BEACON = "0xe10b6f6b275de231345c20d14ab812db62151b00" as const;
 
@@ -197,13 +200,19 @@ export async function initChain(): Promise<ChainContext> {
   const isFork = fork !== null;
   const isTestnet = chainId === CHAIN_ID_TESTNET;
 
+  // Reads issued in the same tick go out as one Multicall3 call where the chain
+  // has it. Against mainnet on Alchemy's free tier the idle API sent 1052
+  // requests a minute and was answered 429, measured 1 October 2026.
+  const multicall = ((await probe.getCode({address: MULTICALL3})) ?? "0x").length > 2;
   const client = createPublicClient({
     cacheTime: 0,
+    batch: multicall ? {multicall: true} : undefined,
     chain: {
       id: chainId,
       name: isFork ? "robinhood-fork" : isTestnet ? "robinhood-testnet" : "robinhood",
       nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
       rpcUrls: {default: {http: [env.publicRpc]}},
+      contracts: multicall ? {multicall3: {address: MULTICALL3}} : undefined,
     },
     transport: transport(),
   });
