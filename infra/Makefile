@@ -44,13 +44,18 @@ help:
 	@echo "keeper-fork  a fork inside a closing session with the clock frozen, deployed and funded, foreground"
 	@echo "keeper       run the auction keeper, ARGS=\"--duration 10\" bounds it in chain minutes"
 
-.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo keeper-fork keeper
+.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo keeper-fork keeper rpc-proxy
 
 keeper-fork:
 	@$(S)/keeper-fork.sh
 
 keeper:
 	@node ../solver/src/keeper.ts $(ARGS)
+
+# The official mainnet RPC on 127.0.0.1:8547, reached by address rather than by
+# DNS. For the indexer and the api on mainnet, see scripts/rpc-proxy.mjs.
+rpc-proxy:
+	@node scripts/rpc-proxy.mjs $(ARGS)
 
 up:
 	@$(S)/stack.sh up
