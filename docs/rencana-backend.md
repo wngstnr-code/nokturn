@@ -1287,6 +1287,30 @@ pernah dikirim, karena `AuctionHouse` sudah mengungkap sejak blok pertama.
   menolak speed di atas 1 untuk fixture yang dipotong per batch. Komentar Makefile,
   header `replay.ts`, dan contoh di dokumen ini diperbaiki.
 
+**Backend terhadap mainnet 4663, 1 Oktober 2026.** Jam blok mainnet saat dikerjakan
+masih 30 September sekitar 20.00 UTC, dan oracle menjawab `FeedNotSet` sampai `SetFeeds`
+dieksekusi. Jadi yang dikerjakan adalah semua jalur baca, ke kontrak Wangsit yang asli.
+Menjalankannya di mainnet langsung membuka masalah yang tidak pernah terlihat di fork.
+
+- **Key RPC berbayar bocor di setiap 502.** Pesan error viem memuat URL request lengkap.
+  Badan respons kini hanya memuat pesan pendek, dan URL di badan maupun log dipotong ke
+  host.
+- **API diam menghabiskan Alchemy free tier.** 1.052 permintaan per menit, dijawab 429.
+  Lifecycle kini tick sekali per detik chain di chain nyata, bacaan per token paralel
+  dan di-batch lewat Multicall3, hasilnya 624 per menit tanpa error. Fork tetap tick per
+  blok, dan torture c2, c3, f9, f10, r lulus sesudahnya.
+- **`eth_getLogs` dibatasi 10 blok di free tier.** Log lelang kini dibaca per potongan
+  yang bisa diatur, kursornya tidak pernah melompati rentang, dan kegagalannya tidak lagi
+  menggagalkan tick.
+- **Solver dan keeper menandatangani dengan mnemonic repo di chain mana pun.** Di mainnet
+  itu berarti bond di balik kunci publik. Kini ditolak di luar fork.
+- **Papan skor tidak pernah bisa menampilkan solver mainnet**, karena daftarnya dari
+  `infra/accounts.json`. Kini dari tabel `solvers` indexer.
+- **Lag indexer dihitung dalam blok**, dan 20 konfirmasi di mainnet sudah terbaca
+  `degraded`. Kini dalam detik chain.
+
+Cara menjalankannya dan angka yang terukur ada di `runbook-backend.md` §7.
+
 **Catatan.** E5 lulus di run ini. Temuan W5, `finalize` yang revert `LiquidityExhausted`
 ketika pool bergeser sedikit antara submit dan finalize, tetap temuan untuk kontrak
 sampai Wangsit memutuskan. Satu run yang lulus tidak membuktikan risikonya hilang.
