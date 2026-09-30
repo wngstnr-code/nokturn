@@ -120,9 +120,15 @@ async function timing(id: bigint): Promise<{freezeAt: bigint; crossAt: bigint; r
   return {freezeAt, crossAt, referenceAt};
 }
 
-async function eventsSince(fromBlock: bigint): Promise<string[]> {
+/**
+ * The keeper opens an auction for every allowed token, not only the one the
+ * test committed to, so a count over all of AuctionHouse is five times too big.
+ */
+async function eventsSince(fromBlock: bigint, auctionId: bigint): Promise<string[]> {
   const logs = await c.getLogs({address: house, fromBlock, toBlock: "latest"});
-  return parseEventLogs({abi: houseAbi, logs: logs as Log[], strict: false}).map((l) => l.eventName as string);
+  return parseEventLogs({abi: houseAbi, logs: logs as Log[], strict: false})
+    .filter((l) => (l.args as {auctionId?: bigint}).auctionId === auctionId)
+    .map((l) => l.eventName as string);
 }
 
 const count = (names: string[], name: string) => names.filter((n) => n === name).length;
@@ -174,14 +180,14 @@ describe("auction keeper, K1 to K3", () => {
 
       await withKeeper(async () => {
         await waitFor("frozen", async () => ((await state(id)).phase === PHASE.FROZEN ? true : null));
-        await waitFor("an indicative after the freeze", async () => (count(await eventsSince(from), "IndicativePublished") > 0 ? true : null));
+        await waitFor("an indicative after the freeze", async () => (count(await eventsSince(from, id), "IndicativePublished") > 0 ? true : null));
         await warp(crossAt);
         await waitFor("crossed", async () => ((await state(id)).phase === PHASE.CROSSED ? true : null));
         await warp(crossAt + 121n);
         await waitFor("executed", async () => ((await state(id)).phase === PHASE.EXECUTED ? true : null));
       }, lines);
 
-      const names = await eventsSince(from);
+      const names = await eventsSince(from, id);
       assert.equal(count(names, "AuctionOpened"), 1, lines.join("\n"));
       assert.ok(count(names, "IndicativePublished") >= 1);
       assert.equal(count(names, "AuctionFrozen"), 1);
@@ -211,7 +217,7 @@ describe("auction keeper, K1 to K3", () => {
         await waitFor("aborted", async () => ((await state(id)).phase === PHASE.ABORTED ? true : null));
       }, lines);
 
-      const names = await eventsSince(from);
+      const names = await eventsSince(from, id);
       assert.equal(count(names, "AuctionExtended"), 3, lines.join("\n"));
       assert.equal(count(names, "AuctionAborted"), 1);
       assert.equal(count(names, "CrossSubmitted"), 0);
@@ -240,7 +246,7 @@ describe("auction keeper, K1 to K3", () => {
         await waitFor("executed", async () => ((await state(id)).phase === PHASE.EXECUTED ? true : null));
       }, second);
 
-      const names = await eventsSince(from);
+      const names = await eventsSince(from, id);
       for (const once of ["AuctionOpened", "AuctionFrozen", "CrossSubmitted", "CrossExecuted"]) {
         assert.equal(count(names, once), 1, `${once} ${count(names, once)} times\n${first.join("\n")}\n---\n${second.join("\n")}`);
       }
