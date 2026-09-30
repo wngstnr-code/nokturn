@@ -4,8 +4,9 @@
 //
 //   node analytics/src/replay.ts --duration <chain minutes> [--speed <n>] [--fixture data/replay/august-2026.json]
 //
-// Paced by chain time, one block at a time, never by a timer. --speed 12 plays
-// the fixture's hour in five chain minutes. It stops on its own, waits for the
+// Paced by chain time, one block at a time, never by a timer. A --speed above 1
+// is refused unless the fixture was cut into windows that many batches long. It
+// stops on its own, waits for the
 // last batch it touched to be settled and indexed, and prints a summary.
 //
 // The netting it reports is what this replay measured on a fork, with every

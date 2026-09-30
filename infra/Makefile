@@ -64,7 +64,8 @@ logs:
 demo:
 	@node $(S)/demo.mjs
 
-# ARGS="--duration 5 --speed 12" plays the fixture's hour in five chain minutes.
+# ARGS="--duration 5" plays five chain minutes at speed 1. A faster speed is refused,
+# because the fixture is cut into windows as long as one fork batch.
 # Needs make api, make solver and make indexer running.
 replay:
 	@node ../analytics/src/replay.ts $(ARGS)
