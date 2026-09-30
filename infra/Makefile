@@ -44,7 +44,7 @@ help:
 	@echo "keeper-fork  a fork inside a closing session with the clock frozen, deployed and funded, foreground"
 	@echo "keeper       run the auction keeper, ARGS=\"--duration 10\" bounds it in chain minutes"
 
-.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo keeper-fork keeper rpc-proxy
+.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo keeper-fork keeper rpc-proxy mainnet-api mainnet-indexer
 
 keeper-fork:
 	@$(S)/keeper-fork.sh
@@ -56,6 +56,13 @@ keeper:
 # DNS. For the indexer and the api on mainnet, see scripts/rpc-proxy.mjs.
 rpc-proxy:
 	@node scripts/rpc-proxy.mjs $(ARGS)
+
+# The api and the indexer on mainnet 4663, read only. Needs make rpc-proxy.
+mainnet-api:
+	@$(S)/mainnet.sh api $(ARGS)
+
+mainnet-indexer:
+	@$(S)/mainnet.sh indexer $(ARGS)
 
 up:
 	@$(S)/stack.sh up
