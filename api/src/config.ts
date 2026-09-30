@@ -70,6 +70,9 @@ export const env = {
   publicRpc: process.env.NOKTURN_API_PUBLIC_RPC || rpcs[0]!,
   /** Requests per minute above which the log warns. Nothing is refused. */
   rpcBudgetPerMinute: Number(process.env.NOKTURN_API_RPC_BUDGET_PER_MINUTE || 6000),
+  // Alchemy's free tier refuses eth_getLogs over more than 10 blocks, and
+  // mainnet seals about ten a second. Set 10 there.
+  logBlockRange: BigInt(process.env.NOKTURN_API_LOG_BLOCK_RANGE || 1000),
   host: process.env.NOKTURN_API_HOST ?? "127.0.0.1",
   port: Number(process.env.NOKTURN_API_PORT ?? 3000),
   explorer: process.env.NOKTURN_EXPLORER ?? "https://robinhoodchain.blockscout.com",

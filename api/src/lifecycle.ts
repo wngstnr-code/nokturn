@@ -9,9 +9,10 @@
 // Settlement outcomes need the indexer, and nothing here pretends to know them.
 
 import type {FastifyBaseLogger} from "fastify";
-import type {AbiEvent} from "viem";
+import {parseEventLogs, type AbiEvent} from "viem";
 import type {Address} from "../../packages/shared/api-types.ts";
 import {chain, oracleAbi, read, revertReason, rpcRequestCount, sessionAbi} from "./chain.ts";
+import {env} from "./config.ts";
 import {publish} from "./events.ts";
 import {auctionHouseAbi, buildAuction} from "./routes/auctions.ts";
 import {FINALIZE_DEADLINE, counts} from "./mempool.ts";
@@ -22,8 +23,8 @@ import {FROZEN_SESSIONS, WEEKEND_DRIFT_CAP_BPS, buildCurrentBatch, buildSession}
 const POLLING_INTERVAL_MS = 500;
 const MAX_TRACKED = 8;
 const PROTECTIVE = 8;
-// Bounds one catch up after a stall, well inside what a public endpoint serves.
-const MAX_LOG_RANGE = 1_000n;
+// Bounds the log reads one tick makes after a stall. The rest waits for the next.
+const MAX_LOG_CHUNKS_PER_TICK = 20;
 // CrossExecuted rather than CrossSubmitted, because a submitted cross can still
 // be challenged and rolled back, and an executed one is what paid out.
 const AUCTION_EVENTS = auctionHouseAbi.filter(
@@ -129,10 +130,10 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
     }
     state.session = session;
 
+    // In parallel, so a chain with Multicall3 answers every token in one call.
     const tokenSessions = new Map<Address, number>();
-    for (const t of c.tokens) {
-      tokenSessions.set(t.token, await read<number>(c.deployment.sessions, sessionAbi, "tokenSession", [t.token], at.number));
-    }
+    const sessionReads = await Promise.all(c.tokens.map((t) => read<number>(c.deployment.sessions, sessionAbi, "tokenSession", [t.token], at.number)));
+    c.tokens.forEach((t, i) => tokenSessions.set(t.token, sessionReads[i]!));
     if (state.tokenSessions !== null) {
       for (const t of c.tokens) {
         const was = state.tokenSessions.get(t.token) === PROTECTIVE;
@@ -148,16 +149,22 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
     state.tokenSessions = tokenSessions;
 
     const healthy = new Map<Address, boolean>();
-    for (const t of c.tokens) {
-      let answer: [bigint, bigint, boolean];
-      try {
-        answer = await read<[bigint, bigint, boolean]>(c.deployment.oracle, oracleAbi, "refPrice", [t.token], at.number);
-      } catch (error) {
-        // A token with no source reverts on every block. That is a fact the
-        // solver feed already reports by name, not a transition to announce.
-        if (revertReason(error) === null) throw error;
-        continue;
-      }
+    const prices = await Promise.all(
+      c.tokens.map((t) =>
+        read<[bigint, bigint, boolean]>(c.deployment.oracle, oracleAbi, "refPrice", [t.token], at.number).then(
+          (answer) => answer,
+          (error: unknown) => {
+            // A token with no source reverts on every block. That is a fact the
+            // solver feed already reports by name, not a transition to announce.
+            if (revertReason(error) === null) throw error;
+            return null;
+          },
+        ),
+      ),
+    );
+    for (const [i, t] of c.tokens.entries()) {
+      const answer = prices[i];
+      if (!answer) continue;
       const [, updatedAt, ok] = answer;
       healthy.set(t.token, ok);
       if (ok || state.healthy === null || state.healthy.get(t.token) !== true) continue;
@@ -176,7 +183,9 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
     }
     state.healthy = healthy;
 
-    await announceAuctions(at);
+    // Its own failure is logged, not the tick's. The batch and session work above
+    // already happened, and health reads a failed tick as a dead scheduler.
+    await announceAuctions(at).catch((error: unknown) => log.warn({err: error}, "auction logs not read this tick, retried on the next"));
 
     log.debug({block: String(blockNumber), chainTime: String(T), reads: rpcRequestCount() - readsBefore, tracked: state.tracked.size, concurrent}, "lifecycle tick");
   }
@@ -185,21 +194,28 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
   // keeper drives is announced, and the body is the same one the REST route
   // builds at the block that emitted the log.
   async function announceAuctions(at: BlockStamp): Promise<void> {
-    const from = state.auctionsFrom;
-    state.auctionsFrom = at.number + 1n;
-    if (from === null || from > at.number) return;
-    const logs = await chain().client.getLogs({
-      address: chain().deployment.auctionHouse,
-      events: AUCTION_EVENTS,
-      fromBlock: at.number - from > MAX_LOG_RANGE ? at.number - MAX_LOG_RANGE : from,
-      toBlock: at.number,
-    });
-    for (const entry of logs) {
-      const type = entry.eventName === "IndicativePublished" ? "auction.indicative" : "auction.crossed";
-      const blockNumber = entry.blockNumber!;
-      const {timestamp} = await chain().client.getBlock({blockNumber});
-      const body = await buildAuction((entry.args as {auctionId: bigint}).auctionId, {number: blockNumber, timestamp});
-      if (body) publish({type, at: Number(timestamp), data: body});
+    if (state.auctionsFrom === null || state.auctionsFrom > at.number) {
+      state.auctionsFrom = at.number + 1n;
+      return;
+    }
+    // In chunks the endpoint accepts, a bounded number per tick, and never
+    // skipping a range. The cursor moves only past what was read, so a failed
+    // read is tried again on the next tick.
+    let cursor: bigint = state.auctionsFrom;
+    for (let chunk = 0; chunk < MAX_LOG_CHUNKS_PER_TICK && cursor <= at.number; chunk += 1) {
+      const fromBlock: bigint = cursor;
+      const last = fromBlock + env.logBlockRange - 1n;
+      const toBlock: bigint = last < at.number ? last : at.number;
+      const raw = await chain().client.getLogs({address: chain().deployment.auctionHouse, fromBlock, toBlock});
+      for (const entry of parseEventLogs({abi: AUCTION_EVENTS, logs: raw})) {
+        const type = entry.eventName === "IndicativePublished" ? "auction.indicative" : "auction.crossed";
+        const blockNumber = entry.blockNumber!;
+        const {timestamp} = await chain().client.getBlock({blockNumber});
+        const body = await buildAuction((entry.args as {auctionId: bigint}).auctionId, {number: blockNumber, timestamp});
+        if (body) publish({type, at: Number(timestamp), data: body});
+      }
+      cursor = toBlock + 1n;
+      state.auctionsFrom = cursor;
     }
   }
 
@@ -230,15 +246,31 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
   // number above the last one it saw. After an evm_revert the head drops, and
   // the lifecycle would sit silent until the chain climbed past its old height,
   // with no batch closing and every solver waiting.
+  //
+  // On a real chain once per second of chain time rather than once per block.
+  // Mainnet seals about ten blocks a second under one timestamp, and every
+  // batch boundary, session and feed age is in whole seconds, so the other
+  // nine ticks read the same answers again. A fork keeps one tick per block,
+  // since the torture suites drive it block by block.
+  const perBlock = chain().isFork;
   let last: bigint | null = null;
+  let lastTime: bigint | null = null;
   let stopped = false;
   const poll = async () => {
     if (stopped) return;
     try {
-      const n = await chain().client.getBlockNumber({cacheTime: 0});
-      if (n !== last) {
-        last = n;
-        void drive(n);
+      if (perBlock) {
+        const n = await chain().client.getBlockNumber({cacheTime: 0});
+        if (n !== last) {
+          last = n;
+          void drive(n);
+        }
+      } else {
+        const head = await chain().client.getBlock();
+        if (head.timestamp !== lastTime) {
+          lastTime = head.timestamp;
+          void drive(head.number);
+        }
       }
     } catch (error) {
       log.error({err: error}, "block watch failed");
