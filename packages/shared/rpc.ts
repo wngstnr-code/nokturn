@@ -13,6 +13,16 @@ export function redactUrl(url: string): string {
   return url.replace(/^(https?:\/\/[^/\s]+)\/\S+$/, "$1/<redacted>");
 }
 
+/**
+ * Every url inside free text, cut to its host. viem puts the full request url
+ * in an error's message, so a failed call against a paid endpoint carried its
+ * key into every 502 the API answered. Measured 1 October 2026 against Alchemy
+ * on mainnet.
+ */
+export function redactUrls(text: string): string {
+  return text.replace(/(https?:\/\/[^/\s"'<>]+)\/[^\s"'<>]*/g, "$1/<redacted>");
+}
+
 /** True when the url has a path past the host, which is where a provider puts its key. */
 export function carriesPath(url: string): boolean {
   return /^https?:\/\/[^/\s]+\/\S/.test(url);
