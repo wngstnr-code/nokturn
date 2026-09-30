@@ -15,12 +15,22 @@ const c = createPublicClient({transport: http(process.env.NOKTURN_FORK_RPC ?? "h
 const rpc = (method: string, params: unknown[] = []) => c.request({method: method as never, params: params as never});
 const results: Record<string, unknown> = {};
 
+/**
+ * Reverted so the solvers' scores go back, then moved past where the case
+ * ended. The API's mempool does not rewind, so the case's intents would
+ * otherwise sit pending in batches the chain has not reached yet, and D4 would
+ * count them against the same owners in the next case. 310 is the solution
+ * window plus the finalize deadline, after which the mempool sweeps a batch.
+ */
 async function inSnapshot<T>(fn: () => Promise<T>): Promise<T> {
   const id = (await rpc("evm_snapshot")) as Hex;
   try {
     return await fn();
   } finally {
+    const ended = (await c.getBlock()).timestamp;
     await rpc("evm_revert", [id]);
+    await rpc("evm_setNextBlockTimestamp", [Number(ended + 310n + 60n)]);
+    await rpc("evm_mine");
   }
 }
 
