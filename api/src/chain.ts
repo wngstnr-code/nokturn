@@ -154,17 +154,30 @@ function transport(): Transport {
  * not know the method counts as not a fork. A dropped request is retried and
  * then thrown, never read as an answer.
  */
-async function detectFork(client: PublicClient): Promise<boolean> {
+async function detectFork(client: PublicClient): Promise<{forkBlockNumber: number} | null> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      await client.request({method: "anvil_nodeInfo" as never, params: [] as never});
-      return true;
+      const info = (await client.request({method: "anvil_nodeInfo" as never, params: [] as never})) as {forkConfig?: {forkBlockNumber?: number}};
+      return {forkBlockNumber: Number(info.forkConfig?.forkBlockNumber ?? 0)};
     } catch (error) {
-      if (unknownMethod(error)) return false;
+      if (unknownMethod(error)) return null;
       if (attempt >= 4) throw error;
       await new Promise((r) => setTimeout(r, 250 * 2 ** (attempt - 1)));
     }
   }
+}
+
+/**
+ * The block the running fork actually forked from, asked of the node. The file
+ * make pin writes names only the batch fork, and make keeper-fork stands 1.3
+ * million blocks earlier, so every receipt from it cited a block it never read.
+ */
+async function forkPoint(client: PublicClient, chainId: number, block: number): Promise<PinnedBlock | null> {
+  const file = loadPinnedBlock();
+  // Zero is a node that did not say, not a fork of genesis.
+  if (block === 0 || (file && file.block === block)) return file;
+  const {timestamp} = await client.getBlock({blockNumber: BigInt(block)});
+  return {chainId, block, timestamp: Number(timestamp), timestampUtc: new Date(Number(timestamp) * 1000).toISOString()};
 }
 
 export async function initChain(): Promise<ChainContext> {
@@ -180,7 +193,8 @@ export async function initChain(): Promise<ChainContext> {
   // and a head that old points at blocks that no longer exist.
   const probe = createPublicClient({cacheTime: 0, transport: transport()});
   const chainId = await probe.getChainId();
-  const isFork = await detectFork(probe);
+  const fork = await detectFork(probe);
+  const isFork = fork !== null;
   const isTestnet = chainId === CHAIN_ID_TESTNET;
 
   const client = createPublicClient({
@@ -202,7 +216,7 @@ export async function initChain(): Promise<ChainContext> {
     chainId,
     isFork,
     isTestnet,
-    pinned: isFork ? loadPinnedBlock() : null,
+    pinned: fork ? await forkPoint(probe, chainId, fork.forkBlockNumber) : null,
     deployment,
     quote: {address: chainFile.usdg, decimals: chainFile.usdgDecimals},
     permit2: chainFile.permit2,
