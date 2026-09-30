@@ -163,7 +163,9 @@ describe("C1 mempool", () => {
     const user = users[3];
     const batch = await freshWindow(g.api, 20);
     const nonce = await suggestedNonce(user);
-    const validUntil = batch.collectEndsAt + 5;
+    // One second past solveEnd, the earliest the API accepts since it mirrors
+    // submitSolution refusing validUntil <= solveEnd.
+    const validUntil = batch.solveEndsAt + 1;
     const first = await submit(g.api, await signFor(user, {nonce, validUntil: String(validUntil)}));
     assert.equal(first.status, 200, first.text);
     const whileHeld = await suggestedNonce(user);
