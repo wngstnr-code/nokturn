@@ -134,7 +134,7 @@ export async function runKeeper(opts: KeeperOptions = {}): Promise<KeeperSummary
     try {
       await c.call({account: account.address, to: house, data});
     } catch (error) {
-      const name = revertName(error) ?? (error as Error).message.split("\n")[0]!;
+      const name = revertName(error, houseAbi()) ?? (error as Error).message.split("\n")[0]!;
       if (WAIT.test(name)) return "wait";
       refused.add(key);
       bump(summary.reverted, action);
@@ -254,7 +254,7 @@ export async function runKeeper(opts: KeeperOptions = {}): Promise<KeeperSummary
           await c.call({account: account.address, to: house, data});
         } catch (error) {
           refused.add(key);
-          log(`${t.symbol} openAuction refused in simulation, ${revertName(error) ?? (error as Error).message.split("\n")[0]}`);
+          log(`${t.symbol} openAuction refused in simulation, ${revertName(error, houseAbi()) ?? (error as Error).message.split("\n")[0]}`);
           continue;
         }
         const outcome = await sendAndWait(c, account, house, data);
@@ -310,7 +310,7 @@ async function sendAndWait(c: PublicClient, account: HDAccount, to: Address, dat
     const nonce = await c.getTransactionCount({address: account.address, blockTag: "pending"});
     tx = await w.sendTransaction({account, chain: null, to, data, gas: (gas * 6n) / 5n, nonce});
   } catch (error) {
-    return {ok: false, reason: revertName(error) ?? (error as Error).message.split("\n")[0]!};
+    return {ok: false, reason: revertName(error, houseAbi()) ?? (error as Error).message.split("\n")[0]!};
   }
   const receipt = await c.waitForTransactionReceipt({hash: tx, pollingInterval: 250, timeout: 60_000});
   if (receipt.status === "success") return {ok: true, tx};
@@ -318,7 +318,7 @@ async function sendAndWait(c: PublicClient, account: HDAccount, to: Address, dat
     await c.call({account: account.address, to, data, blockNumber: receipt.blockNumber});
     return {ok: false, reason: `reverted in ${tx}, and the replay on its block passes`};
   } catch (error) {
-    return {ok: false, reason: `${revertName(error) ?? "reverted"} in ${tx}`};
+    return {ok: false, reason: `${revertName(error, houseAbi()) ?? "reverted"} in ${tx}`};
   }
 }
 
