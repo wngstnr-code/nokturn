@@ -127,9 +127,10 @@ contract AuctionMathProofs is Test {
 
     /// The same statement on the other conversion. A buy side fill is measured by
     /// tokenOf and a sell side fill by quoteOf, so the guarantee has to hold both
-    /// ways. This one divides by a symbolic price rather than by a constant, and the
-    /// floor lemma with a symbolic divisor times out on every solver halmos offers,
-    /// cvc5-int included. The one statement here that is still only sampled.
+    /// ways. Asked as one query the two bounds time out on every solver. Asked apart
+    /// on cvc5-int they close, the first directly and the second through the floor
+    /// lemma for any divisor, both in RoundingProofs since 1 October 2026. This joined
+    /// form stays a bounded fuzz.
     function testBound_splittingAQuoteNeverBuysMoreThanTheWhole(uint128 a, uint128 b, uint128 price)
         public
         pure
