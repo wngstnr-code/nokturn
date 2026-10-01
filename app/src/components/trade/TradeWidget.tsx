@@ -15,7 +15,6 @@ import {currentBatch, nextNonce, quote as fetchBaseline, submitIntent} from "@/l
 import type {BaselineQuote} from "@/lib/coordinator/types";
 import {units} from "@/lib/format";
 import type {TokenInfo} from "@/lib/tokens";
-import {IntentKind} from "@shared/types";
 import styles from "./TradeWidget.module.css";
 
 
@@ -172,7 +171,6 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
       minBuyAmount: 0n,
       toleranceBps: tolerance,
       partialFill,
-      kind: IntentKind.SPOT,
       nonce: BigInt(nonce.value.next),
       chainTime: batch.value.chainTime,
       collectEndsAt: batch.value.collectEndsAt,

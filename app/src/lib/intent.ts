@@ -46,8 +46,6 @@ export const ALL_TRADING_SESSIONS =
   SessionMask.POST_MARKET |
   SessionMask.CLOSED_WEEKEND;
 
-export const AUCTION_SESSIONS = SessionMask.AUCTION_OPEN | SessionMask.AUCTION_CLOSE;
-
 /*
  * Nonce and window are passed in rather than invented. The coordinator checks
  * both against a collectEnd it read from the chain, and a fork's clock has
@@ -61,15 +59,12 @@ export function buildIntent(input: {
   minBuyAmount: bigint;
   toleranceBps: number;
   partialFill: boolean;
-  kind: IntentKind;
   nonce: bigint;
   chainTime: number;
   collectEndsAt: number;
   validForSeconds: number;
   batchSpan: number;
 }): IntentMessage {
-  const auction = input.kind !== IntentKind.SPOT;
-
   // Settlement._pull checks the intent against collectEnd, so a window that
   // closes before it is refused no matter how long it looks from here.
   const validUntil = Math.max(input.chainTime + input.validForSeconds, input.collectEndsAt);
@@ -83,11 +78,50 @@ export function buildIntent(input: {
     minBuyAmount: input.minBuyAmount,
     validAfter: Math.min(input.chainTime, input.collectEndsAt),
     validUntil,
-    flags: (input.partialFill ? IntentFlags.PARTIAL_FILL : 0) | (auction ? IntentFlags.AUCTION : 0),
-    kind: input.kind,
+    flags: input.partialFill ? IntentFlags.PARTIAL_FILL : 0,
+    kind: IntentKind.SPOT,
     maxDevFromRefBps: input.toleranceBps,
-    allowedSessions: auction ? AUCTION_SESSIONS : ALL_TRADING_SESSIONS,
+    allowedSessions: ALL_TRADING_SESSIONS,
     batchSpan: input.batchSpan,
+    nonce: input.nonce,
+  };
+}
+
+/// How long past the cross a commitment stays valid, the margin the harness uses.
+const AFTER_CROSS_SECONDS = 3600;
+
+/*
+ * A commitment to a cross, which AuctionHouse reads differently from a batch
+ * intent in three places. It names exactly one auction session, because naming
+ * both reverts AmbiguousAuctionSession. It must outlive the cross, or it reverts
+ * IntentExpiresBeforeCross. And only a limit kind carries a price, read out of
+ * minBuyAmount over sellAmount.
+ */
+export function buildAuctionIntent(input: {
+  owner: Address;
+  sellToken: Address;
+  buyToken: Address;
+  sellAmount: bigint;
+  /** Zero for a market commitment. */
+  minBuyAmount: bigint;
+  cross: "open" | "close";
+  crossAt: number;
+  nonce: bigint;
+}): IntentMessage {
+  return {
+    owner: input.owner,
+    receiver: input.owner,
+    sellToken: input.sellToken,
+    buyToken: input.buyToken,
+    sellAmount: input.sellAmount,
+    minBuyAmount: input.minBuyAmount,
+    validAfter: 0,
+    validUntil: input.crossAt + AFTER_CROSS_SECONDS,
+    flags: IntentFlags.AUCTION,
+    kind: input.minBuyAmount === 0n ? IntentKind.MOO : IntentKind.LOO,
+    maxDevFromRefBps: 0,
+    allowedSessions: input.cross === "open" ? SessionMask.AUCTION_OPEN : SessionMask.AUCTION_CLOSE,
+    batchSpan: 1,
     nonce: input.nonce,
   };
 }
