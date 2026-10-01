@@ -142,8 +142,14 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
           {answers.map(({sent: entry, status, error}) => {
             const forgotten = status === null && error?.message.startsWith("no intent known") === true;
 
-            const look =
-              status !== null
+            // The coordinator calls an intent pending until its batch stops
+            // collecting, even once it knows which batch that is. Waiting for a
+            // batch, beside a batch number, reads as a contradiction.
+            const placed = status !== null && status.status === "pending" && status.batchId != null;
+
+            const look = placed
+              ? {label: "In the open batch", tone: styles.batched, mark: "batched" as Mark}
+              : status !== null
                 ? (LOOK[status.status] ?? {label: status.status, tone: styles.pending, mark: "waiting" as Mark})
                 : forgotten
                   ? {label: "No longer held", tone: styles.gone, mark: "unknown" as Mark}
