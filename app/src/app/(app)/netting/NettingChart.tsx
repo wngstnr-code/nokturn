@@ -163,103 +163,105 @@ export function NettingChart({points}: {points: Point[]}) {
       </div>
 
       <div className={styles.plot}>
-        <svg
-          className={styles.svg}
-          viewBox={`0 0 ${W} ${H}`}
-          role="img"
-          tabIndex={0}
-          aria-label="Netting ratio against Nokturn's share of flow, August 2026 backtest. Use the left and right arrow keys to read each share level."
-          onMouseMove={(event) => nearest(event.clientX, event.currentTarget)}
-          onMouseLeave={() => setIndex(null)}
-          onKeyDown={onKey}
-          onBlur={() => setIndex(null)}
-        >
-          {/* The share range this project actually quotes, called out rather than
-              left for the reader to find. parameter.md section 4. */}
-          <rect className={styles.band} x={x(10)} y={Y1} width={x(20) - x(10)} height={Y0 - Y1} rx={6} />
-          <text className={styles.bandText} x={(x(10) + x(20)) / 2} y={Y1 - 12} textAnchor="middle">
-            the share we quote
-          </text>
-
-          {GRID.map((value) => (
-            <g key={value}>
-              <line className={styles.grid} x1={X0} x2={X1} y1={y(value)} y2={y(value)} />
-              <text className={styles.axisText} x={X0 - 10} y={y(value) + 4} textAnchor="end">
-                {value}%
-              </text>
-            </g>
-          ))}
-
-          {points.map((p) => (
-            <text key={p.share} className={styles.axisText} x={x(p.share)} y={Y0 + 20} textAnchor="middle">
-              {p.share}%
+        <div className={styles.canvas}>
+          <svg
+            className={styles.svg}
+            viewBox={`0 0 ${W} ${H}`}
+            role="img"
+            tabIndex={0}
+            aria-label="Netting ratio against Nokturn's share of flow, August 2026 backtest. Use the left and right arrow keys to read each share level."
+            onMouseMove={(event) => nearest(event.clientX, event.currentTarget)}
+            onMouseLeave={() => setIndex(null)}
+            onKeyDown={onKey}
+            onBlur={() => setIndex(null)}
+          >
+            {/* The share range this project actually quotes, called out rather than
+                left for the reader to find. parameter.md section 4. */}
+            <rect className={styles.band} x={x(10)} y={Y1} width={x(20) - x(10)} height={Y0 - Y1} rx={6} />
+            <text className={styles.bandText} x={(x(10) + x(20)) / 2} y={Y1 - 12} textAnchor="middle">
+              the share we quote
             </text>
-          ))}
-          <text className={styles.axisTitle} x={(X0 + X1) / 2} y={H - 6} textAnchor="middle">
-            Nokturn share of flow
-          </text>
 
-          <path d={between} fill={GROSS} className={styles.between} />
-          <path className={`${styles.line} ${styles.loose}`} d={forward(gross)} stroke={GROSS} />
-          <path className={`${styles.line} ${styles.strict}`} d={forward(counterparty)} stroke={COUNTERPARTY} />
+            {GRID.map((value) => (
+              <g key={value}>
+                <line className={styles.grid} x1={X0} x2={X1} y1={y(value)} y2={y(value)} />
+                <text className={styles.axisText} x={X0 - 10} y={y(value) + 4} textAnchor="end">
+                  {value}%
+                </text>
+              </g>
+            ))}
 
-          {last === undefined ? null : (
-            <>
-              <text className={styles.endValue} x={X1 + 12} y={y(last.gross) + 1} fill={GROSS}>
-                {last.gross.toFixed(1)}%
+            {points.map((p) => (
+              <text key={p.share} className={styles.axisText} x={x(p.share)} y={Y0 + 20} textAnchor="middle">
+                {p.share}%
               </text>
-              <text className={styles.endName} x={X1 + 12} y={y(last.gross) + 16}>
-                gross
-              </text>
-              <text className={styles.endValue} x={X1 + 12} y={y(last.counterparty) + 1} fill={COUNTERPARTY}>
-                {last.counterparty.toFixed(1)}%
-              </text>
-              <text className={styles.endName} x={X1 + 12} y={y(last.counterparty) + 16}>
-                between counterparties
-              </text>
-            </>
-          )}
+            ))}
+            <text className={styles.axisTitle} x={(X0 + X1) / 2} y={H - 6} textAnchor="middle">
+              Nokturn share of flow
+            </text>
+
+            <path d={between} fill={GROSS} className={styles.between} />
+            <path className={`${styles.line} ${styles.loose}`} d={forward(gross)} stroke={GROSS} />
+            <path className={`${styles.line} ${styles.strict}`} d={forward(counterparty)} stroke={COUNTERPARTY} />
+
+            {last === undefined ? null : (
+              <>
+                <text className={styles.endValue} x={X1 + 12} y={y(last.gross) + 1} fill={GROSS}>
+                  {last.gross.toFixed(1)}%
+                </text>
+                <text className={styles.endName} x={X1 + 12} y={y(last.gross) + 16}>
+                  gross
+                </text>
+                <text className={styles.endValue} x={X1 + 12} y={y(last.counterparty) + 1} fill={COUNTERPARTY}>
+                  {last.counterparty.toFixed(1)}%
+                </text>
+                <text className={styles.endName} x={X1 + 12} y={y(last.counterparty) + 16}>
+                  between counterparties
+                </text>
+              </>
+            )}
+
+            {active === null ? null : (
+              <g>
+                <line className={styles.crosshair} x1={x(active.share)} x2={x(active.share)} y1={Y1} y2={Y0} />
+                <circle className={styles.hit} cx={x(active.share)} cy={y(active.gross)} r={6} fill={GROSS} />
+                <circle
+                  className={styles.hit}
+                  cx={x(active.share)}
+                  cy={y(active.counterparty)}
+                  r={6}
+                  fill={COUNTERPARTY}
+                />
+              </g>
+            )}
+          </svg>
 
           {active === null ? null : (
-            <g>
-              <line className={styles.crosshair} x1={x(active.share)} x2={x(active.share)} y1={Y1} y2={Y0} />
-              <circle className={styles.hit} cx={x(active.share)} cy={y(active.gross)} r={6} fill={GROSS} />
-              <circle
-                className={styles.hit}
-                cx={x(active.share)}
-                cy={y(active.counterparty)}
-                r={6}
-                fill={COUNTERPARTY}
-              />
-            </g>
+            <div
+              className={`${styles.tip} ${flipped ? styles.tipLeft : ""}`}
+              style={{left: `${left}%`}}
+              role="status"
+            >
+              <p className={styles.tipHead}>At {active.share}% of flow</p>
+              <p className={styles.tipRow}>
+                <span className={styles.stroke} style={{background: COUNTERPARTY}} />
+                Between counterparties
+                <strong>{active.counterparty.toFixed(2)}%</strong>
+              </p>
+              <p className={styles.tipRow}>
+                <span className={`${styles.stroke} ${styles.dashed}`} style={{color: GROSS}} />
+                Gross
+                <strong>{active.gross.toFixed(2)}%</strong>
+              </p>
+              <p className={styles.tipRow}>
+                <span className={styles.swatch} style={{background: GROSS}} />
+                Thrown out
+                <strong>{(active.gross - active.counterparty).toFixed(2)} points</strong>
+              </p>
+              <p className={styles.tipFoot}>{active.traders.toFixed(2)} traders per batch</p>
+            </div>
           )}
-        </svg>
-
-        {active === null ? null : (
-          <div
-            className={`${styles.tip} ${flipped ? styles.tipLeft : ""}`}
-            style={{left: `${left}%`}}
-            role="status"
-          >
-            <p className={styles.tipHead}>At {active.share}% of flow</p>
-            <p className={styles.tipRow}>
-              <span className={styles.stroke} style={{background: COUNTERPARTY}} />
-              Between counterparties
-              <strong>{active.counterparty.toFixed(2)}%</strong>
-            </p>
-            <p className={styles.tipRow}>
-              <span className={`${styles.stroke} ${styles.dashed}`} style={{color: GROSS}} />
-              Gross
-              <strong>{active.gross.toFixed(2)}%</strong>
-            </p>
-            <p className={styles.tipRow}>
-              <span className={styles.swatch} style={{background: GROSS}} />
-              Thrown out
-              <strong>{(active.gross - active.counterparty).toFixed(2)} points</strong>
-            </p>
-            <p className={styles.tipFoot}>{active.traders.toFixed(2)} traders per batch</p>
-          </div>
-        )}
+        </div>
       </div>
 
       <p className={styles.readoutHint}>
