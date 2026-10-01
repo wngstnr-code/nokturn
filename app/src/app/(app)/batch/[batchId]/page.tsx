@@ -1,14 +1,9 @@
 import Link from "next/link";
 import {
-  BatchArt,
-  CoinsArt,
+  BatchOwl,
   ClockArt,
   MoonArt,
-  NettingArt,
-  PeopleArt,
   Seal,
-  SheetsArt,
-  Tile,
 } from "@/components/art/Art";
 import {ProvenanceStrip} from "@/components/Provenance";
 import {AddressChip} from "@/components/ui/AddressChip";
@@ -181,6 +176,7 @@ const WHY: Record<string, string> = {
 function Failure({failure, receipt}: {failure: NonNullable<BatchReceipt["failure"]>; receipt: BatchReceipt}) {
   // A passthrough has no fills, so the token comes off the routed leg.
   const quote = receipt.fills[0]?.buyToken ?? receipt.venueRoutes[0]?.tokenOut;
+  const filled = receipt.fills.length > 0;
 
   return (
     <section className={styles.failure}>
@@ -191,37 +187,46 @@ function Failure({failure, receipt}: {failure: NonNullable<BatchReceipt["failure
           Settlement recorded the reason as <span className="chainvalue">{failure.reason}</span>
         </p>
       )}
+      {/*
+        A batch that finds no saving worth keeping can still fill, by sending the
+        intent to the venue at the venue's own price. Saying nothing settled over a
+        fill would be false, so the two cases get their own sentence.
+      */}
       <p className={styles.failureBody}>
-        Nothing settled, and the fee charged was {failure.feeCharged}. The comparison below was
-        published anyway, at the same block, which is the number a batch that never ran would have
-        no reason to show.
+        {filled
+          ? `The intent was filled, at the venue's own price and no better. The fee charged was ${failure.feeCharged}. The comparison below is published all the same, at the same block.`
+          : `Nothing settled, and the fee charged was ${failure.feeCharged}. The comparison below was published anyway, at the same block, which is the number a batch that never ran would have no reason to show.`}
       </p>
-      <div className={styles.failureGrid}>
-        <div className={styles.failureCell}>
-          Best solution offered
-          <strong className="chainvalue">
-            {failure.bestSolutionBuy === null
-              ? "no solution was accepted"
-              : `${amount(failure.bestSolutionBuy, quote?.decimals ?? 18, 4)} ${quote?.symbol ?? ""}`}
-          </strong>
+      {failure.bestSolutionBuy === null &&
+      failure.baselineBuy === null &&
+      failure.shortfall === null ? null : (
+        <div className={styles.failureGrid}>
+          <div className={styles.failureCell}>
+            Best solution offered
+            <strong className="chainvalue">
+              {failure.bestSolutionBuy === null
+                ? "no solution was accepted"
+                : `${amount(failure.bestSolutionBuy, quote?.decimals ?? 18, 4)} ${quote?.symbol ?? ""}`}
+            </strong>
+          </div>
+          <div className={styles.failureCell}>
+            Venue baseline
+            <strong className="chainvalue">
+              {failure.baselineBuy === null
+                ? "the adapter could not answer"
+                : `${amount(failure.baselineBuy, quote?.decimals ?? 18, 4)} ${quote?.symbol ?? ""}`}
+            </strong>
+          </div>
+          <div className={styles.failureCell}>
+            Shortfall
+            <strong className="chainvalue">
+              {failure.shortfall === null
+                ? "not applicable"
+                : `${amount(failure.shortfall, quote?.decimals ?? 18, 4)} ${quote?.symbol ?? ""}`}
+            </strong>
+          </div>
         </div>
-        <div className={styles.failureCell}>
-          Venue baseline
-          <strong className="chainvalue">
-            {failure.baselineBuy === null
-              ? "the adapter could not answer"
-              : `${amount(failure.baselineBuy, quote?.decimals ?? 18, 4)} ${quote?.symbol ?? ""}`}
-          </strong>
-        </div>
-        <div className={styles.failureCell}>
-          Shortfall
-          <strong className="chainvalue">
-            {failure.shortfall === null
-              ? "not applicable"
-              : `${amount(failure.shortfall, quote?.decimals ?? 18, 4)} ${quote?.symbol ?? ""}`}
-          </strong>
-        </div>
-      </div>
+      )}
     </section>
   );
 }
@@ -264,9 +269,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <Tile tone="night" size={76}>
-          <BatchArt size={52} />
-        </Tile>
+        <BatchOwl seed={receipt.batchId} size={76} />
         <div className={styles.headName}>
           <p className={styles.eyebrow}>Batch receipt</p>
           <h1 className={styles.title}>
@@ -274,8 +277,10 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
           </h1>
         </div>
         <div className={styles.headFacts}>
-          <span className={`${styles.outcome} ${settled ? styles.settled : styles.notSettled}`}>
-            <Seal state={settled ? "pass" : "unknown"} size={17} />
+          <span
+            className={`${styles.outcome} ${settled && receipt.failure === null ? styles.settled : styles.notSettled}`}
+          >
+            <Seal state={settled && receipt.failure === null ? "pass" : "unknown"} size={17} />
             {receipt.outcome}
           </span>
           <span className={styles.headFact}>
@@ -294,7 +299,6 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
       <div className={styles.totals}>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <NettingArt size={20} />
             Netting
             <Hint label="What netting is">
               The share of the batch that met another intent instead of going to a venue.
@@ -304,7 +308,6 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <CoinsArt size={20} />
             Total savings
             <Hint label="Savings against what">Against the venue baseline at this block.</Hint>
           </p>
@@ -314,7 +317,6 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <PeopleArt size={20} />
             Participants
             <Hint label="Who counts as a participant">
               Distinct owners, which is what makes netting possible.
@@ -324,7 +326,6 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <SheetsArt size={20} />
             Intents
             <Hint label="When intents are counted">Counted at the moment collection closed.</Hint>
           </p>

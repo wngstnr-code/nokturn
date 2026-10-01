@@ -1,4 +1,4 @@
-import {BlockArt, ChainArt, ClockArt, GateArt, Tile} from "@/components/art/Art";
+import {BlockArt, ChainArt, ClockArt} from "@/components/art/Art";
 import {TokenGateCard} from "@/components/TokenGateCard";
 import {Hint} from "@/components/ui/Hint";
 import {OwlState} from "@/components/ui/OwlState";
@@ -55,9 +55,6 @@ export default async function AllowlistPage() {
   return (
     <div className={styles.page}>
       <div className={styles.hero}>
-        <Tile tone="amber" size={76}>
-          <GateArt size={52} />
-        </Tile>
         <div>
           <p className={styles.eyebrow}>Allowlist gate</p>
           <h1 className={styles.title}>A ticker is not an identity</h1>
