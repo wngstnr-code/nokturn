@@ -1,9 +1,9 @@
 // WS /v1/stream
 //
-// Carries what the batch lifecycle and the mempool publish, and nothing else.
-// Topics whose source does not exist yet are refused by name rather than
-// accepted and left silent, because a socket that never fires looks exactly
-// like a quiet market. CLAUDE.md rule 9.
+// Carries what the batch lifecycle, the mempool and the contracts' own logs
+// publish, and nothing else. An unknown topic is refused rather than accepted
+// and left silent, because a socket that never fires looks exactly like a quiet
+// market. CLAUDE.md rule 9.
 
 import type {FastifyInstance} from "fastify";
 import {isAddress} from "viem";
@@ -24,23 +24,22 @@ const MISSED_PINGS_TO_CLOSE = 2;
 
 type Topic = StreamEvent["type"];
 
+// Every topic in the frozen StreamEvent union. A topic added there without a
+// source here fails the subscribe as unknown rather than staying silent.
 const SERVED = new Set<Topic>([
   "batch.opened",
   "batch.intent_added",
   "batch.collect_closed",
+  "batch.solution_submitted",
+  "batch.solution_rejected",
+  "batch.settled",
+  "batch.failed",
   "session.changed",
   "token.protective",
   "oracle.unhealthy",
   "auction.indicative",
   "auction.crossed",
 ]);
-
-const NEEDS: Partial<Record<Topic, string>> = {
-  "batch.solution_submitted": "the event indexer",
-  "batch.solution_rejected": "the event indexer",
-  "batch.settled": "the event indexer",
-  "batch.failed": "the event indexer",
-};
 
 const bigintSafe = (_key: string, value: unknown) => (typeof value === "bigint" ? value.toString() : value);
 
@@ -60,7 +59,7 @@ function parseSubscribe(raw: string): StreamSubscribe | string {
   if (type !== "subscribe") return `unknown message type ${JSON.stringify(type)}, the only one is subscribe`;
   if (!Array.isArray(topics) || topics.length === 0) return "topics is a non empty array";
   for (const t of topics) {
-    if (typeof t !== "string" || !(SERVED.has(t as Topic) || t in NEEDS)) return `unknown topic ${JSON.stringify(t)}`;
+    if (typeof t !== "string" || !SERVED.has(t as Topic)) return `unknown topic ${JSON.stringify(t)}`;
   }
   if (owner !== undefined && (typeof owner !== "string" || !isAddress(owner))) return "owner is an address";
   return {type, topics: topics as Topic[], ...(owner ? {owner: owner as `0x${string}`} : {})};
@@ -129,16 +128,8 @@ export function streamRoutes(app: FastifyInstance) {
           return;
         }
 
-        const refused = parsed.topics.filter((t) => !SERVED.has(t));
-        topics = new Set(parsed.topics.filter((t) => SERVED.has(t)));
+        topics = new Set(parsed.topics);
         owner = parsed.owner?.toLowerCase() ?? null;
-        if (refused.length > 0) {
-          send({
-            code: "COORDINATOR_NOT_IMPLEMENTED",
-            message: `no real source yet for ${refused.join(", ")}, the other topics are live`,
-            detail: {topics: refused.join(","), needs: [...new Set(refused.map((t) => NEEDS[t]!))].join(",")},
-          });
-        }
 
         // The present, so a solver that connects mid batch does not wait for
         // the next one. Read from the chain now, not remembered.

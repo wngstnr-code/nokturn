@@ -43,11 +43,11 @@ lelang, diganti 30 September 2026.
 | `GET /v1/batches/:batchId` | Tabel indexer, dengan perintah `cast` untuk menghitung ulang baseline |
 | `GET /v1/auctions/:id` | View AuctionHouse pada satu blok. 404 sebelum lelang itu dibuka |
 | `GET /v1/backtest/netting-curve` | `data/backtest`, berlabel BACKTEST di setiap baris |
-| `WS /v1/stream` | Siklus hidup batch, mempool, dan log AuctionHouse |
+| `WS /v1/stream` | Siklus hidup batch, mempool, log AuctionHouse dan Settlement, dan struk indexer |
 
-Satu-satunya yang masih ditolak dengan `COORDINATOR_NOT_IMPLEMENTED` adalah empat
-topik stream `batch.*` yang butuh indexer. Penolakannya menyebut topik dan apa yang
-ditunggu, dan topik lain di langganan yang sama tetap jalan.
+Sejak 1 Oktober 2026 setiap topik di skema stream punya sumber. Frame `batch.settled`
+dan `batch.failed` membawa struk yang sama dengan `GET /v1/batches/:batchId`, dan
+baru terbit setelah indexer memegang batch itu. Topik yang tidak dikenal ditolak.
 
 ## Tiga hal yang dikerjakan rute ini dan mungkin tidak terduga
 

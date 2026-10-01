@@ -107,20 +107,21 @@ describe("F10 stream", () => {
     assert.ok(ok, JSON.stringify(added));
   });
 
-  test("F10-4 topics with no real source are refused by name", async () => {
-    const c = await connect(g.api, {topics: ["batch.opened", "batch.settled", "auction.crossed"]});
-    const refusal = await waitFor(c, (f) => f.frame.code === "COORDINATOR_NOT_IMPLEMENTED", 10_000);
+  // Every topic of the frozen StreamEvent union has a source since 1 October
+  // 2026, the four batch outcomes from Settlement's logs and the indexer's
+  // receipt. Subscribing to all of them is accepted whole.
+  test("F10-4 every topic in the frozen shape is served", async () => {
+    const all = [
+      "batch.opened", "batch.intent_added", "batch.collect_closed", "batch.solution_submitted", "batch.solution_rejected",
+      "batch.settled", "batch.failed", "session.changed", "token.protective", "oracle.unhealthy", "auction.indicative", "auction.crossed",
+    ];
+    const c = await connect(g.api, {topics: all});
     const snap = await waitFor(c, snapshot, 10_000);
-    const d = refusal?.frame.detail ?? {};
-    const ok =
-      errors(c).length === 1 &&
-      String(d.topics) === "batch.settled" &&
-      d.needs === "the event indexer" &&
-      snap !== null &&
-      !c.closed;
+    await new Promise((r) => setTimeout(r, 1000));
+    const ok = errors(c).length === 0 && snap !== null && !c.closed;
     g.record("F10-4", {
       outcome: ok ? "pass" : "finding",
-      summary: `penolakan ${refusal?.frame.code ?? "tidak ada"}, topics ${d.topics}, needs ${d.needs}, snapshot tetap datang ${snap !== null}`,
+      summary: `${all.length} topik, ${errors(c).length} penolakan, snapshot datang ${snap !== null}`,
     });
     await closeAll([c]);
     assert.ok(ok, JSON.stringify(c.frames.map((f) => f.frame)));
