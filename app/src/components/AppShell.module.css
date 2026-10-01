@@ -11,8 +11,9 @@
  * The slab the whole app sits on. Pulled up by the height of the menu bar so the
  * bar floats over it, and down by the corner radius so the footer shows through.
  *
- * page-backdrop.svg is background-cowswap-darkmode.svg from the cowswap repo,
- * which is GPL-3.0 while this repo is MIT. Attribution is unresolved.
+ * night-forest.svg is drawn for this project. The owl is the logo's own geometry,
+ * and the foreground is the footer colour, so the scene runs into the footer
+ * rather than stopping at an edge.
  */
 .body {
   display: flex;
@@ -27,7 +28,7 @@
   margin: calc(var(--n-header-offset) * -1) auto calc(var(--n-slab-radius) * -1);
   border-bottom-left-radius: var(--n-slab-radius);
   border-bottom-right-radius: var(--n-slab-radius);
-  background: var(--n-slab) url("/page-backdrop.svg") no-repeat bottom -1px center / contain;
+  background: var(--n-slab) url("/night-forest.svg") no-repeat bottom -1px center / contain;
 }
 
 .main {
