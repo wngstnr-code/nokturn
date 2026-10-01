@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {describe, test} from "node:test";
 import type {Address} from "viem";
 import {computeMetrics} from "../../src/metrics.ts";
-import {attribute, buildReceipt, type BatchFacts, type ReceiptContext} from "../../src/receipt.ts";
+import {attribute, buildReceipt, publicOutcome, type BatchFacts, type ReceiptContext} from "../../src/receipt.ts";
 
 const USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
 const NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
@@ -171,15 +171,21 @@ describe("receipt", () => {
     assert.equal(r.failure!.code, "WinnerNeverFinalized");
   });
 
-  test("a routed batch that saved nothing stays settled and carries SavingsBelowThreshold", async () => {
+  test("a routed batch that saved nothing reads settled_at_venue with its fills and no failure", async () => {
     const f = nettedFacts();
     f.batch = {...f.batch!, reason: "savings below threshold", netted_usd: "0", routed_usd: "400", savings_usd: "0"};
     const r = (await buildReceipt(1789893780n, f, ctx()))!.receipt;
-    assert.equal(r.outcome, "settled");
+    assert.equal(r.outcome, "settled_at_venue");
     assert.equal(r.fills.length, f.fills.length);
     assert.equal(r.totals.totalSavingsUsd, "0");
-    assert.equal(r.failure!.code, "SavingsBelowThreshold");
-    assert.equal(r.failure!.feeCharged, "0");
+    assert.equal(r.failure, null);
+  });
+
+  test("publicOutcome renames only a settled batch below the savings threshold", () => {
+    assert.equal(publicOutcome("settled", "savings below threshold"), "settled_at_venue");
+    assert.equal(publicOutcome("settled", null), "settled");
+    assert.equal(publicOutcome("passthrough", "intent could not be collected"), "passthrough");
+    assert.equal(publicOutcome("expired", "winner never finalized"), "expired");
   });
 
   test("only the winning hash is accepted, and a loser replaced without an event says so", async () => {

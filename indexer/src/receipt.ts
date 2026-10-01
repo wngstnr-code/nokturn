@@ -189,10 +189,17 @@ export function attribute(fills: {sellToken: string; buyToken: string; executedS
   });
 }
 
+// The table keeps settled for a batch below the savings threshold, because its
+// trades happened and metrics count it so. The API names it apart, so a screen
+// never has to infer a fill at the venue price from a failure next to fills.
+export function publicOutcome(outcome: string, reason: string | null): BatchReceipt["outcome"] {
+  if (outcome === "settled" && reason === "savings below threshold") return "settled_at_venue";
+  return outcome as BatchReceipt["outcome"];
+}
+
 const FAILURE_CODES: Record<string, ApiErrorCode> = {
   "winner never finalized": "WinnerNeverFinalized",
   "intent could not be collected": "IntentCollectionFailed",
-  "savings below threshold": "SavingsBelowThreshold",
 };
 
 interface SolutionJson {
@@ -216,7 +223,7 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
   const b = facts.batch;
   if (!b) return null;
   const solution = facts.winning ? ((typeof facts.winning.solution === "string" ? JSON.parse(facts.winning.solution) : facts.winning.solution) as SolutionJson) : null;
-  const outcome = b.outcome as BatchReceipt["outcome"];
+  const outcome = publicOutcome(String(b.outcome), (b.reason as string | null) ?? null);
 
   const stored = new Map(facts.quotes.map((r) => [quoteKey(String(r.sell_token), String(r.buy_token), big(r.amount), big(r.quote_block), String(r.adapter)), r.amount_out === null ? null : big(r.amount_out)]));
   const quote = async (sell: Address, buy: Address, amount: bigint, block: bigint): Promise<Quoted> => {
@@ -381,12 +388,10 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
       solverFeeUsd: String(b.solver_fee_usd ?? "0"),
       protocolFeeUsd: String(b.protocol_fee_usd ?? "0"),
     },
-    // A routed batch that saved nothing settles and is flagged in the same
-    // finalize. Its trades happened, so the outcome stays settled, and the flag
-    // is carried as a failure so the failure screen can show it. Decided with
-    // Dharu 26 September 2026.
+    // Replaces the 26 September shape, settled with a SavingsBelowThreshold
+    // failure, after the frontend audit of 1 October read it as nothing settled.
     failure:
-      outcome === "settled" && reason !== "savings below threshold"
+      outcome === "settled" || outcome === "settled_at_venue"
         ? null
         : {
             code: FAILURE_CODES[reason ?? ""] ?? "BatchPassthrough",

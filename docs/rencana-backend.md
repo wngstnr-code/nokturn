@@ -961,6 +961,14 @@ menghemat nol menerbitkan `BatchPassthrough("savings below threshold")` dan
 supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
 26 September 2026.
 
+**Diganti 1 Oktober 2026.** Audit frontend Nabil membaca bentuk itu sebagai
+"nothing settled" di atas fill yang jelas terjadi. Batch ini sekarang ber-outcome
+`settled_at_venue` dengan `failure` null, di struk, di daftar batch, dan di frame
+`batch.settled` pada stream. Tabel `batches` tetap menyimpan `settled` beserta
+reason-nya, dan nama publiknya dipetakan saat dibaca oleh `publicOutcome` di
+`indexer/src/receipt.ts`. Karena itu tidak ada migrasi, dan metrik uptime serta
+netting tetap menghitungnya sebagai batch yang settle.
+
 **Catatan G1, aturan `AuctionHouse` yang dibaca dari kontraknya.**
 
 - `openAuction` boleh dipanggil siapa saja, hanya saat `sessionAt(now)` sama dengan

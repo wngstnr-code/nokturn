@@ -10,7 +10,7 @@ import type {ApiError, BatchListResponse, BatchReceipt, BatchSummary, FillReceip
 import {isValidBatchId} from "../../../packages/shared/batch.ts";
 import {createChainReader} from "../../../packages/shared/batch-viem.ts";
 import {db} from "../../../indexer/src/db.ts";
-import {buildReceipt, loadFacts, nettingRatioBps, type ReceiptContext, type TokenMeta} from "../../../indexer/src/receipt.ts";
+import {buildReceipt, loadFacts, nettingRatioBps, publicOutcome, type ReceiptContext, type TokenMeta} from "../../../indexer/src/receipt.ts";
 import {adapterAbi, chain, read, revertReason, sessionAbi, settlementAbi} from "../chain.ts";
 import {env} from "../config.ts";
 import {badRequest, notFound} from "../errors.ts";
@@ -148,7 +148,7 @@ export function batchRoutes(app: FastifyInstance) {
       const rows = await query(async () =>
         (
           await db({readOnly: true}).query(
-            `SELECT b.batch_id, b.outcome, b.session, b.intent_count, b.netted_usd, b.routed_usd, b.savings_usd, b.block_timestamp,
+            `SELECT b.batch_id, b.outcome, b.reason, b.session, b.intent_count, b.netted_usd, b.routed_usd, b.savings_usd, b.block_timestamp,
                     (SELECT count(DISTINCT f.owner)::int FROM fills f WHERE f.deployment = b.deployment AND f.batch_id = b.batch_id) AS participants
                FROM batches b
               WHERE b.deployment = $1 AND ($2::numeric IS NULL OR b.batch_id < $2::numeric)
@@ -164,7 +164,7 @@ export function batchRoutes(app: FastifyInstance) {
       const sessions = await Promise.all(page.map((r) => (r.session === null ? read<number>(c.deployment.sessions, sessionAbi, "sessionAt", [BigInt(r.batch_id)]) : Promise.resolve(Number(r.session)))));
       const batches: BatchSummary[] = page.map((r, n) => ({
         batchId: String(r.batch_id),
-        outcome: r.outcome,
+        outcome: publicOutcome(r.outcome, r.reason),
         sessionName: SESSION_NAMES[sessions[n]!]!,
         intentCount: Number(r.intent_count),
         participantCount: Number(r.participants),
