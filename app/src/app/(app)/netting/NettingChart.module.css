@@ -30,6 +30,21 @@
   border-radius: 2px;
 }
 
+.dashed {
+  height: 0;
+  background: none;
+  border-top: 3px dashed currentColor;
+  border-radius: 0;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  opacity: 0.28;
+}
+
 .plot {
   position: relative;
 }
@@ -68,11 +83,23 @@
   font-size: 12px;
 }
 
+.between {
+  opacity: 0.16;
+}
+
 .line {
   fill: none;
-  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.strict {
+  stroke-width: 3;
+}
+
+.loose {
+  stroke-width: 2;
+  stroke-dasharray: 2 6;
 }
 
 /* Only the level being read is marked. A ring in the surface colour keeps the

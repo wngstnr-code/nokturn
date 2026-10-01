@@ -11,6 +11,11 @@ export type Point = {share: number; counterparty: number; gross: number; traders
  * The blue is the periwinkle the landing page uses for its coins and the amber is
  * a step below the brand one, which sits outside the band a line needs on this
  * surface. The pair passes all five palette checks against the chart well.
+ *
+ * The stricter curve is the one this project quotes, so it is the solid, heavier
+ * line. The looser one is dashed, which keeps the two apart for a reader who
+ * cannot tell the colours apart. The space between them is shaded, because that
+ * gap is the finding. It is the volume a bot traded against itself.
  */
 const COUNTERPARTY = "#5f80e0";
 const GROSS = "#b8831f";
@@ -92,6 +97,13 @@ function forward(segments: Segment[]): string {
   );
 }
 
+function backward(segments: Segment[]): string {
+  return [...segments]
+    .reverse()
+    .map((s) => `C${s.c2.x} ${s.c2.y} ${s.c1.x} ${s.c1.y} ${s.from.x} ${s.from.y}`)
+    .join("");
+}
+
 export function NettingChart({points}: {points: Point[]}) {
   const [index, setIndex] = useState<number | null>(null);
   const active = index === null ? null : (points[index] ?? null);
@@ -99,6 +111,11 @@ export function NettingChart({points}: {points: Point[]}) {
 
   const gross = monotone(points.map((p) => ({x: x(p.share), y: y(p.gross)})));
   const counterparty = monotone(points.map((p) => ({x: x(p.share), y: y(p.counterparty)})));
+  const lastCounter = counterparty[counterparty.length - 1];
+  const between =
+    lastCounter === undefined
+      ? ""
+      : `${forward(gross)}L${lastCounter.to.x} ${lastCounter.to.y}${backward(counterparty)}Z`;
 
   function nearest(clientX: number, target: SVGSVGElement) {
     const box = target.getBoundingClientRect();
@@ -128,8 +145,12 @@ export function NettingChart({points}: {points: Point[]}) {
           Between counterparties
         </span>
         <span className={styles.legendItem}>
-          <span className={styles.stroke} style={{background: GROSS}} />
+          <span className={`${styles.stroke} ${styles.dashed}`} style={{color: GROSS}} />
           Gross, bots included
+        </span>
+        <span className={styles.legendItem}>
+          <span className={styles.swatch} style={{background: GROSS}} />
+          A bot trading against itself
         </span>
       </div>
 
@@ -167,8 +188,9 @@ export function NettingChart({points}: {points: Point[]}) {
             Nokturn share of flow
           </text>
 
-          <path className={styles.line} d={forward(gross)} stroke={GROSS} />
-          <path className={styles.line} d={forward(counterparty)} stroke={COUNTERPARTY} />
+          <path d={between} fill={GROSS} className={styles.between} />
+          <path className={`${styles.line} ${styles.loose}`} d={forward(gross)} stroke={GROSS} />
+          <path className={`${styles.line} ${styles.strict}`} d={forward(counterparty)} stroke={COUNTERPARTY} />
 
           {last === undefined ? null : (
             <>
@@ -215,9 +237,14 @@ export function NettingChart({points}: {points: Point[]}) {
               <strong>{active.counterparty.toFixed(2)}%</strong>
             </p>
             <p className={styles.tipRow}>
-              <span className={styles.stroke} style={{background: GROSS}} />
+              <span className={`${styles.stroke} ${styles.dashed}`} style={{color: GROSS}} />
               Gross
               <strong>{active.gross.toFixed(2)}%</strong>
+            </p>
+            <p className={styles.tipRow}>
+              <span className={styles.swatch} style={{background: GROSS}} />
+              Thrown out
+              <strong>{(active.gross - active.counterparty).toFixed(2)} points</strong>
             </p>
             <p className={styles.tipFoot}>{active.traders.toFixed(2)} traders per batch</p>
           </div>
