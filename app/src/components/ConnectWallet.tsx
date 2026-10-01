@@ -2,15 +2,15 @@
 
 import {useEffect, useState} from "react";
 import {useAccount} from "wagmi";
-import {CHAIN_ID_TESTNET} from "@shared/addresses";
 import {shortAddress} from "@/lib/format";
 import {AccountCard} from "./AccountCard";
 import {WalletPicker} from "./WalletPicker";
 import {WalletIcon, WarningIcon} from "./Icons";
 import type {SessionSnapshot} from "./SessionClock";
+import type {Network} from "@/lib/network";
 import styles from "./ConnectWallet.module.css";
 
-export function ConnectWallet({snapshot}: {snapshot: SessionSnapshot}) {
+export function ConnectWallet({snapshot, network}: {snapshot: SessionSnapshot; network: Network}) {
   const [mounted, setMounted] = useState(false);
   const [picking, setPicking] = useState(false);
   const [showCard, setShowCard] = useState(false);
@@ -42,7 +42,7 @@ export function ConnectWallet({snapshot}: {snapshot: SessionSnapshot}) {
     );
   }
 
-  const wrongChain = chainId !== CHAIN_ID_TESTNET;
+  const wrongChain = chainId !== network.chainId;
 
   return (
     <div className={styles.anchor}>
@@ -64,6 +64,7 @@ export function ConnectWallet({snapshot}: {snapshot: SessionSnapshot}) {
         <AccountCard
           address={address}
           chainId={chainId}
+          network={network}
           snapshot={snapshot}
           onClose={() => setShowCard(false)}
         />

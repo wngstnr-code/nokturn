@@ -177,3 +177,14 @@
     font-size: 24px;
   }
 }
+
+.back {
+  align-self: flex-start;
+  color: var(--n-text-o60);
+  font-size: var(--n-font-small-plus);
+}
+
+.back:hover {
+  color: var(--n-text);
+  text-decoration: none;
+}

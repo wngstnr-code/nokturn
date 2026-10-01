@@ -3,31 +3,29 @@
 import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {ConnectWallet} from "./ConnectWallet";
+import {MaskIcon} from "./landing/MaskIcon";
+import {BRAND} from "./landing/content";
 import type {SessionSnapshot} from "./SessionClock";
+import type {Network} from "@/lib/network";
 import styles from "./SiteHeader.module.css";
 
-/*
- * /auction is deliberately absent. The route exists, but docs/demo.md section 3b
- * priority 3 has an open decision above it about who its participants are, and
- * rule 9 says a feature that cannot run on real data is not shown. It stays
- * reachable by address until that is settled.
- */
 const NAV = [
   {href: "/trade", label: "Trade"},
   {href: "/batch", label: "Batches"},
+  {href: "/auction", label: "Auctions"},
   {href: "/session", label: "Session"},
   {href: "/allowlist", label: "Allowlist"},
   {href: "/netting", label: "Netting"},
 ];
 
-export function SiteHeader({snapshot}: {snapshot: SessionSnapshot}) {
+export function SiteHeader({snapshot, network}: {snapshot: SessionSnapshot; network: Network}) {
   const pathname = usePathname();
 
   return (
     <header className={styles.shell}>
       <div className={styles.bar}>
         <Link href="/" className={styles.brand}>
-          <span className={styles.moon} aria-hidden="true" />
+          <MaskIcon src={BRAND.mark} className={styles.mark} />
           Nokturn
         </Link>
 
@@ -49,7 +47,7 @@ export function SiteHeader({snapshot}: {snapshot: SessionSnapshot}) {
         <span className={styles.spacer} />
 
         <div className={styles.right}>
-          <ConnectWallet snapshot={snapshot} />
+          <ConnectWallet snapshot={snapshot} network={network} />
         </div>
       </div>
     </header>

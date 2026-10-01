@@ -21,14 +21,15 @@
   --n-paper-darkest: hsla(238, 42%, 6%, 1);
   --n-paper-gradient: linear-gradient(90deg, rgba(222, 227, 230, 0.1) 0%, rgba(222, 227, 230, 0.2) 100%);
 
-  --n-primary: #65d9ff;
-  --n-primary-lighter: hsla(195, 100%, 80%, 1);
-  --n-primary-darker: hsla(195, 100%, 50%, 1);
-  --n-primary-darkest: hsla(195, 100%, 30%, 1);
-  --n-primary-o80: rgba(101, 217, 255, 0.8);
-  --n-primary-o50: rgba(101, 217, 255, 0.5);
-  --n-primary-o25: rgba(101, 217, 255, 0.25);
-  --n-primary-o10: rgba(101, 217, 255, 0.1);
+  /* Owl amber. brand.md, primary and primary-soft of the dark seed. */
+  --n-primary: #ffb825;
+  --n-primary-lighter: #ffda94;
+  --n-primary-darker: hsla(40, 100%, 45%, 1);
+  --n-primary-darkest: hsla(40, 100%, 28%, 1);
+  --n-primary-o80: rgba(255, 184, 37, 0.8);
+  --n-primary-o50: rgba(255, 184, 37, 0.5);
+  --n-primary-o25: rgba(255, 184, 37, 0.25);
+  --n-primary-o10: rgba(255, 184, 37, 0.1);
 
   --n-text: #dee3e6;
   --n-text-o70: rgba(222, 227, 230, 0.7);

@@ -5,15 +5,13 @@ import type {BatchSummary} from "@/lib/coordinator/types";
 import {scanBatches, SCAN_SPAN, type BatchRow, type BatchScan} from "@/lib/batches";
 import {SESSION_NAMES} from "@/lib/session";
 import {shortAddress, units} from "@/lib/format";
-import {CHAIN_ID_TESTNET} from "@shared/addresses";
+import {active} from "@/lib/network";
 import type {Session} from "@shared/types";
 import styles from "./page.module.css";
 
 export const metadata = {title: "Batches"};
 
 export const dynamic = "force-dynamic";
-
-const CHAIN = CHAIN_ID_TESTNET;
 
 const OUTCOME_LABEL: Record<string, string> = {
   settled: "Settled",
@@ -62,7 +60,7 @@ function IndexedRow({batch}: {batch: BatchSummary}) {
 
 /// The fallback when no coordinator answers. A hundred blocks of logs is a live
 /// tail rather than a history, and the screen says so rather than implying more.
-function TailRow({row}: {row: BatchRow}) {
+function TailRow({row, chainId}: {row: BatchRow; chainId: number}) {
   return (
     <div className={styles.row}>
       <div className={styles.cell}>
@@ -98,7 +96,7 @@ function TailRow({row}: {row: BatchRow}) {
         <strong>
           <a
             className="chainvalue"
-            href={explorerTx(row.transactionHash, CHAIN)}
+            href={explorerTx(row.transactionHash, chainId)}
             target="_blank"
             rel="noreferrer"
           >
@@ -174,7 +172,8 @@ export default async function BatchesPage() {
   let failure: string | null = null;
 
   try {
-    scan = await scanBatches(CHAIN);
+    const now = await active();
+    scan = await scanBatches(now.network.chainId, now.contracts.settlement);
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error);
   }
@@ -205,7 +204,7 @@ export default async function BatchesPage() {
       ) : (
         <div className={styles.rows}>
           {scan.rows.map((row) => (
-            <TailRow key={`${row.transactionHash}-${row.batchId}`} row={row} />
+            <TailRow key={`${row.transactionHash}-${row.batchId}`} row={row} chainId={scan.chainId} />
           ))}
         </div>
       )}

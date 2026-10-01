@@ -4,7 +4,8 @@ import Link from "next/link";
 import {useEffect, useRef, useState} from "react";
 import {useDisconnect, useSwitchChain} from "wagmi";
 import {Session} from "@shared/types";
-import {CHAIN_ID_TESTNET} from "@shared/addresses";
+import {explorerAddress} from "@/lib/chain";
+import type {Network} from "@/lib/network";
 import {countdown, type SessionSnapshot} from "./SessionClock";
 import {
   BoltIcon,
@@ -18,8 +19,6 @@ import {
   ShieldIcon,
 } from "./Icons";
 import styles from "./AccountCard.module.css";
-
-const EXPLORER = "https://robinhood-testnet.cloud.blockscout.com";
 
 /*
  * A colour alone says a state is different without saying which, and the four
@@ -41,17 +40,18 @@ const TONE: Record<Session, {key: string; Icon: typeof CheckIcon}> = {
 type Props = {
   address: `0x${string}`;
   chainId: number | undefined;
+  network: Network;
   snapshot: SessionSnapshot;
   onClose: () => void;
 };
 
-export function AccountCard({address, chainId, snapshot, onClose}: Props) {
+export function AccountCard({address, chainId, network, snapshot, onClose}: Props) {
   const {disconnect} = useDisconnect();
   const {switchChain, isPending} = useSwitchChain();
   const [copied, setCopied] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const card = useRef<HTMLDivElement>(null);
-  const wrongChain = chainId !== CHAIN_ID_TESTNET;
+  const wrongChain = chainId !== network.chainId;
 
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
@@ -96,7 +96,7 @@ export function AccountCard({address, chainId, snapshot, onClose}: Props) {
           </button>
           <a
             className={styles.tool}
-            href={`${EXPLORER}/address/${address}`}
+            href={explorerAddress(address, network.chainId)}
             target="_blank"
             rel="noreferrer"
             aria-label="Open in the explorer"
@@ -115,19 +115,20 @@ export function AccountCard({address, chainId, snapshot, onClose}: Props) {
           <button
             type="button"
             className={styles.switch}
-            onClick={() => switchChain({chainId: CHAIN_ID_TESTNET})}
+            onClick={() => switchChain({chainId: network.chainId as 4663 | 46630})}
             disabled={isPending}
           >
-            {isPending ? "Switching" : "Wrong network. Switch to testnet"}
+            {isPending ? "Switching" : `Wrong network. Switch to ${network.name.toLowerCase()}`}
           </button>
         ) : (
           <span className={styles.network}>
             <GlobeIcon size={15} />
-            Testnet
-            <span className={`${styles.networkId} chainvalue`}>46630</span>
+            {network.name}
+            <span className={`${styles.networkId} chainvalue`}>{network.chainId}</span>
           </span>
         )}
       </div>
+      {network.note === null ? null : <p className={styles.networkNote}>{network.note}</p>}
 
       <div className={styles.row}>
         <span className={styles.rowLabel}>Session</span>

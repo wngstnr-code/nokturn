@@ -15,10 +15,8 @@ import {currentBatch, nextNonce, quote as fetchBaseline, submitIntent} from "@/l
 import type {BaselineQuote} from "@/lib/coordinator/types";
 import {units} from "@/lib/format";
 import type {TokenInfo} from "@/lib/tokens";
-import {IntentKind} from "@shared/types";
 import styles from "./TradeWidget.module.css";
 
-type Mode = "spot" | "auction";
 
 export type TradeContext = {
   chainId: number;
@@ -29,6 +27,8 @@ export type TradeContext = {
   sessionName: string | null;
   batchDuration: number | null;
   maxDeviationBps: number | null;
+  /** Token address to the auction it has open in this session. Empty outside one. */
+  auctions: Record<string, string>;
   coordinatorDetail: string;
   coordinatorReachable: boolean;
 };
@@ -52,7 +52,6 @@ function band(bps: number | null): string {
 }
 
 export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
-  const [mode, setMode] = useState<Mode>("spot");
   const [sellToken, setSellToken] = useState<TokenInfo | undefined>(bases[0]);
   const [amount, setAmount] = useState("");
   const [tolerance, setTolerance] = useState(50);
@@ -74,6 +73,8 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
+    // The chain the card trades on, not whichever one the wallet is parked on.
+    chainId: context.chainId as 4663 | 46630,
     query: {enabled: Boolean(address && sellToken)},
   });
 
@@ -137,6 +138,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   const settling = !mounted || status === "reconnecting";
 
   const wrongChain = isConnected && chainId !== context.chainId;
+  const openAuction = sellToken === undefined ? undefined : context.auctions[sellToken.address];
   const canSign =
     isConnected && !wrongChain && context.signingOk && sellAmount !== null && sellToken !== undefined;
 
@@ -169,7 +171,6 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
       minBuyAmount: 0n,
       toleranceBps: tolerance,
       partialFill,
-      kind: mode === "spot" ? IntentKind.SPOT : IntentKind.ROO,
       nonce: BigInt(nonce.value.next),
       chainTime: batch.value.chainTime,
       collectEndsAt: batch.value.collectEndsAt,
@@ -238,20 +239,15 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
           <>
             <div className={styles.head}>
               <div className={styles.tabs}>
-                <button
-                  type="button"
-                  className={`${styles.tab} ${mode === "spot" ? styles.tabActive : ""}`}
-                  onClick={() => setMode("spot")}
-                >
-                  Spot
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.tab} ${mode === "auction" ? styles.tabActive : ""}`}
-                  onClick={() => setMode("auction")}
-                >
-                  Auction
-                </button>
+                {/*
+                  An auction commitment is a transaction to AuctionHouse, not an
+                  intent handed to the coordinator. This card only does the second,
+                  so it offers the second and links to where the first is shown.
+                */}
+                <span className={`${styles.tab} ${styles.tabActive}`}>Spot</span>
+                <Link className={styles.tab} href={openAuction ? `/auction/${openAuction}` : "/auction"}>
+                  {openAuction ? `${sellToken?.symbol ?? ""} auction` : "Auctions"}
+                </Link>
               </div>
               <Link className={styles.headRight} href="/session">
                 {context.sessionName ?? "Session unavailable"}

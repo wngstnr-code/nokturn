@@ -43,12 +43,10 @@
   text-decoration: none;
 }
 
-.moon {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: currentColor;
-  box-shadow: 0 0 0 4px var(--n-primary-o10);
+.mark {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
 }
 
 .nav {
