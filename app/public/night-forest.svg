@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 400" fill="none">
+  <style>
+    .lid { transform-box: fill-box; transform-origin: center top; transform: scaleY(0); animation: blink 7s infinite; }
+    .fly { animation: glow 4s ease-in-out infinite; }
+    .fly:nth-of-type(2n) { animation-delay: 1.3s; }
+    .fly:nth-of-type(3n) { animation-delay: 2.6s; }
+    @keyframes blink { 0%, 94%, 100% { transform: scaleY(0); } 96%, 98% { transform: scaleY(1); } }
+    @keyframes glow { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.9; } }
+    @media (prefers-reduced-motion: reduce) { .lid, .fly { animation: none; } .fly { opacity: 0.7; } }
+  </style>
+  <defs>
+    <path id="pine" d="M30 0L48 36H40L54 70H44L60 104H34V120H26V104H0L16 70H6L20 36H12Z"/>
+  </defs>
+
+  <g fill="#A2BCFF" opacity="0.55">
+    <circle cx="96" cy="58" r="2"/><circle cx="214" cy="24" r="1.5"/><circle cx="472" cy="46" r="2.5"/>
+    <circle cx="590" cy="112" r="1.5"/><circle cx="716" cy="30" r="2"/><circle cx="1010" cy="70" r="1.5"/>
+    <circle cx="1168" cy="22" r="2.5"/><circle cx="1286" cy="96" r="1.5"/><circle cx="1610" cy="40" r="2"/>
+    <circle cx="1748" cy="104" r="1.5"/><circle cx="1852" cy="34" r="2.5"/><circle cx="880" cy="128" r="1.5"/>
+  </g>
+
+  <circle cx="330" cy="96" r="40" fill="#FFDA94"/>
+  <circle cx="349" cy="82" r="36" fill="#0D102C"/>
+
+  <g fill="#131739">
+    <use href="#pine" transform="translate(99 166) scale(0.7)"/>
+    <use href="#pine" transform="translate(153 138) scale(0.9)"/>
+    <use href="#pine" transform="translate(232 172) scale(0.6)"/>
+    <use href="#pine" transform="translate(796 140) scale(0.8)"/>
+    <use href="#pine" transform="translate(853 132) scale(0.9)"/>
+    <use href="#pine" transform="translate(1279 160) scale(0.7)"/>
+    <use href="#pine" transform="translate(1673 122) scale(0.9)"/>
+    <use href="#pine" transform="translate(1742 152) scale(0.6)"/>
+    <path d="M0 400V250Q240 190 480 240T960 230T1440 250T1920 220V400Z"/>
+  </g>
+
+  <g fill="#1A1F4D">
+    <use href="#pine" transform="translate(387 166) scale(1.1)"/>
+    <use href="#pine" transform="translate(476 200) scale(0.8)"/>
+    <use href="#pine" transform="translate(1014 150) scale(1.2)"/>
+    <use href="#pine" transform="translate(1093 186) scale(0.9)"/>
+    <use href="#pine" transform="translate(1800 178) scale(1)"/>
+    <path d="M0 400V300Q300 250 620 300T1250 290T1920 300V400Z"/>
+  </g>
+
+  <g fill="#FFB825">
+    <circle class="fly" cx="560" cy="318" r="3"/><circle class="fly" cx="664" cy="286" r="2.5"/>
+    <circle class="fly" cx="742" cy="330" r="3"/><circle class="fly" cx="1188" cy="302" r="2.5"/>
+    <circle class="fly" cx="1262" cy="330" r="3"/><circle class="fly" cx="930" cy="322" r="2.5"/>
+  </g>
+
+  <g fill="#05071B">
+    <use href="#pine" transform="translate(-8 158) scale(1.6)"/>
+    <use href="#pine" transform="translate(82 206) scale(1.2)"/>
+    <use href="#pine" transform="translate(1690 194) scale(1.3)"/>
+    <path d="M1548 400V40L1560 20L1572 44L1570 150L1640 96L1648 108L1572 176V400Z"/>
+    <path d="M1300 252Q1430 240 1552 250V266Q1430 258 1304 264Z"/>
+    <path d="M0 400V350Q400 320 800 352T1500 345T1920 350V400Z"/>
+  </g>
+
+  <g transform="translate(1388 96) scale(1.5)">
+    <ellipse cx="32" cy="76" rx="23" ry="27" fill="#232857"/>
+    <path d="M3 13L19 19.5Q32 16 45 19.5L61 13Q62.5 28 59 40Q53.5 58.5 32 60.5Q10.5 58.5 5 40Q1.5 28 3 13Z" fill="#2C3270"/>
+    <path d="M20 74Q32 66 44 74Q40 96 32 100Q24 96 20 74Z" fill="#1A1F4D"/>
+    <circle cx="21" cy="35" r="11.4" fill="#05071B"/>
+    <circle cx="43" cy="35" r="11.4" fill="#05071B"/>
+    <circle cx="21" cy="35" r="6" fill="#FFB825"/>
+    <circle cx="43" cy="35" r="6" fill="#FFB825"/>
+    <circle cx="21" cy="35" r="2.4" fill="#05071B"/>
+    <circle cx="43" cy="35" r="2.4" fill="#05071B"/>
+    <path d="M28 44H36L32 52Z" fill="#E09600"/>
+    <circle class="lid" cx="21" cy="35" r="11.6" fill="#2C3270"/>
+    <circle class="lid" cx="43" cy="35" r="11.6" fill="#2C3270"/>
+    <path d="M24 103v5M28 104v5M36 104v5M40 103v5" stroke="#E09600" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>

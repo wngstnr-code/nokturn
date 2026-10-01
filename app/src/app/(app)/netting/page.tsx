@@ -1,13 +1,20 @@
 import {NettingChart, type Point} from "./NettingChart";
+import {NettingIcon} from "@/components/Icons";
+import {nettingCurve} from "@/lib/coordinator/client";
+import type {NettingCurveResponse} from "@/lib/coordinator/types";
 import styles from "./page.module.css";
 
 export const metadata = {title: "Netting backtest"};
 
+export const dynamic = "force-dynamic";
+
 /*
- * Copied from docs/parameter.md section 4, never recomputed. A second
- * computation would be a second answer.
+ * The copy this build carries, from docs/parameter.md section 4. It is drawn only
+ * when no coordinator answers, and the page says which of the two it is showing.
+ * The coordinator serves the same rows from the Dune export, and they were checked
+ * equal to these on 1 October 2026.
  */
-const CURVE: Point[] = [
+const CARRIED: Point[] = [
   {share: 5, counterparty: 21.43, gross: 31.92, traders: 1.94},
   {share: 10, counterparty: 27.19, gross: 37.99, traders: 2.47},
   {share: 15, counterparty: 30.43, gross: 41.17, traders: 2.9},
@@ -22,50 +29,101 @@ const CURVE: Point[] = [
 const DUNE =
   "https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026";
 
-export default function NettingPage() {
+/// The session the quoted figures come from. The other two are served but not drawn.
+const QUOTED_SESSION = "off_hours_weekday";
+
+type Loaded = {
+  curve: Point[];
+  served: NettingCurveResponse["source"] | null;
+  statement: string | null;
+};
+
+async function load(): Promise<Loaded> {
+  const answer = await nettingCurve();
+  if (!answer.ok) return {curve: CARRIED, served: null, statement: null};
+
+  const curve = answer.value.rows
+    .filter((row) => row.session === QUOTED_SESSION)
+    .sort((a, b) => a.sharePct - b.sharePct)
+    .map((row) => ({
+      share: row.sharePct,
+      counterparty: row.nettingCounterpartyPct,
+      gross: row.nettingGrossPct,
+      traders: row.avgTradersPerBatch,
+    }));
+
+  // A served curve with no rows for this session is not a reason to draw nothing.
+  if (curve.length === 0) return {curve: CARRIED, served: null, statement: null};
+  return {curve, served: answer.value.source, statement: answer.value.statement};
+}
+
+/* Half up on the decimal as written, so 50.05 reads 50,1 the way the pitch quotes it. */
+function figure(value: number, places: number): string {
+  const scale = 10 ** places;
+  return (Math.round((value + 1e-9) * scale) / scale).toFixed(places).replace(".", ",");
+}
+
+function at(curve: Point[], share: number): Point | undefined {
+  return curve.find((point) => point.share === share);
+}
+
+export default async function NettingPage() {
+  const {curve, served, statement} = await load();
+  const [p5, p10, p20, p100] = [5, 10, 20, 100].map((share) => at(curve, share));
+
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
         <div className={styles.badgeRow}>
+          <span className={styles.heroMark} aria-hidden="true">
+            <NettingIcon size={24} />
+          </span>
           <span className={styles.badge}>Backtest</span>
         </div>
         <p className={styles.eyebrow}>Netting against share of flow</p>
         <h1 className={styles.title}>More flow is not a promise, it has a slope</h1>
         <p className={styles.lead}>
-          Every line on this page is a counterfactual simulation over real trades. The inputs are
-          August 2026 flow on Robinhood Chain, the mechanism is hypothetical because Nokturn did not
-          exist then. This is a backtest, never a measurement, and the word matters enough that it
-          is printed on the chart rather than said once in a script.
+          {statement ??
+            "Every line on this page is a counterfactual simulation over real trades. The inputs are August 2026 flow on Robinhood Chain, the mechanism is hypothetical because Nokturn did not exist then. This is a backtest, never a measurement."}{" "}
+          The word matters enough that it is printed on the chart rather than said once in a script.
         </p>
       </section>
 
-      <NettingChart points={CURVE} />
+      <NettingChart points={curve} />
 
-      <section className={styles.callouts}>
-        <div className={styles.callout}>
-          <p className={styles.calloutLabel}>What we quote</p>
-          <p className={`${styles.calloutValue} chainvalue`}>27 to 33%</p>
-          <p className={styles.calloutHint}>
-            Between counterparties, at a realistic early share of 10 to 20%. Not 50,05% and not
-            63,76%.
-          </p>
-        </div>
-        <div className={styles.callout}>
-          <p className={styles.calloutLabel}>The slope itself</p>
-          <p className={`${styles.calloutValue} chainvalue`}>21,4% to 50,1%</p>
-          <p className={styles.calloutHint}>
-            From 5% of flow to all of it. The shape is the argument, not any single point on it.
-          </p>
-        </div>
-        <div className={styles.callout}>
-          <p className={styles.calloutLabel}>Traders per batch, early</p>
-          <p className={`${styles.calloutValue} chainvalue`}>2,5 to 3,3</p>
-          <p className={styles.calloutHint}>
-            Off hours, at 10 to 20% share. The netting is real and the batches are thin. Both are
-            true at once.
-          </p>
-        </div>
-      </section>
+      {p5 && p10 && p20 && p100 ? (
+        <section className={styles.callouts}>
+          <div className={styles.callout}>
+            <p className={styles.calloutLabel}>What we quote</p>
+            <p className={`${styles.calloutValue} chainvalue`}>
+              {figure(p10.counterparty, 0)} to {figure(p20.counterparty, 0)}%
+            </p>
+            <p className={styles.calloutHint}>
+              Between counterparties, at a realistic early share of 10 to 20%. Not{" "}
+              {figure(p100.counterparty, 2)}% and not {figure(p100.gross, 2)}%.
+            </p>
+          </div>
+          <div className={styles.callout}>
+            <p className={styles.calloutLabel}>The slope itself</p>
+            <p className={`${styles.calloutValue} chainvalue`}>
+              {figure(p5.counterparty, 1)}% to {figure(p100.counterparty, 1)}%
+            </p>
+            <p className={styles.calloutHint}>
+              From 5% of flow to all of it. The shape is the argument, not any single point on it.
+            </p>
+          </div>
+          <div className={styles.callout}>
+            <p className={styles.calloutLabel}>Traders per batch, early</p>
+            <p className={`${styles.calloutValue} chainvalue`}>
+              {figure(p10.traders, 1)} to {figure(p20.traders, 1)}
+            </p>
+            <p className={styles.calloutHint}>
+              Off hours, at 10 to 20% share. The netting is real and the batches are thin. Both are
+              true at once.
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       <section className={styles.method}>
         <h2 className={styles.methodTitle}>Why the number went up when the method got stricter</h2>
@@ -95,7 +153,7 @@ export default function NettingPage() {
             </tr>
           </thead>
           <tbody>
-            {CURVE.map((row) => (
+            {curve.map((row) => (
               <tr key={row.share} className={row.share === 10 || row.share === 20 ? styles.quoted : undefined}>
                 <td className="chainvalue">{row.share}%</td>
                 <td className="chainvalue">{row.counterparty.toFixed(2)}%</td>
@@ -108,8 +166,25 @@ export default function NettingPage() {
       </div>
 
       <p className={styles.footnote}>
-        Source: our own indexed queries over August 2026 flow, off hours, 45 second batches, against
-        the v1.0 allowlist. The nine queries are permanent and public on the{" "}
+        {served === null ? (
+          <>
+            Drawn from the copy this build carries, taken from the project parameters, because no
+            coordinator answered. The inputs are our own queries over August 2026 flow, off hours,
+            45 second batches, against the v1.0 allowlist.
+          </>
+        ) : (
+          <>
+            Served by the coordinator from the export of{" "}
+            <a href={served.duneQueryUrl} target="_blank" rel="noreferrer">
+              Dune query <span className="chainvalue">{served.duneQueryId}</span>
+            </a>
+            , exported <span className="chainvalue">{served.exportedAt}</span>, over{" "}
+            <span className="chainvalue">{served.window}</span> in{" "}
+            <span className="chainvalue">{served.batchSeconds}</span> second batches, off hours on
+            weekdays.
+          </>
+        )}{" "}
+        The queries are permanent and public on the{" "}
         <a href={DUNE} target="_blank" rel="noreferrer">
           Dune dashboard
         </a>

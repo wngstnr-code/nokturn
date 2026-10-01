@@ -14,7 +14,7 @@ html {
   text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   color: var(--n-text);
-  background-color: var(--n-paper);
+  background-color: var(--n-background);
 }
 
 body {

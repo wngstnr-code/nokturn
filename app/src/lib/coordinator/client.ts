@@ -11,6 +11,7 @@ import type {
   HealthResponse,
   Hex,
   IntentStatusResponse,
+  NettingCurveResponse,
   NonceResponse,
   Outcome,
   SessionResponse,
@@ -169,4 +170,9 @@ export async function quote(args: {
 }): Promise<Outcome<BaselineQuote>> {
   const query = new URLSearchParams(args).toString();
   return call<BaselineQuote>(`/v1/quote?${query}`);
+}
+
+/// Served from the export of a public Dune query, with the backtest label in the data.
+export async function nettingCurve(): Promise<Outcome<NettingCurveResponse>> {
+  return call<NettingCurveResponse>("/v1/backtest/netting-curve");
 }

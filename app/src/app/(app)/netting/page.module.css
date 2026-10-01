@@ -46,9 +46,6 @@
   font-weight: var(--n-weight-semibold);
   line-height: 1.1;
   letter-spacing: -0.035em;
-  text-shadow:
-    0 0 26px var(--n-text-o10),
-    0 0 28px var(--n-text-o25);
 }
 
 .lead {
@@ -179,4 +176,21 @@
   .lead {
     font-size: var(--n-font-normal);
   }
+}
+
+.badgeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+}
+
+.heroMark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: var(--n-primary);
+  color: var(--n-button-text);
 }

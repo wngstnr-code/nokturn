@@ -1,5 +1,7 @@
 import Link from "next/link";
 import {Admission} from "@/components/auction/Admission";
+import {BellIcon} from "@/components/Icons";
+import {OwlState} from "@/components/ui/OwlState";
 import {AuctionLive} from "@/components/auction/AuctionLive";
 import {explorerAddress} from "@/lib/chain";
 import {listAuctions, type AuctionList} from "@/lib/auctions";
@@ -32,11 +34,16 @@ function price(value: string | null): string {
 function Row({book}: {book: AuctionResponse}) {
   return (
     <Link href={`/auction/${book.auctionId}`} className={styles.row}>
-      <div className={styles.cell}>
-        {book.kind === "close" ? "Closing cross" : "Opening cross"}
-        <strong>
-          {book.token.symbol} <span className="chainvalue">#{book.auctionId}</span>
-        </strong>
+      <div className={styles.lead}>
+        <span className={styles.rowMark} aria-hidden="true">
+          <BellIcon size={18} />
+        </span>
+        <div className={styles.cell}>
+          {book.kind === "close" ? "Closing cross" : "Opening cross"}
+          <strong>
+            {book.token.symbol} <span className="chainvalue">#{book.auctionId}</span>
+          </strong>
+        </div>
       </div>
       <div className={styles.cell}>
         Phase
@@ -58,18 +65,14 @@ function Row({book}: {book: AuctionResponse}) {
 
 function Empty({list}: {list: AuctionList}) {
   return (
-    <div className={styles.empty}>
-      <p className={styles.emptyTitle}>No auction has opened on this chain</p>
-      <p className={styles.emptyBody}>
-        AuctionHouse opens a book only inside an opening or a closing session, and the count below
-        is its own. Nothing is drawn here until it has opened one, because a book filled in by this
-        page would be a number nobody could trace.
-      </p>
-      <p className={`${styles.emptyDetail} chainvalue`}>
-        auctionCount() returned {list.count} at block {list.blockNumber.toString()} on chain{" "}
-        {list.network.chainId}
-      </p>
-    </div>
+    <OwlState
+      mood="waiting"
+      title="No auction has opened on this chain"
+      detail={`auctionCount() returned ${list.count} at block ${list.blockNumber.toString()} on chain ${list.network.chainId}`}
+    >
+      AuctionHouse opens a book only inside an opening or a closing session. Nothing is drawn here
+      until it has opened one.
+    </OwlState>
   );
 }
 
@@ -111,10 +114,9 @@ export default async function AuctionsPage() {
       </div>
 
       {failure !== null ? (
-        <div className={styles.failure}>
-          <h2>The chain did not answer</h2>
-          <p>Nothing is shown rather than something invented. The endpoint returned: {failure}</p>
-        </div>
+        <OwlState mood="asleep" title="The chain did not answer" detail={failure}>
+          Nothing is shown rather than something invented.
+        </OwlState>
       ) : null}
 
       {list === null ? null : (

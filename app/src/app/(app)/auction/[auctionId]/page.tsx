@@ -1,4 +1,7 @@
 import Link from "next/link";
+import {BandIcon, BellIcon, CoinsIcon, NettingIcon, UsersIcon} from "@/components/Icons";
+import {Hint} from "@/components/ui/Hint";
+import {OwlState} from "@/components/ui/OwlState";
 import {Admission} from "@/components/auction/Admission";
 import {AuctionLive} from "@/components/auction/AuctionLive";
 import {CommitCard} from "@/components/auction/CommitCard";
@@ -36,20 +39,14 @@ function Unavailable({auctionId, error}: {auctionId: string; error: ApiError}) {
   const configured = coordinatorUrl() !== null;
 
   return (
-    <div className={styles.unavailable}>
-      <p className={styles.eyebrow}>Auction {auctionId}</p>
-      <h1 className={styles.unavailableTitle}>
-        {configured ? "No auction has opened yet" : "No coordinator is configured"}
-      </h1>
-      <p className={styles.unavailableBody}>
-        A closing cross needs a session that actually reached the bell with live feeds behind it.
-        Until one has, this route refuses rather than showing a shape filled with numbers nobody
-        could trace. The refusal below is the coordinator&rsquo;s own words.
-      </p>
-      <p className={`${styles.unavailableDetail} chainvalue`}>
-        {error.code}. {error.message}
-      </p>
-    </div>
+    <OwlState
+      mood={configured ? "searching" : "asleep"}
+      title={configured ? `Auction ${auctionId} has not opened` : "No coordinator is configured"}
+      detail={`${error.code}. ${error.message}`}
+    >
+      A cross needs a session that reached the bell with live feeds behind it. Until one has, this
+      screen shows nothing rather than a shape filled with numbers nobody could trace.
+    </OwlState>
   );
 }
 
@@ -85,12 +82,17 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
       <Admission kind={book.provenance.source.kind} />
 
       <header className={styles.head}>
+        <span className={styles.bell} aria-hidden="true">
+          <BellIcon size={28} />
+        </span>
         <div>
           <p className={styles.eyebrow}>
-            {book.kind === "close" ? "Closing cross" : "Opening cross"} · {book.token.symbol}
+            {book.kind === "close" ? "Closing cross" : "Opening cross"} . {book.token.symbol}
           </p>
           <h1 className={styles.title}>
-            {book.result === null ? "Not crossed yet" : `${amount(book.result.price, 18, 6)} per ${book.token.symbol}`}
+            {book.result === null
+              ? "Not crossed yet"
+              : `${amount(book.result.price, 18, 4)} per ${book.token.symbol}`}
           </h1>
           <p className={styles.phase}>{PHASE_COPY[book.phase]}</p>
         </div>
@@ -98,36 +100,58 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
 
       <div className={styles.grid}>
         <div className={styles.card}>
-          <p className={styles.label}>Indicative price</p>
-          <p className={`${styles.value} chainvalue`}>
-            {book.indicativePrice === null ? "not published" : amount(book.indicativePrice, 18, 6)}
+          <p className={styles.label}>
+            <CoinsIcon size={15} />
+            Indicative price
+            <Hint label="What the indicative price is">
+              The clearing price the contract would pick from its book right now. It is published
+              while the book is still open, so it can be acted on.
+            </Hint>
           </p>
-          <p className={styles.hint}>Published while the book is still open, so it can be acted on</p>
+          <p className={`${styles.value} chainvalue`}>
+            {book.indicativePrice === null ? "closed" : amount(book.indicativePrice, 18, 4)}
+          </p>
         </div>
         <div className={styles.card}>
-          <p className={styles.label}>Imbalance</p>
+          <p className={styles.label}>
+            <NettingIcon size={15} />
+            Imbalance
+            <Hint label="What the imbalance is">
+              Which side is short and by how much, named before the cross rather than after. It is
+              an open invitation to whoever can fill it.
+            </Hint>
+          </p>
           <p className={`${styles.value} chainvalue`}>
             {imbalance === null
-              ? "not published"
+              ? "closed"
               : `${imbalance > 0n ? "buy" : "sell"} ${amount(
                   (imbalance < 0n ? -imbalance : imbalance).toString(),
                   book.token.decimals,
                   4,
                 )}`}
           </p>
-          <p className={styles.hint}>Which side is short, named before the cross rather than after</p>
         </div>
         <div className={styles.card}>
-          <p className={styles.label}>Participants</p>
-          <p className={`${styles.value} chainvalue`}>{book.participantCount}</p>
-          <p className={styles.hint}>Distinct committers in this book</p>
-        </div>
-        <div className={styles.card}>
-          <p className={styles.label}>Collar</p>
-          <p className={`${styles.value} chainvalue`}>{book.collarBps} bps</p>
-          <p className={styles.hint}>
-            How far the cross may sit from the reference. Extensions so far: {book.extensions}
+          <p className={styles.label}>
+            <UsersIcon size={15} />
+            Participants
+            <Hint label="Who counts as a participant">
+              Distinct owners with a commitment in this book. One owner with several commitments
+              counts once.
+            </Hint>
           </p>
+          <p className={`${styles.value} chainvalue`}>{book.participantCount}</p>
+        </div>
+        <div className={styles.card}>
+          <p className={styles.label}>
+            <BandIcon size={15} />
+            Collar
+            <Hint label="What the collar is">
+              How far the cross may sit from the reference price. It widens when the book cannot
+              clear inside it. Extensions so far: {book.extensions}.
+            </Hint>
+          </p>
+          <p className={`${styles.value} chainvalue`}>{book.collarBps} bps</p>
         </div>
       </div>
 

@@ -8,11 +8,25 @@
 }
 
 .hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
   width: 100%;
   padding: var(--n-padding-normal);
   background: var(--n-paper);
   border-radius: var(--n-radius-normal);
   color: var(--n-text);
+}
+
+.heroMark {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: 20px;
+  background: var(--n-primary);
+  color: var(--n-button-text);
 }
 
 .eyebrow {
@@ -30,9 +44,6 @@
   font-weight: var(--n-weight-semibold);
   line-height: 1.1;
   letter-spacing: -0.035em;
-  text-shadow:
-    0 0 26px var(--n-text-o10),
-    0 0 28px var(--n-text-o25);
 }
 
 .lead {
@@ -54,15 +65,15 @@
 }
 
 .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--n-text-o60);
   font-size: var(--n-font-small-plus);
-  color: var(--n-text-o50);
 }
 
 .item strong {
-  display: block;
-  margin-top: 4px;
   color: var(--n-text);
-  font-size: var(--n-font-normal);
   font-weight: var(--n-weight-medium);
 }
 

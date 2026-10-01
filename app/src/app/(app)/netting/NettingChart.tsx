@@ -8,9 +8,11 @@ export type Point = {share: number; counterparty: number; gross: number; traders
 /*
  * Both curves are drawn because the argument is that the stricter definition
  * produced the higher number, and that only shows with the looser one beside it.
- * The colours are not the brand cyan, which fails contrast against this surface.
+ * The blue is the periwinkle the landing page uses for its coins and the amber is
+ * a step below the brand one, which sits outside the band a line needs on this
+ * surface. The pair passes all five palette checks against the chart well.
  */
-const COUNTERPARTY = "#0d9ddb";
+const COUNTERPARTY = "#5f80e0";
 const GROSS = "#b8831f";
 
 const W = 720;

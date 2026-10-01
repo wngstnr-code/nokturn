@@ -20,6 +20,7 @@ export type {
   IntentPayload,
   IntentStatus,
   IntentStatusResponse,
+  NettingCurveResponse,
   NonceResponse,
   Provenance,
   ProvenanceSource,
