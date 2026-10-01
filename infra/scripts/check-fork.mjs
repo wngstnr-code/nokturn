@@ -236,18 +236,22 @@ async function d4ConcurrentLoad() {
   else bad(`${rejected} of ${rounds} concurrent reads were dropped`);
 
   // The API sits in front of the same node, so it has to survive the same load.
-  try {
-    const t1 = performance.now();
-    const apiResults = await Promise.allSettled(
-      Array.from({length: 40}, () => fetch(`${API}/v1/session`).then((r) => r.json())),
-    );
-    const apiBad = apiResults.filter((r) => r.status === "rejected" || r.value?.code).length;
-    const apiMs = performance.now() - t1;
-    if (apiBad === 0) ok(`40 concurrent api requests, none failed`, `${Math.round(apiMs)}ms`);
-    else bad(`${apiBad} of 40 api requests failed under load`);
-  } catch {
+  // Asked first whether it is up at all. allSettled never throws, so without
+  // this a stopped API read as forty failures under load, found by the first
+  // nightly run that had its secret, 1 October 2026.
+  const apiUp = await fetch(`${API}/v1/health`).then((r) => r.ok, () => false);
+  if (!apiUp) {
     note("the api is not running, so its half of the load test was skipped");
+    return;
   }
+  const t1 = performance.now();
+  const apiResults = await Promise.allSettled(
+    Array.from({length: 40}, () => fetch(`${API}/v1/session`).then((r) => r.json())),
+  );
+  const apiBad = apiResults.filter((r) => r.status === "rejected" || r.value?.code).length;
+  const apiMs = performance.now() - t1;
+  if (apiBad === 0) ok(`40 concurrent api requests, none failed`, `${Math.round(apiMs)}ms`);
+  else bad(`${apiBad} of 40 api requests failed under load`);
 }
 
 async function d5SessionBoundaryLive() {
