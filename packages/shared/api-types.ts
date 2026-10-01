@@ -542,7 +542,13 @@ export interface CurrentBatchResponse {
   provenance: Provenance;
 }
 
-export type BatchOutcome = "settled" | "passthrough" | "expired" | "collecting" | "solving";
+/**
+ * settled_at_venue is a routed batch that saved nothing. Its trades executed at
+ * the venue's own price and no fee was taken, so it is a fill, not a failure,
+ * and it carries failure null. On chain it is BatchPassthrough "savings below
+ * threshold" and BatchSettled in one finalize.
+ */
+export type BatchOutcome = "settled" | "settled_at_venue" | "passthrough" | "expired" | "collecting" | "solving";
 
 /**
  * The receipt. This is the product, docs/demo.md section 2, and the failure
@@ -587,9 +593,8 @@ export interface BatchReceipt {
   };
 
   /**
-   * Set when the batch did not settle, and on a settled batch that saved
-   * nothing, code SavingsBelowThreshold, whose trades did execute. Carries the
-   * baseline anyway, which is the whole point of the failure screen. A protocol
+   * Set exactly when the batch did not settle, outcome passthrough or expired.
+   * Null on settled and settled_at_venue. Carries the baseline anyway, which is the whole point of the failure screen. A protocol
    * that publishes nothing on failure is asking to be trusted that the failure
    * was honest.
    */
