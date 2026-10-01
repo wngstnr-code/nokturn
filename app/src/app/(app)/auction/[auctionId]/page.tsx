@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {BandIcon, BellIcon, CoinsIcon, NettingIcon, UsersIcon} from "@/components/Icons";
+import {BandArt, BellArt, CoinsArt, NettingArt, PeopleArt, Seal, Tile} from "@/components/art/Art";
 import {Hint} from "@/components/ui/Hint";
 import {OwlState} from "@/components/ui/OwlState";
 import {Admission} from "@/components/auction/Admission";
@@ -82,9 +82,9 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
       <Admission kind={book.provenance.source.kind} />
 
       <header className={styles.head}>
-        <span className={styles.bell} aria-hidden="true">
-          <BellIcon size={28} />
-        </span>
+        <Tile tone="night" size={76}>
+          <BellArt size={52} />
+        </Tile>
         <div>
           <p className={styles.eyebrow}>
             {book.kind === "close" ? "Closing cross" : "Opening cross"} . {book.token.symbol}
@@ -101,7 +101,7 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
       <div className={styles.grid}>
         <div className={styles.card}>
           <p className={styles.label}>
-            <CoinsIcon size={15} />
+            <CoinsArt size={20} />
             Indicative price
             <Hint label="What the indicative price is">
               The clearing price the contract would pick from its book right now. It is published
@@ -114,7 +114,7 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
         </div>
         <div className={styles.card}>
           <p className={styles.label}>
-            <NettingIcon size={15} />
+            <NettingArt size={20} />
             Imbalance
             <Hint label="What the imbalance is">
               Which side is short and by how much, named before the cross rather than after. It is
@@ -133,7 +133,7 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
         </div>
         <div className={styles.card}>
           <p className={styles.label}>
-            <UsersIcon size={15} />
+            <PeopleArt size={20} />
             Participants
             <Hint label="Who counts as a participant">
               Distinct owners with a commitment in this book. One owner with several commitments
@@ -144,7 +144,7 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
         </div>
         <div className={styles.card}>
           <p className={styles.label}>
-            <BandIcon size={15} />
+            <BandArt size={20} />
             Collar
             <Hint label="What the collar is">
               How far the cross may sit from the reference price. It widens when the book cannot
@@ -176,6 +176,7 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
             <div className={styles.printCell}>
               Sufficient
               <strong className={book.result.sufficient ? styles.ok : styles.bad}>
+                <Seal state={book.result.sufficient ? "pass" : "fail"} size={16} />{" "}
                 {book.result.sufficient ? "yes, the print was issued" : "no, nothing was printed"}
               </strong>
             </div>

@@ -1,14 +1,15 @@
 import Link from "next/link";
 import {
-  CheckIcon,
-  ClockIcon,
-  CoinsIcon,
-  CrossIcon,
-  LayersIcon,
-  MoonIcon,
-  NettingIcon,
-  UsersIcon,
-} from "@/components/Icons";
+  BatchArt,
+  CoinsArt,
+  ClockArt,
+  MoonArt,
+  NettingArt,
+  PeopleArt,
+  Seal,
+  SheetsArt,
+  Tile,
+} from "@/components/art/Art";
 import {ProvenanceStrip} from "@/components/Provenance";
 import {AddressChip} from "@/components/ui/AddressChip";
 import {Hint} from "@/components/ui/Hint";
@@ -19,6 +20,7 @@ import type {ApiError, BatchReceipt, FillReceipt} from "@/lib/coordinator/types"
 import {explorerAddress} from "@/lib/chain";
 import {sessionLabel, units} from "@/lib/format";
 import styles from "./page.module.css";
+import {TokenMark} from "@/components/TokenMark";
 
 export const dynamic = "force-dynamic";
 
@@ -87,9 +89,7 @@ function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
   return (
     <article className={styles.fill}>
       <div className={styles.owner}>
-        <span className={styles.tokenMark} aria-hidden="true">
-          {fill.sellToken.symbol.slice(0, 2).toUpperCase()}
-        </span>
+        <TokenMark symbol={fill.sellToken.symbol} size={36} />
         <span className={styles.sold}>
           Sold{" "}
           <strong className="chainvalue">
@@ -264,9 +264,9 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <span className={styles.headMark} aria-hidden="true">
-          <LayersIcon size={28} />
-        </span>
+        <Tile tone="night" size={76}>
+          <BatchArt size={52} />
+        </Tile>
         <div className={styles.headName}>
           <p className={styles.eyebrow}>Batch receipt</p>
           <h1 className={styles.title}>
@@ -275,15 +275,15 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.headFacts}>
           <span className={`${styles.outcome} ${settled ? styles.settled : styles.notSettled}`}>
-            {settled ? <CheckIcon size={15} /> : <CrossIcon size={15} />}
+            <Seal state={settled ? "pass" : "unknown"} size={17} />
             {receipt.outcome}
           </span>
           <span className={styles.headFact}>
-            <MoonIcon size={15} />
+            <MoonArt size={18} />
             {sessionLabel(receipt.sessionName)}
           </span>
           <span className={styles.headFact}>
-            <ClockIcon size={15} />
+            <ClockArt size={18} />
             <span className="chainvalue">{receipt.batchDurationSeconds}s</span> window
           </span>
         </div>
@@ -294,7 +294,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
       <div className={styles.totals}>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <NettingIcon size={15} />
+            <NettingArt size={20} />
             Netting
             <Hint label="What netting is">
               The share of the batch that met another intent instead of going to a venue.
@@ -304,7 +304,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <CoinsIcon size={15} />
+            <CoinsArt size={20} />
             Total savings
             <Hint label="Savings against what">Against the venue baseline at this block.</Hint>
           </p>
@@ -314,7 +314,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <UsersIcon size={15} />
+            <PeopleArt size={20} />
             Participants
             <Hint label="Who counts as a participant">
               Distinct owners, which is what makes netting possible.
@@ -324,7 +324,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <LayersIcon size={15} />
+            <SheetsArt size={20} />
             Intents
             <Hint label="When intents are counted">Counted at the moment collection closed.</Hint>
           </p>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {LayersIcon} from "@/components/Icons";
+import {BatchArt} from "@/components/art/Art";
 import {OwlState} from "@/components/ui/OwlState";
 import {explorerTx} from "@/lib/chain";
 import {listBatches} from "@/lib/coordinator/client";
@@ -36,7 +36,7 @@ function IndexedRow({batch}: {batch: BatchSummary}) {
     <Link className={styles.row} href={`/batch/${batch.batchId}`}>
       <div className={styles.lead}>
         <span className={styles.rowMark} aria-hidden="true">
-          <LayersIcon size={18} />
+          <BatchArt size={30} />
         </span>
         <div className={styles.cell}>
           Batch
@@ -72,7 +72,7 @@ function TailRow({row, chainId}: {row: BatchRow; chainId: number}) {
     <div className={styles.row}>
       <div className={styles.lead}>
         <span className={styles.rowMark} aria-hidden="true">
-          <LayersIcon size={18} />
+          <BatchArt size={30} />
         </span>
         <div className={styles.cell}>
           Batch

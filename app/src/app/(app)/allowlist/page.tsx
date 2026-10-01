@@ -1,4 +1,4 @@
-import {BlockIcon, ClockIcon, GlobeIcon, ShieldIcon} from "@/components/Icons";
+import {BlockArt, ChainArt, ClockArt, GateArt, Tile} from "@/components/art/Art";
 import {TokenGateCard} from "@/components/TokenGateCard";
 import {Hint} from "@/components/ui/Hint";
 import {OwlState} from "@/components/ui/OwlState";
@@ -15,12 +15,12 @@ function Provenance({report, network}: {report: GateReport; network: Network}) {
   return (
     <div className={styles.provenance}>
       <span className={styles.item}>
-        <BlockIcon size={15} />
+        <BlockArt size={18} />
         Block
         <strong className="chainvalue">{report.blockNumber.toLocaleString("en-US")}</strong>
       </span>
       <span className={styles.item}>
-        <GlobeIcon size={15} />
+        <ChainArt size={18} />
         {network.kind === "fork" && network.chainId === report.chainId ? network.name : "Chain"}
         <strong className="chainvalue">{report.chainId}</strong>
         {network.kind === "fork" && network.chainId === report.chainId && network.note ? (
@@ -28,7 +28,7 @@ function Provenance({report, network}: {report: GateReport; network: Network}) {
         ) : null}
       </span>
       <span className={styles.item}>
-        <ClockIcon size={15} />
+        <ClockArt size={18} />
         Read
         <strong className="chainvalue">{report.readAt.replace("T", " ").slice(0, 19)} UTC</strong>
         <Hint label="Which endpoint answered">
@@ -55,9 +55,9 @@ export default async function AllowlistPage() {
   return (
     <div className={styles.page}>
       <div className={styles.hero}>
-        <span className={styles.heroMark} aria-hidden="true">
-          <ShieldIcon size={26} />
-        </span>
+        <Tile tone="amber" size={76}>
+          <GateArt size={52} />
+        </Tile>
         <div>
           <p className={styles.eyebrow}>Allowlist gate</p>
           <h1 className={styles.title}>A ticker is not an identity</h1>

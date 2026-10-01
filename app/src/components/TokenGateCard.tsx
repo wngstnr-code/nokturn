@@ -1,39 +1,11 @@
-import {CrossIcon, ShieldIcon, CheckIcon} from "@/components/Icons";
+import {Seal} from "@/components/art/Art";
 import {AddressChip} from "@/components/ui/AddressChip";
 import {Hint} from "@/components/ui/Hint";
 import {explorerAddress} from "@/lib/chain";
 import {bytesLabel, compactSupply, units} from "@/lib/format";
-import type {Check, CheckState, TokenReport} from "@/lib/allowlist-gate";
+import type {Check, TokenReport} from "@/lib/allowlist-gate";
 import styles from "./TokenGateCard.module.css";
-
-// Drawn rather than typed. The repo's emoji gate rejects the tick and cross
-// glyphs in a .tsx file, and a letter in their place reads as a grade.
-const GLYPH: Record<CheckState, string> = {
-  pass: "M1.5 6.4 4.4 9.3 10.5 3.2",
-  fail: "M2.2 2.2 9.8 9.8 M9.8 2.2 2.2 9.8",
-  unknown: "M6 2.6 6 7.2 M6 9.2 6 9.9",
-};
-
-const MARK_TONE: Record<CheckState, string | undefined> = {
-  pass: styles.markPass,
-  fail: styles.markFail,
-  unknown: styles.markUnknown,
-};
-
-function Mark({state}: {state: CheckState}) {
-  return (
-    <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" focusable="false">
-      <path
-        d={GLYPH[state]}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+import {TokenMark} from "@/components/TokenMark";
 
 /*
  * A check that passed needs one line. What was read and what was wanted are two
@@ -45,9 +17,7 @@ function CheckRow({check}: {check: Check}) {
 
   return (
     <li className={styles.check}>
-      <span className={`${styles.mark} ${MARK_TONE[check.state]}`}>
-        <Mark state={check.state} />
-      </span>
+      <Seal state={check.state} size={20} className={styles.seal} />
       <span className={styles.checkBody}>
         <span className={styles.checkLine}>
           <span className={styles.checkLabel}>{check.label}</span>
@@ -77,7 +47,7 @@ function CheckRow({check}: {check: Check}) {
   );
 }
 
-const VERDICT_ICON = {admitted: CheckIcon, rejected: CrossIcon, unknown: ShieldIcon} as const;
+const VERDICT_SEAL = {admitted: "pass", rejected: "fail", unknown: "unknown"} as const;
 
 const VERDICT_LABEL = {admitted: "Admitted", rejected: "Rejected", unknown: "Not answered"} as const;
 
@@ -89,14 +59,10 @@ export function TokenGateCard({report}: {report: TokenReport}) {
         ? styles.rejected
         : styles.unknownCard;
 
-  const VerdictIcon = VERDICT_ICON[report.verdict];
-
   return (
     <article className={`${styles.card} ${tone}`}>
       <div className={styles.head}>
-        <span className={styles.token} aria-hidden="true">
-          {report.requested.slice(0, 2).toUpperCase()}
-        </span>
+        <TokenMark symbol={report.requested} size={40} />
         <div className={styles.identity}>
           <h2 className={styles.symbol}>
             {report.listed ? (
@@ -116,7 +82,7 @@ export function TokenGateCard({report}: {report: TokenReport}) {
                 : styles.unsure
           }`}
         >
-          <VerdictIcon size={13} />
+          <Seal state={VERDICT_SEAL[report.verdict]} size={16} />
           {VERDICT_LABEL[report.verdict]}
         </span>
       </div>

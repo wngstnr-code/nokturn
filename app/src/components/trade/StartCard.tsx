@@ -4,6 +4,7 @@ import {useState} from "react";
 import {WalletPicker} from "@/components/WalletPicker";
 import type {TokenInfo} from "@/lib/tokens";
 import styles from "./StartCard.module.css";
+import {TokenMark} from "@/components/TokenMark";
 
 /*
  * What a first visit sees. Geometry follows the unlock screen in the reference,
@@ -28,9 +29,7 @@ export function StartCard({bases}: {bases: TokenInfo[]}) {
         </div>
         <div className={styles.marks} aria-hidden="true">
           {bases.slice(0, 4).map((token) => (
-            <span key={token.address} className={styles.mark}>
-              {token.symbol.slice(0, 2).toUpperCase()}
-            </span>
+            <TokenMark key={token.address} symbol={token.symbol} size={46} />
           ))}
         </div>
       </div>

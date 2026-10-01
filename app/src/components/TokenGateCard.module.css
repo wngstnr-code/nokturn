@@ -227,3 +227,12 @@
 .hintValue:last-child {
   margin: 0;
 }
+
+.seal {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.check {
+  grid-template-columns: 20px 1fr;
+}
