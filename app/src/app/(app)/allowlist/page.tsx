@@ -100,20 +100,10 @@ export default async function AllowlistPage() {
           </div>
 
           <p className={styles.footnote}>
-            The refused contract calls itself GameStop and reports the symbol GME. It carries no
-            beacon, no uiMultiplier, 44 bytes of code and a supply of 100 billion. It also traded
-            roughly 29.6 million dollars across 250 thousand trades in July 2026, which is the
-            reason this gate exists rather than a footnote about it. That volume figure comes from
-            our own indexed queries, published in full on the{" "}
-            <a
-              href="https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Dune dashboard
-            </a>
-            . Every other number on this page was read from chain {report.chainId} at block{" "}
-            <span className="chainvalue">{report.blockNumber.toLocaleString("en-US")}</span>.
+            The refused contract reports the symbol GME and a name to match. The card above shows
+            what the chain says about it, an empty beacon slot, no uiMultiplier, and the code size
+            and supply as read. Every number on this page was read from chain {report.chainId} at
+            block <span className="chainvalue">{report.blockNumber.toLocaleString("en-US")}</span>.
           </p>
         </>
       )}

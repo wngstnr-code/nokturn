@@ -98,8 +98,49 @@
   height: 100%;
 }
 
+/*
+ * On a narrow screen the links used to be hidden and nothing took their place, so
+ * a phone could reach the trade screen and nowhere else. They now sit in a second
+ * row under the brand and the wallet, and scroll sideways rather than wrap, since
+ * six links do not fit across a phone.
+ */
 @media (max-width: 960px) {
+  .shell {
+    padding: 10px 12px;
+  }
+
+  .bar {
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: 4px;
+    padding: 6px 10px;
+  }
+
   .nav {
+    order: 3;
+    flex: 1 0 100%;
+    flex-flow: row nowrap;
+    margin: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
     display: none;
+  }
+
+  .link {
+    flex: none;
+    padding: 10px 14px;
+  }
+
+  .spacer {
+    order: 1;
+  }
+
+  /* Its full height rule is for the single row. In two rows it would stretch. */
+  .right {
+    order: 2;
+    height: auto;
   }
 }

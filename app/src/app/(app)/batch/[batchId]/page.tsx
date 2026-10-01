@@ -11,7 +11,7 @@ import {Hint} from "@/components/ui/Hint";
 import {OwlState} from "@/components/ui/OwlState";
 import {VerifyCall} from "@/components/VerifyCall";
 import {batchReceipt, coordinatorUrl} from "@/lib/coordinator/client";
-import type {ApiError, BatchReceipt, FillReceipt} from "@/lib/coordinator/types";
+import type {ApiError, BaselineFloor, BatchReceipt, FillReceipt} from "@/lib/coordinator/types";
 import {explorerAddress} from "@/lib/chain";
 import {sessionLabel, units} from "@/lib/format";
 import styles from "./page.module.css";
@@ -74,6 +74,10 @@ function nettedShare(netted: string, routed: string): number | null {
  * docs/demo.md section 2. So the two figures stand side by side at the same size
  * with the difference between them, and only the explanation of a label is
  * folded away.
+ *
+ * The baseline of one fill is its share of the direction's baseline, not a quote
+ * for that fill alone, and the label says so. Calling it what the sale would have
+ * fetched alone was untrue on a routed batch. packages/shared/api-types.ts.
  */
 function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
   const moved = Number(fill.improvementBps);
@@ -109,10 +113,11 @@ function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
         </span>
         <div className={styles.side}>
           <span className={styles.sideLabel}>
-            Alone on the venue
-            <Hint label="What alone on the venue means">
-              What the same sale would have received from the venue by itself, read from pool state
-              at the same block. The command below recomputes it.
+            Its share of the venue baseline
+            <Hint label="What the venue baseline is">
+              The venue is asked once for everything sold in this direction, and that quote is
+              split across the fills by size. So this is a share, not what this fill alone would
+              have fetched. The call that checks the whole direction is further down.
             </Hint>
           </span>
           <span className={`${styles.sideValue} chainvalue`}>
@@ -153,7 +158,61 @@ function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
         </div>
       </div>
 
-      <VerifyCall call={fill.verifyBaseline} />
+    </article>
+  );
+}
+
+/*
+ * The check a reader can run. A fill's baseline is its pro rata share of the
+ * direction's baseline, so the venue quote for one fill alone does not match it on
+ * a routed batch and would look like a discrepancy. The floor is the venue quote
+ * for the whole direction, which is what Settlement holds the solution to.
+ * docs/audit-provenansi-backend.md section 1.
+ */
+function Floor({floor}: {floor: BaselineFloor}) {
+  return (
+    <article className={styles.floor}>
+      <div className={styles.floorHead}>
+        <span className={styles.floorPair}>
+          {floor.sellToken.symbol} to {floor.buyToken.symbol}
+        </span>
+        <span className={styles.floorFills}>
+          {floor.fills} {floor.fills === 1 ? "fill" : "fills"}
+        </span>
+        <span
+          className={`${styles.outcome} ${
+            floor.holds === true ? styles.settled : styles.notSettled
+          }`}
+        >
+          <Seal state={floor.holds === true ? "pass" : floor.holds === false ? "fail" : "unknown"} size={16} />
+          {floor.holds === true
+            ? "At or above the venue"
+            : floor.holds === false
+              ? "Below the venue"
+              : "The venue could not be read"}
+        </span>
+      </div>
+      <div className={styles.floorFigures}>
+        <span>
+          Sold
+          <strong className="chainvalue">
+            {amount(floor.executedSell, floor.sellToken.decimals, 4)} {floor.sellToken.symbol}
+          </strong>
+        </span>
+        <span>
+          Baseline the solution was held to
+          <strong className="chainvalue">
+            {amount(floor.baselineBuy, floor.buyToken.decimals, 4)} {floor.buyToken.symbol}
+          </strong>
+        </span>
+        <span>
+          Venue quote for the same amount
+          <strong className="chainvalue">
+            {amount(floor.verifyFloor.expected, floor.buyToken.decimals, 4)} {floor.buyToken.symbol}
+          </strong>
+        </span>
+      </div>
+      <VerifyCall call={floor.verifyFloor} />
     </article>
   );
 }
@@ -339,6 +398,17 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
           <div className={styles.fills}>
             {receipt.fills.map((fill) => (
               <Fill key={fill.intentHash} fill={fill} chainId={receipt.provenance.chainId} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {receipt.baselineFloors.length === 0 ? null : (
+        <>
+          <p className={styles.sectionLabel}>Check it yourself, one call per direction</p>
+          <div className={styles.fills}>
+            {receipt.baselineFloors.map((floor) => (
+              <Floor key={`${floor.sellToken.address}-${floor.buyToken.address}`} floor={floor} />
             ))}
           </div>
         </>

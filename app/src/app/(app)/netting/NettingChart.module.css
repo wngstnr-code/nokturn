@@ -52,8 +52,20 @@
   opacity: 0.28;
 }
 
+/*
+ * Scaled down to a phone the chart's labels fall under five pixels. It keeps a
+ * width it can be read at and scrolls sideways instead, with the card for the
+ * level being read staying inside the part that scrolls.
+ */
 .plot {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--n-text-o15) transparent;
+}
+
+.canvas {
   position: relative;
+  min-width: 600px;
 }
 
 .svg {

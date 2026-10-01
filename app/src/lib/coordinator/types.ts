@@ -6,6 +6,7 @@ export type {
   ApiError,
   ApiErrorCode,
   AuctionResponse,
+  BaselineFloor,
   BaselineQuote,
   BatchListResponse,
   BatchOutcome,

@@ -38,8 +38,10 @@
 
 .until {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
   margin-top: 8px;
   color: var(--n-text-o70);
   font-size: var(--n-font-normal);

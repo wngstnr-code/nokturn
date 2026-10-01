@@ -416,8 +416,8 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
               <div className={styles.estimateRow}>
                 <span className={styles.estimate}>
                   About this much if you went to the venue alone, at block{" "}
-                  <span className="chainvalue">{estimate.provenance.blockNumber}</span>. A batch can
-                  only beat it.
+                  <span className="chainvalue">{estimate.provenance.blockNumber}</span>. An estimate,
+                  not a promise. What you receive is set when the batch clears.
                 </span>
               </div>
             )}

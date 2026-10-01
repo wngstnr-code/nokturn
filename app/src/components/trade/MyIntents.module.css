@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 5px 0 0;
+  padding: 10px 10px 6px;
   margin: 0;
 }
 
@@ -132,6 +132,10 @@
 }
 
 .legMain {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   font-size: var(--n-font-medium);
   font-weight: var(--n-weight-medium);
 }
@@ -182,7 +186,7 @@
 }
 
 .caveat {
-  padding: 4px 6px 0;
+  padding: 6px 10px 8px;
   color: var(--n-text-o50);
   font-size: var(--n-font-small);
   line-height: var(--n-line-small);
