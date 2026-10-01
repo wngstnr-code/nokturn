@@ -8,6 +8,8 @@ import {units} from "@/lib/format";
 // Same list geometry as the batch screen, so the two read as one family.
 import styles from "../batch/page.module.css";
 
+export const metadata = {title: "Auctions"};
+
 export const dynamic = "force-dynamic";
 
 const PHASE: Record<AuctionResponse["phase"], string> = {
