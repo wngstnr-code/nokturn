@@ -9,15 +9,10 @@ import type {SessionSnapshot} from "./SessionClock";
 import type {Network} from "@/lib/network";
 import styles from "./SiteHeader.module.css";
 
-/*
- * /auction is deliberately absent. The route exists, but docs/demo.md section 3b
- * priority 3 has an open decision above it about who its participants are, and
- * rule 9 says a feature that cannot run on real data is not shown. It stays
- * reachable by address until that is settled.
- */
 const NAV = [
   {href: "/trade", label: "Trade"},
   {href: "/batch", label: "Batches"},
+  {href: "/auction", label: "Auctions"},
   {href: "/session", label: "Session"},
   {href: "/allowlist", label: "Allowlist"},
   {href: "/netting", label: "Netting"},

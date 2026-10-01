@@ -17,8 +17,9 @@ const GROUPS = [
   {
     title: "Protocol",
     links: [
-      {href: "/", label: "Trade"},
+      {href: "/trade", label: "Trade"},
       {href: "/batch", label: "Batches"},
+      {href: "/auction", label: "Auctions"},
       {href: "/session", label: "Session"},
       {href: "/allowlist", label: "Allowlist"},
       {href: "/netting", label: "Netting"},
