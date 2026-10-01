@@ -35,10 +35,61 @@ function y(value: number): number {
   return Y0 - (value / Y_MAX) * (Y0 - Y1);
 }
 
+type Xy = {x: number; y: number};
+type Segment = {from: Xy; c1: Xy; c2: Xy; to: Xy};
 
+/*
+ * A curve through the measured points that never rises above or dips below them.
+ * The tangents are the Fritsch Carlson ones, so a stretch that only climbs in the
+ * data only climbs on screen. The points are the nine share levels the backtest
+ * ran at. What lies between two of them was not measured, and the hover reads
+ * only the measured levels for that reason.
+ */
+function monotone(points: Xy[]): Segment[] {
+  const n = points.length;
+  if (n < 2) return [];
 
-function path(points: Point[], pick: (p: Point) => number): string {
-  return points.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.share)} ${y(pick(p))}`).join(" ");
+  const slope: number[] = [];
+  const width: number[] = [];
+  for (let i = 0; i < n - 1; i += 1) {
+    width.push(points[i + 1]!.x - points[i]!.x);
+    slope.push((points[i + 1]!.y - points[i]!.y) / width[i]!);
+  }
+
+  const tangent: number[] = [slope[0]!];
+  for (let i = 1; i < n - 1; i += 1) {
+    const before = slope[i - 1]!;
+    const after = slope[i]!;
+    if (before * after <= 0) {
+      tangent.push(0);
+    } else {
+      const a = width[i - 1]!;
+      const b = width[i]!;
+      tangent.push((3 * (a + b)) / ((2 * b + a) / before + (b + 2 * a) / after));
+    }
+  }
+  tangent.push(slope[n - 2]!);
+
+  return slope.map((_, i) => {
+    const from = points[i]!;
+    const to = points[i + 1]!;
+    const third = width[i]! / 3;
+    return {
+      from,
+      to,
+      c1: {x: from.x + third, y: from.y + tangent[i]! * third},
+      c2: {x: to.x - third, y: to.y - tangent[i + 1]! * third},
+    };
+  });
+}
+
+function forward(segments: Segment[]): string {
+  const first = segments[0];
+  if (first === undefined) return "";
+  return (
+    `M${first.from.x} ${first.from.y}` +
+    segments.map((s) => `C${s.c1.x} ${s.c1.y} ${s.c2.x} ${s.c2.y} ${s.to.x} ${s.to.y}`).join("")
+  );
 }
 
 export function NettingChart({points}: {points: Point[]}) {
@@ -46,6 +97,8 @@ export function NettingChart({points}: {points: Point[]}) {
   const active = index === null ? null : (points[index] ?? null);
   const last = points[points.length - 1];
 
+  const gross = monotone(points.map((p) => ({x: x(p.share), y: y(p.gross)})));
+  const counterparty = monotone(points.map((p) => ({x: x(p.share), y: y(p.counterparty)})));
 
   function nearest(clientX: number, target: SVGSVGElement) {
     const box = target.getBoundingClientRect();
@@ -114,8 +167,8 @@ export function NettingChart({points}: {points: Point[]}) {
             Nokturn share of flow
           </text>
 
-          <path className={styles.line} d={path(points, (p) => p.gross)} stroke={GROSS} />
-          <path className={styles.line} d={path(points, (p) => p.counterparty)} stroke={COUNTERPARTY} />
+          <path className={styles.line} d={forward(gross)} stroke={GROSS} />
+          <path className={styles.line} d={forward(counterparty)} stroke={COUNTERPARTY} />
 
           {last === undefined ? null : (
             <>
