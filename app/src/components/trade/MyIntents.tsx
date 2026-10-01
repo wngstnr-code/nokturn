@@ -214,7 +214,8 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
                     )}
                   </span>
                 </div>
-                {status === null ? null : <EscapeHatch hatch={status.escapeHatch} />}
+                {/* The way out is for an intent still waiting. One that has finished has no use for it. */}
+                {status === null || finished ? null : <EscapeHatch hatch={status.escapeHatch} />}
               </div>
             );
           })}
