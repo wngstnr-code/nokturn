@@ -115,12 +115,13 @@ export function createAnnouncer(log: FastifyBaseLogger) {
       } catch {
         // The database is down. The batch waits like one not indexed yet.
       }
-      const done = receipt !== null && (receipt.outcome === "settled" || receipt.outcome === "passthrough" || receipt.outcome === "expired");
+      const done = receipt !== null && receipt.outcome !== "collecting" && receipt.outcome !== "solving";
       if (done) {
         // The receipt's outcome names the frame, not the last log read. A batch
         // below the savings threshold emits BatchPassthrough and BatchSettled in
-        // one finalize, and its receipt says settled with a failure code.
-        publish({type: receipt!.outcome === "settled" ? "batch.settled" : "batch.failed", at: Number(w.at), data: receipt!});
+        // one finalize, and its trades executed, so it is announced as settled.
+        const filled = receipt!.outcome === "settled" || receipt!.outcome === "settled_at_venue";
+        publish({type: filled ? "batch.settled" : "batch.failed", at: Number(w.at), data: receipt!});
         waiting.delete(batchId);
       } else if (now > w.at + RECEIPT_WAIT_SECONDS) {
         log.warn({batchId: String(batchId), waited: String(now - w.at)}, "batch outcome not announced, the indexer never had the batch");
