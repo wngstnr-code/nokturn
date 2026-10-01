@@ -4,6 +4,7 @@ import {useState} from "react";
 import type {TokenInfo} from "@/lib/tokens";
 import {shortAddress} from "@/lib/format";
 import styles from "./TokenSelect.module.css";
+import {TokenMark} from "@/components/TokenMark";
 
 function Caret() {
   return (
@@ -31,9 +32,7 @@ export function TokenSelect({token, options, onSelect}: TokenSelectProps) {
         disabled={!selectable}
         onClick={() => setOpen(true)}
       >
-        <span className={styles.mark} aria-hidden="true">
-          {token.symbol.slice(0, 2).toUpperCase()}
-        </span>
+        <TokenMark symbol={token.symbol} size={28} />
         <span className={styles.symbol}>{token.symbol}</span>
         {selectable ? <Caret /> : null}
       </button>
@@ -57,9 +56,7 @@ export function TokenSelect({token, options, onSelect}: TokenSelectProps) {
                   setOpen(false);
                 }}
               >
-                <span className={styles.mark} aria-hidden="true">
-                  {option.symbol.slice(0, 2).toUpperCase()}
-                </span>
+                <TokenMark symbol={option.symbol} size={28} />
                 <span>
                   <span className={styles.optionSymbol}>{option.symbol}</span>
                   <span className={styles.optionName}>{option.name ?? "no name() on this contract"}</span>

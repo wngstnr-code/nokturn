@@ -45,18 +45,6 @@
   flex-shrink: 0;
 }
 
-.mark {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 999px;
-  background: var(--n-primary-o25);
-  color: var(--n-primary);
-  font-size: var(--n-font-small);
-  font-weight: var(--n-weight-bold);
-}
-
 .action {
   display: flex;
   align-items: center;

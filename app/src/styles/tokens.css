@@ -1,10 +1,11 @@
 /*
  * Design tokens.
  *
- * The palette is Owl Amber, set down in brand.md at the repo root. Midnight
- * indigo at hue 275, with an amber the colour of an owl's eye as the only loud
- * thing on the page. Mint and periwinkle are the two supports, taken from the
- * landing page so the app and the landing read as one product.
+ * The surfaces are a neutral charcoal and the only loud thing on the page is an
+ * amber the colour of an owl's eye. Mint and periwinkle are the two supports,
+ * taken from the landing page. brand.md at the repo root still describes the
+ * surfaces as midnight indigo, which is what the landing page wears. The app
+ * moved to grey on 1 October 2026 at the frontend owner's word.
  *
  * The layering runs one way. The page is the darkest, the slab the screens sit on
  * is a step up, a card is a step above that, and a well inside a card drops back
@@ -15,10 +16,10 @@
  */
 
 :root {
-  --n-background: #05071b;
-  --n-paper: #171b42;
-  --n-paper-darker: #0a0d26;
-  --n-paper-darkest: #05071b;
+  --n-background: #0b0b0c;
+  --n-paper: #1e1e21;
+  --n-paper-darker: #0f0f11;
+  --n-paper-darkest: #0b0b0c;
 
   --n-primary: #ffb825;
   --n-primary-lighter: #ffda94;
@@ -29,17 +30,17 @@
   --n-primary-o25: rgba(255, 184, 37, 0.25);
   --n-primary-o10: rgba(255, 184, 37, 0.1);
 
-  --n-text: #f2f5fd;
-  --n-text-o70: rgba(242, 245, 253, 0.72);
-  --n-text-o60: rgba(242, 245, 253, 0.62);
-  --n-text-o50: rgba(242, 245, 253, 0.52);
-  --n-text-o25: rgba(242, 245, 253, 0.25);
-  --n-text-o15: rgba(242, 245, 253, 0.15);
-  --n-text-o10: rgba(242, 245, 253, 0.1);
-  --n-secondary-text: rgba(242, 245, 253, 0.4);
-  --n-disabled-text: #9a9db5;
-  --n-button-text: #0d102c;
-  --n-button-text-disabled: rgba(242, 245, 253, 0.52);
+  --n-text: #f4f4f5;
+  --n-text-o70: rgba(244, 244, 245, 0.72);
+  --n-text-o60: rgba(244, 244, 245, 0.62);
+  --n-text-o50: rgba(244, 244, 245, 0.52);
+  --n-text-o25: rgba(244, 244, 245, 0.25);
+  --n-text-o15: rgba(244, 244, 245, 0.15);
+  --n-text-o10: rgba(244, 244, 245, 0.1);
+  --n-secondary-text: rgba(244, 244, 245, 0.4);
+  --n-disabled-text: #9a9aa2;
+  --n-button-text: #131315;
+  --n-button-text-disabled: rgba(244, 244, 245, 0.52);
 
   /* Mint says a check passed. Periwinkle says here is something to know. */
   --n-success: #5fe6c1;
@@ -60,20 +61,20 @@
   --n-danger-bg: rgba(255, 107, 94, 0.14);
   --n-danger-text: #ff8a7f;
 
-  --n-border: #30365c;
-  --n-blue-100: #1c2369;
-  --n-blue-200: #232857;
-  --n-blue-400: #5f80e0;
-  --n-blue-900: #e4e9fd;
+  --n-border: #38383d;
+  --n-blue-100: #2a2a2e;
+  --n-blue-200: #2a2a2e;
+  --n-blue-400: #5a5a62;
+  --n-blue-900: #e9e9ec;
 
   --n-radius-normal: 24px;
   --n-radius-large: 32px;
   --n-padding-normal: 24px;
   --n-clickable-size: 44px;
 
-  --n-shadow: 0 12px 12px rgba(5, 7, 27, 0.4);
-  --n-shadow-2: 0 4px 8px rgba(5, 7, 27, 0.4);
-  --n-shadow-3: 0 6px 12px -6px rgba(5, 7, 27, 0.8), 0 8px 24px -4px rgba(5, 7, 27, 0.9);
+  --n-shadow: 0 12px 12px rgba(0, 0, 0, 0.4);
+  --n-shadow-2: 0 4px 8px rgba(0, 0, 0, 0.4);
+  --n-shadow-3: 0 6px 12px -6px rgba(0, 0, 0, 0.8), 0 8px 24px -4px rgba(0, 0, 0, 0.9);
 
   --n-font-smaller: 10px;
   --n-font-small: 12px;
@@ -106,17 +107,17 @@
   --n-duration-slow: 0.2s;
   --n-easing: ease-in-out;
 
-  --n-slab: #0d102c;
+  --n-slab: #131315;
   --n-slab-radius: 65px;
-  --n-menu-bg: rgba(242, 245, 253, 0.06);
-  --n-menu-active: #232857;
-  --n-menu-hover: #171b42;
-  --n-menu-fill: rgba(242, 245, 253, 0.45);
+  --n-menu-bg: rgba(244, 244, 245, 0.06);
+  --n-menu-active: #2a2a2e;
+  --n-menu-hover: #1e1e21;
+  --n-menu-fill: rgba(244, 244, 245, 0.45);
   --n-menu-radius: 28px;
   --n-menu-height: 56px;
-  --n-footer-bg: #05071b;
-  --n-footer-text: #9a9db5;
-  --n-footer-title: #f2f5fd;
+  --n-footer-bg: #0b0b0c;
+  --n-footer-text: #9a9aa2;
+  --n-footer-title: #f4f4f5;
 
   --n-widget-width: 470px;
   --n-intents-width: calc(var(--n-widget-width) * 1.25);

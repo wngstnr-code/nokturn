@@ -1,0 +1,26 @@
+/* The landing page's card colours, at the size of a tile. */
+.tile {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.amber {
+  background: #ffb825;
+}
+
+.mint {
+  background: #5fe6c1;
+}
+
+.night {
+  background: #1c2369;
+}
+
+.peri {
+  background: #5f80e0;
+}
+
+.coral {
+  background: #ff6b5e;
+}

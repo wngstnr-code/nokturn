@@ -10,6 +10,9 @@ import type {ApiError, IntentStatusResponse} from "@/lib/coordinator/types";
 import type {TokenInfo} from "@/lib/tokens";
 import {EscapeHatch} from "./EscapeHatch";
 import {useIntents, type Sent} from "./IntentsProvider";
+import {ClockArt, Seal, SheetsArt} from "@/components/art/Art";
+import {CloseIcon} from "@/components/Icons";
+import {Hint} from "@/components/ui/Hint";
 import styles from "./MyIntents.module.css";
 
 /* Fast enough to follow a 45 second batch when the socket is refused. */
@@ -20,17 +23,26 @@ const POLL_LIVE_MS = 20000;
 
 type Answer = {sent: Sent; status: IntentStatusResponse | null; error: ApiError | null};
 
-type Look = {label: string; tone: string | undefined};
+type Mark = "waiting" | "batched" | "pass" | "fail" | "unknown";
 
+type Look = {label: string; tone: string | undefined; mark: Mark};
+
+/* Each state has a shape as well as a colour, so a row can be read at a glance. */
 const LOOK: Record<string, Look> = {
-  pending: {label: "Waiting for a batch", tone: styles.pending},
-  batched: {label: "In a batch", tone: styles.batched},
-  settled: {label: "Settled", tone: styles.settled},
-  partially_settled: {label: "Partly settled", tone: styles.settled},
-  expired: {label: "Expired", tone: styles.gone},
-  cancelled: {label: "Cancelled", tone: styles.gone},
-  rejected: {label: "Refused", tone: styles.bad},
+  pending: {label: "Waiting for a batch", tone: styles.pending, mark: "waiting"},
+  batched: {label: "In a batch", tone: styles.batched, mark: "batched"},
+  settled: {label: "Settled", tone: styles.settled, mark: "pass"},
+  partially_settled: {label: "Partly settled", tone: styles.settled, mark: "pass"},
+  expired: {label: "Expired", tone: styles.gone, mark: "unknown"},
+  cancelled: {label: "Cancelled", tone: styles.gone, mark: "unknown"},
+  rejected: {label: "Refused", tone: styles.bad, mark: "fail"},
 };
+
+function StateMark({mark}: {mark: Mark}) {
+  if (mark === "waiting") return <ClockArt size={15} />;
+  if (mark === "batched") return <SheetsArt size={15} />;
+  return <Seal state={mark} size={15} />;
+}
 
 function age(sentAt: number, now: number): string {
   const seconds = Math.max(0, Math.round((now - sentAt) / 1000));
@@ -101,17 +113,18 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
   return (
     <section className={styles.card}>
       <div className={styles.head}>
-        <span className={styles.title}>Your intents</span>
+        <span className={styles.title}>
+          Your intents
+          <Hint label="What an intent is">
+            An intent is a signed instruction, not a transaction. Nothing leaves your wallet until
+            a batch clears. This list holds what you sent from this browser over the last day.
+          </Hint>
+        </span>
         <span className={styles.count}>
           {sent.length === 0 ? "none yet" : `${sent.length} in the last day`}
           {streaming ? <span className={styles.live}>live</span> : null}
         </span>
       </div>
-
-      <p className={styles.scope}>
-        An intent is a signed instruction, not a transaction. Nothing leaves your wallet until a
-        batch clears. This list holds what you sent from this browser over the last day.
-      </p>
 
       {answers.length === 0 ? (
         <div className={styles.empty}>
@@ -131,10 +144,10 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
 
             const look =
               status !== null
-                ? (LOOK[status.status] ?? {label: status.status, tone: styles.pending})
+                ? (LOOK[status.status] ?? {label: status.status, tone: styles.pending, mark: "waiting" as Mark})
                 : forgotten
-                  ? {label: "No longer held", tone: styles.gone}
-                  : {label: "Not reachable", tone: styles.bad};
+                  ? {label: "No longer held", tone: styles.gone, mark: "unknown" as Mark}
+                  : {label: "Not reachable", tone: styles.bad, mark: "fail" as Mark};
 
             const payload = status?.intent as Record<string, unknown> | undefined;
             const sellToken = bySymbol.get(String(payload?.sellToken ?? "").toLowerCase());
@@ -166,7 +179,10 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
                 <div className={styles.rowTop}>
                   <span className={`${styles.legMain} chainvalue`}>{sold}</span>
                   <span className={styles.rowActions}>
-                    <span className={`${styles.badge} ${look.tone ?? ""}`}>{look.label}</span>
+                    <span className={`${styles.badge} ${look.tone ?? ""}`}>
+                      <StateMark mark={look.mark} />
+                      {look.label}
+                    </span>
                     <button
                       type="button"
                       className={styles.dismiss}
@@ -174,7 +190,7 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
                       aria-label="Remove from this list"
                       onClick={() => forget(entry.hash)}
                     >
-                      &times;
+                      <CloseIcon size={13} />
                     </button>
                   </span>
                 </div>

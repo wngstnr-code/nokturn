@@ -1,5 +1,5 @@
 import {NettingChart, type Point} from "./NettingChart";
-import {NettingIcon} from "@/components/Icons";
+import {NettingArt, Tile} from "@/components/art/Art";
 import {nettingCurve} from "@/lib/coordinator/client";
 import type {NettingCurveResponse} from "@/lib/coordinator/types";
 import styles from "./page.module.css";
@@ -75,9 +75,9 @@ export default async function NettingPage() {
     <div className={styles.page}>
       <section className={styles.hero}>
         <div className={styles.badgeRow}>
-          <span className={styles.heroMark} aria-hidden="true">
-            <NettingIcon size={24} />
-          </span>
+          <Tile tone="mint" size={60}>
+            <NettingArt size={42} />
+          </Tile>
           <span className={styles.badge}>Backtest</span>
         </div>
         <p className={styles.eyebrow}>Netting against share of flow</p>

@@ -1,15 +1,20 @@
 import {Countdown} from "./Countdown";
 import {
-  BandIcon,
-  BellIcon,
-  BlockIcon,
-  ClockIcon,
-  GlobeIcon,
-  LayersIcon,
-  MoonIcon,
-  ShieldIcon,
-  SunIcon,
-} from "@/components/Icons";
+  BandArt,
+  BellArt,
+  BlockArt,
+  ChainArt,
+  ClockArt,
+  DayArt,
+  GuardArt,
+  HeldArt,
+  MoonArt,
+  Seal,
+  SunArt,
+  Tile,
+  WindowArt,
+} from "@/components/art/Art";
+import {ClockIcon} from "@/components/Icons";
 import {AddressChip} from "@/components/ui/AddressChip";
 import {Hint} from "@/components/ui/Hint";
 import {OwlState} from "@/components/ui/OwlState";
@@ -19,6 +24,7 @@ import {active, type Network} from "@/lib/network";
 import {units} from "@/lib/format";
 import {Session} from "@shared/types";
 import styles from "./page.module.css";
+import {TokenMark} from "@/components/TokenMark";
 
 export const metadata = {title: "Session"};
 
@@ -29,16 +35,16 @@ export const dynamic = "force-dynamic";
  * pictures cover nine sessions, because what a person needs to tell apart is
  * whether the market is trading, crossing, shut or held.
  */
-const FACE: Record<Session, {Icon: typeof MoonIcon; tone: string}> = {
-  [Session.OPEN]: {Icon: SunIcon, tone: "open"},
-  [Session.PRE_MARKET]: {Icon: SunIcon, tone: "open"},
-  [Session.POST_MARKET]: {Icon: SunIcon, tone: "open"},
-  [Session.AUCTION_OPEN]: {Icon: BellIcon, tone: "auction"},
-  [Session.AUCTION_CLOSE]: {Icon: BellIcon, tone: "auction"},
-  [Session.CLOSED_OVERNIGHT]: {Icon: MoonIcon, tone: "closed"},
-  [Session.CLOSED_WEEKEND]: {Icon: MoonIcon, tone: "closed"},
-  [Session.HOLIDAY]: {Icon: MoonIcon, tone: "closed"},
-  [Session.PROTECTIVE]: {Icon: ShieldIcon, tone: "protective"},
+const FACE: Record<Session, {Art: typeof MoonArt; tile: "night" | "peri" | "amber"}> = {
+  [Session.OPEN]: {Art: SunArt, tile: "peri"},
+  [Session.PRE_MARKET]: {Art: SunArt, tile: "peri"},
+  [Session.POST_MARKET]: {Art: SunArt, tile: "peri"},
+  [Session.AUCTION_OPEN]: {Art: BellArt, tile: "night"},
+  [Session.AUCTION_CLOSE]: {Art: BellArt, tile: "night"},
+  [Session.CLOSED_OVERNIGHT]: {Art: MoonArt, tile: "night"},
+  [Session.CLOSED_WEEKEND]: {Art: MoonArt, tile: "night"},
+  [Session.HOLIDAY]: {Art: MoonArt, tile: "night"},
+  [Session.PROTECTIVE]: {Art: HeldArt, tile: "night"},
 };
 
 function utc(seconds: bigint | number): string {
@@ -57,9 +63,7 @@ function OracleRow({token, chainId}: {token: TokenOracle; chainId: number}) {
     <tr>
       <td>
         <div className={styles.tokenCell}>
-          <span className={styles.tokenMark} aria-hidden="true">
-            {token.symbol.slice(0, 2).toUpperCase()}
-          </span>
+          <TokenMark symbol={token.symbol} size={36} />
           <div>
             <div className={styles.symbol}>{token.symbol}</div>
             <AddressChip
@@ -78,6 +82,7 @@ function OracleRow({token, chainId}: {token: TokenOracle; chainId: number}) {
           <span className={styles.muted}>not answered</span>
         ) : (
           <span className={`${styles.badge} ${token.agree ? styles.ok : styles.bad}`}>
+            <Seal state={token.agree ? "pass" : "fail"} size={16} />
             {token.agree ? "Agree" : "Disagree"}
           </span>
         )}
@@ -104,9 +109,9 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
   return (
     <>
       <div className={styles.hero}>
-        <span className={`${styles.face} ${styles[face.tone]}`} aria-hidden="true">
-          <face.Icon size={30} />
-        </span>
+        <Tile tone={face.tile} size={76}>
+          <face.Art size={52} />
+        </Tile>
         <div>
           <p className={styles.eyebrow}>Session right now</p>
           <h1 className={styles.session}>{SESSION_NAMES[report.session]}</h1>
@@ -125,7 +130,7 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
       <div className={styles.grid}>
         <div className={styles.card}>
           <p className={styles.label}>
-            <LayersIcon size={15} />
+            <WindowArt size={20} />
             Batch window
             <Hint label="What the batch window is">
               {batch === 0
@@ -137,7 +142,7 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
         </div>
         <div className={styles.card}>
           <p className={styles.label}>
-            <BandIcon size={15} />
+            <BandArt size={20} />
             Price band
             <Hint label="What the price band is">
               The furthest an execution may sit from the reference price in this session.
@@ -147,7 +152,7 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
         </div>
         <div className={styles.card}>
           <p className={styles.label}>
-            <ShieldIcon size={15} />
+            <GuardArt size={20} />
             Guard band
             <Hint label="What the guard band is">
               The minutes around a session edge, where a batch could straddle two states. Nothing
@@ -158,7 +163,7 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
         </div>
         <div className={styles.card}>
           <p className={styles.label}>
-            <SunIcon size={15} />
+            <DayArt size={20} />
             New York day
             <Hint label="Why the New York day">
               Daily budgets reset on the New York calendar day, not on UTC midnight.
@@ -200,18 +205,18 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
 
       <div className={styles.provenance}>
         <span>
-          <BlockIcon size={15} />
+          <BlockArt size={18} />
           Block
           <strong className="chainvalue">{report.blockNumber.toLocaleString("en-US")}</strong>
         </span>
         <span>
-          <GlobeIcon size={15} />
+          <ChainArt size={18} />
           {network.name}
           <strong className="chainvalue">{report.chainId}</strong>
           {network.note === null ? null : <Hint label="Where this chain comes from">{network.note}</Hint>}
         </span>
         <span>
-          <ClockIcon size={15} />
+          <ClockArt size={18} />
           Block time
           <strong className="chainvalue">{utc(report.blockTimestamp)} UTC</strong>
         </span>

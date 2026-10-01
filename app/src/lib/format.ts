@@ -33,3 +33,9 @@ export function shortAddress(address: string): string {
 export function bytesLabel(count: number): string {
   return `${GROUPED.format(count)} byte${count === 1 ? "" : "s"}`;
 }
+
+/// CLOSED_WEEKEND, as the coordinator names a session, read as Closed weekend.
+export function sessionLabel(name: string): string {
+  const words = name.toLowerCase().replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

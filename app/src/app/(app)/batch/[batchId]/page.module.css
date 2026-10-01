@@ -407,3 +407,212 @@
   color: var(--n-text-o50);
   font-size: var(--n-font-small-plus);
 }
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.headName {
+  flex: 1;
+  min-width: 0;
+}
+
+.headFacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 18px;
+}
+
+.headFact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-small-plus);
+}
+
+.outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-semibold);
+  text-transform: capitalize;
+}
+
+.outcome.settled {
+  background: var(--n-success-bg);
+  color: var(--n-success-text);
+}
+
+.outcome.notSettled {
+  background: var(--n-alert-bg);
+  color: var(--n-alert-text);
+}
+
+.totalLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.owner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.sold {
+  flex: 1;
+  color: var(--n-text-o60);
+  font-size: var(--n-font-normal);
+}
+
+.sold strong {
+  color: var(--n-text);
+  font-weight: var(--n-weight-semibold);
+}
+
+/*
+ * The two figures a receipt exists to compare, at one size and on one line, with
+ * what separates them in between. Neither is smaller and neither is hidden.
+ */
+.versus {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--n-paper);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.side:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.sideLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--n-text-o60);
+  font-size: var(--n-font-small-plus);
+}
+
+.sideValue {
+  font-size: 24px;
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.sideUnit {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+}
+
+.delta {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-semibold);
+  white-space: nowrap;
+}
+
+.delta.better {
+  background: var(--n-success-bg);
+  color: var(--n-success-text);
+}
+
+.delta.worse {
+  background: var(--n-danger-bg);
+  color: var(--n-danger-text);
+}
+
+.attributionLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.split {
+  height: 10px;
+  margin: 10px 0 8px;
+  border-radius: 999px;
+  background: var(--n-text-o15);
+  overflow: hidden;
+}
+
+.splitNetted {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--n-success);
+}
+
+.splitLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  color: var(--n-text-o60);
+  font-size: var(--n-font-small-plus);
+}
+
+.splitLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.splitLegend strong {
+  color: var(--n-text);
+  font-weight: var(--n-weight-medium);
+}
+
+.dotNetted,
+.dotRouted {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.dotNetted {
+  background: var(--n-success);
+}
+
+.dotRouted {
+  background: var(--n-text-o25);
+}
+
+@media (max-width: 640px) {
+  .head {
+    flex-wrap: wrap;
+  }
+
+  .headFacts {
+    justify-content: flex-start;
+  }
+
+  .versus {
+    grid-template-columns: 1fr;
+  }
+
+  .side:last-child {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

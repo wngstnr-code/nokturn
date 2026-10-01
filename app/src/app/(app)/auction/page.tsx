@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {Admission} from "@/components/auction/Admission";
-import {BellIcon} from "@/components/Icons";
+import {BellArt} from "@/components/art/Art";
 import {OwlState} from "@/components/ui/OwlState";
 import {AuctionLive} from "@/components/auction/AuctionLive";
 import {explorerAddress} from "@/lib/chain";
@@ -36,7 +36,7 @@ function Row({book}: {book: AuctionResponse}) {
     <Link href={`/auction/${book.auctionId}`} className={styles.row}>
       <div className={styles.lead}>
         <span className={styles.rowMark} aria-hidden="true">
-          <BellIcon size={18} />
+          <BellArt size={30} />
         </span>
         <div className={styles.cell}>
           {book.kind === "close" ? "Closing cross" : "Opening cross"}

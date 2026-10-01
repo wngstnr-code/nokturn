@@ -1,12 +1,12 @@
 import Link from "next/link";
-import {LayersIcon} from "@/components/Icons";
+import {BatchArt} from "@/components/art/Art";
 import {OwlState} from "@/components/ui/OwlState";
 import {explorerTx} from "@/lib/chain";
 import {listBatches} from "@/lib/coordinator/client";
 import type {BatchSummary} from "@/lib/coordinator/types";
 import {scanBatches, SCAN_SPAN, type BatchRow, type BatchScan} from "@/lib/batches";
 import {SESSION_NAMES} from "@/lib/session";
-import {shortAddress, units} from "@/lib/format";
+import {sessionLabel, shortAddress, units} from "@/lib/format";
 import {active} from "@/lib/network";
 import type {Session} from "@shared/types";
 import styles from "./page.module.css";
@@ -36,7 +36,7 @@ function IndexedRow({batch}: {batch: BatchSummary}) {
     <Link className={styles.row} href={`/batch/${batch.batchId}`}>
       <div className={styles.lead}>
         <span className={styles.rowMark} aria-hidden="true">
-          <LayersIcon size={18} />
+          <BatchArt size={30} />
         </span>
         <div className={styles.cell}>
           Batch
@@ -44,7 +44,7 @@ function IndexedRow({batch}: {batch: BatchSummary}) {
         </div>
       </div>
       <div className={styles.cell}>
-        {batch.sessionName}
+        {sessionLabel(batch.sessionName)}
         <strong className="chainvalue">
           {batch.intentCount} intents, {batch.participantCount} owners
         </strong>
@@ -72,7 +72,7 @@ function TailRow({row, chainId}: {row: BatchRow; chainId: number}) {
     <div className={styles.row}>
       <div className={styles.lead}>
         <span className={styles.rowMark} aria-hidden="true">
-          <LayersIcon size={18} />
+          <BatchArt size={30} />
         </span>
         <div className={styles.cell}>
           Batch
