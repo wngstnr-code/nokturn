@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {BandArt, BellArt, CoinsArt, NettingArt, PeopleArt, Seal, Tile} from "@/components/art/Art";
+import {BandArt, CoinsArt, NettingArt, PeopleArt, Seal} from "@/components/art/Art";
 import {Hint} from "@/components/ui/Hint";
 import {OwlState} from "@/components/ui/OwlState";
 import {Admission} from "@/components/auction/Admission";
@@ -82,9 +82,6 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
       <Admission kind={book.provenance.source.kind} />
 
       <header className={styles.head}>
-        <Tile tone="night" size={76}>
-          <BellArt size={52} />
-        </Tile>
         <div>
           <p className={styles.eyebrow}>
             {book.kind === "close" ? "Closing cross" : "Opening cross"} . {book.token.symbol}
