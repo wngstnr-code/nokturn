@@ -1,0 +1,465 @@
+/*
+ * Ported from apps/cow-fi/styles/styled.ts in cowprotocol/cowswap.
+ * cow.fi sets the root font size to 62.5%, so every rem there is ten pixels here.
+ */
+
+.root {
+  /* Owl Amber, landing variant. Values and contrast checks live in brand.md. */
+  --nk-ink-100: #ffffff;
+  --nk-ink-98: #f8faff;
+  --nk-ink-95: #f0f3ff;
+  --nk-ink-90: #e4e9fd;
+  --nk-ink-80: #cad0e9;
+  --nk-ink-70: #a9b0cb;
+  --nk-ink-60: #8a91ae;
+  --nk-ink-50: #6c7392;
+  --nk-ink-40: #505674;
+  --nk-ink-30: #373d5d;
+  --nk-ink-20: #1e2343;
+  --nk-ink-10: #0d102c;
+  --nk-ink-0: #05071b;
+  --nk-amber: #ffb825;
+  --nk-amber-pale: #ffecc1;
+  --nk-amber-deep: #915200;
+  --nk-amber-mid: #e09600;
+  --nk-mint: #5fe6c1;
+  --nk-mint-mid: #00ab89;
+  --nk-mint-pale: #caf7e7;
+  --nk-mint-deep: #045b48;
+  --nk-peri: #a2bcff;
+  --nk-peri-mid: #5f80e0;
+  --nk-peri-deep: #1c2369;
+
+  min-height: 100vh;
+  font-family: var(--font-landing-sans), Arial, sans-serif;
+  line-height: normal;
+  color: var(--nk-ink-0);
+  background: var(--nk-ink-90);
+}
+
+/* globals.css underlines every link on hover. Nothing on the landing page should. */
+.root a:hover {
+  text-decoration: none;
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 60vh;
+  max-width: 1760px;
+  margin: 0 auto;
+  padding: 0 60px;
+}
+
+.page {
+  display: flex;
+  flex-flow: column wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 1760px;
+  margin: 0 auto;
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 700px;
+  margin: -88px auto -48px;
+  padding: 154px 20px 56px;
+  overflow: hidden;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+  text-align: center;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: 148px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--nk-ink-10);
+  overflow-wrap: break-word;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-flow: row wrap;
+  gap: 100px;
+  width: 100%;
+  margin: 24px 0;
+  padding: 60px;
+  border-radius: 60px;
+  color: var(--nk-ink-10);
+  background: var(--nk-ink-90);
+}
+
+.cardWhite {
+  background: var(--nk-ink-100);
+}
+
+.cardTransparent {
+  background: transparent;
+}
+
+.cardDark {
+  color: var(--nk-ink-98);
+  background: var(--nk-ink-10);
+}
+
+.cardLight {
+  color: var(--nk-ink-10);
+  background: var(--nk-ink-90);
+}
+
+.touchFooter {
+  margin: 0 0 -65px;
+}
+
+.cardSection {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 42px;
+  width: 100%;
+  color: inherit;
+}
+
+.titleWrapper {
+  display: flex;
+  flex-flow: column wrap;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  margin: 100px auto 56px;
+  text-align: center;
+}
+
+.narrow {
+  max-width: 900px;
+}
+
+.productsTitle {
+  max-width: 1200px;
+  margin: 100px auto;
+  color: var(--nk-ink-0);
+}
+
+.governanceTitle {
+  padding: 150px 0 0;
+}
+
+.titleIcon {
+  width: 100%;
+}
+
+.titleText {
+  margin: 0;
+  font-size: 51px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.productsLead {
+  line-height: 1.6;
+}
+
+.titleDescription {
+  width: 100%;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.muted30 {
+  color: var(--nk-ink-30);
+}
+
+.muted60 {
+  color: var(--nk-ink-60);
+}
+
+.normal {
+  font-weight: 400;
+}
+
+.inlineLink {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.tag {
+  display: inline;
+  padding: 3px 16px;
+  border-radius: 28px;
+}
+
+.tagMint {
+  color: var(--nk-mint-deep);
+  background: var(--nk-mint-pale);
+}
+
+.tagNight {
+  color: var(--nk-peri);
+  background: var(--nk-peri-deep);
+}
+
+.tagAmber {
+  color: var(--nk-ink-10);
+  background: var(--nk-amber);
+}
+
+.sectionButton,
+.topicButton {
+  display: inline-block;
+  max-width: 100%;
+  padding: 16px 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 32px;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.sectionButton:hover,
+.topicButton:hover {
+  opacity: 0.8;
+}
+
+.sectionButton {
+  font-size: 24px;
+  color: var(--nk-ink-98);
+  background: var(--nk-ink-10);
+}
+
+.topicButton {
+  width: max-content;
+  font-size: 21px;
+}
+
+.topicList {
+  display: grid;
+  gap: 32px;
+  width: 100%;
+  margin: 0 auto;
+  overflow-x: auto;
+}
+
+.columns2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.columns3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.topicCard {
+  position: relative;
+  display: flex;
+  flex-flow: column wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 56px;
+  max-width: 100%;
+  padding: 56px 20px;
+  overflow: hidden;
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  border: 4px solid transparent;
+  border-radius: 20px;
+  transition: border 0.2s ease-in-out;
+}
+
+.productCard {
+  align-items: flex-start;
+  padding: 32px;
+}
+
+.night {
+  color: var(--nk-peri);
+  background: var(--nk-peri-deep);
+}
+
+.night .topicButton {
+  color: var(--nk-peri-deep);
+  background: var(--nk-peri);
+}
+
+.amber {
+  color: var(--nk-ink-10);
+  background: var(--nk-amber);
+}
+
+.amber .topicButton {
+  color: var(--nk-amber);
+  background: var(--nk-ink-10);
+}
+
+.topicCardInner {
+  z-index: 1;
+  display: flex;
+  flex-flow: column wrap;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+}
+
+.productTitle {
+  width: 100%;
+  margin: 0;
+  font-size: 51px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.productDescription {
+  width: 100%;
+  margin: 16px 0;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.productImage {
+  width: auto;
+  max-width: 100%;
+  height: 270px;
+  margin: 8px 0 0 auto;
+  object-fit: contain;
+}
+
+.channelCard:hover {
+  border-color: var(--nk-ink-40);
+}
+
+.channelImage {
+  width: 290px;
+  max-width: 100%;
+  height: 290px;
+  margin: 0 0 16px;
+  object-fit: contain;
+}
+
+.channelTitle {
+  width: 100%;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+@media (max-width: 1280px) {
+  .wrapper {
+    padding: 0;
+  }
+
+  .columns3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 960px) {
+  .hero {
+    padding: 38px 20px;
+  }
+
+  .heroTitle {
+    font-size: 72px;
+  }
+
+  .card {
+    flex-flow: column wrap;
+    gap: 100px;
+    padding: 48px 21px;
+  }
+
+  .titleWrapper,
+  .productsTitle {
+    margin: 56px auto 32px;
+  }
+
+  .governanceTitle {
+    padding: 0;
+  }
+
+  .titleText {
+    font-size: 38px;
+  }
+
+  .productsLead {
+    font-size: 28px;
+    line-height: 1.8;
+  }
+
+  .titleDescription {
+    font-size: 21px;
+  }
+
+  .sectionButton {
+    font-size: 21px;
+  }
+
+  .topicButton {
+    font-size: 16px;
+  }
+
+  .columns2,
+  .columns3 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .topicCard {
+    flex-flow: column wrap;
+    gap: 32px;
+    padding: 32px 16px;
+  }
+
+  .topicCardInner {
+    align-items: center;
+    text-align: center;
+  }
+
+  .productTitle {
+    font-size: 28px;
+  }
+
+  .productDescription {
+    font-size: 18px;
+  }
+
+  .productImage {
+    width: 100%;
+    margin: 0 0 16px;
+  }
+
+  .channelImage {
+    width: 100%;
+  }
+
+  .channelTitle {
+    font-size: 28px;
+  }
+}

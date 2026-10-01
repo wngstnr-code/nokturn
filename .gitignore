@@ -84,3 +84,6 @@ solver/.state/
 
 # raw Dune exports carry taker addresses, the fixture drops them
 data/replay/*.csv
+
+# local code graph, rebuilt by graphify
+graphify-out/
