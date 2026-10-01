@@ -12,6 +12,7 @@ import {EscapeHatch} from "./EscapeHatch";
 import {useIntents, type Sent} from "./IntentsProvider";
 import {ClockArt, Seal, SheetsArt} from "@/components/art/Art";
 import {CloseIcon} from "@/components/Icons";
+import {TokenMark} from "@/components/TokenMark";
 import {Hint} from "@/components/ui/Hint";
 import styles from "./MyIntents.module.css";
 
@@ -172,6 +173,9 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
             const sold =
               status === null ? entry.sold : amount(payload?.sellAmount, sellToken);
 
+            // The record this tab kept ends in the symbol, which is all a mark needs.
+            const soldSymbol = sellToken?.symbol ?? entry.sold.split(" ").pop() ?? "";
+
             const line =
               status === null
                 ? forgotten
@@ -193,7 +197,10 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
             return (
               <div key={entry.hash} className={`${styles.row} ${finished ? styles.done : ""}`}>
                 <div className={styles.rowTop}>
-                  <span className={`${styles.legMain} chainvalue`}>{sold}</span>
+                  <span className={`${styles.legMain} chainvalue`}>
+                    {soldSymbol === "" ? null : <TokenMark symbol={soldSymbol} size={24} />}
+                    {sold}
+                  </span>
                   <span className={styles.rowActions}>
                     <span className={`${styles.badge} ${look.tone ?? ""}`}>
                       <StateMark mark={look.mark} />

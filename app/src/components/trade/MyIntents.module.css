@@ -132,6 +132,10 @@
 }
 
 .legMain {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   font-size: var(--n-font-medium);
   font-weight: var(--n-weight-medium);
 }
