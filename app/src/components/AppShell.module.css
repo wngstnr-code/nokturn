@@ -50,7 +50,8 @@
 
 @media (max-width: 960px) {
   .body {
-    padding: 96px 16px 236px;
+    /* The header is two rows here, so the content starts further down. */
+    padding: 128px 16px 236px;
     flex: none;
     min-height: calc(100vh - 200px);
     background-size: auto 220px;
