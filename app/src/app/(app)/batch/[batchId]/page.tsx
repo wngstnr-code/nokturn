@@ -1,13 +1,9 @@
 import Link from "next/link";
 import {
   BatchOwl,
-  CoinsArt,
   ClockArt,
   MoonArt,
-  NettingArt,
-  PeopleArt,
   Seal,
-  SheetsArt,
 } from "@/components/art/Art";
 import {ProvenanceStrip} from "@/components/Provenance";
 import {AddressChip} from "@/components/ui/AddressChip";
@@ -303,7 +299,6 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
       <div className={styles.totals}>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <NettingArt size={20} />
             Netting
             <Hint label="What netting is">
               The share of the batch that met another intent instead of going to a venue.
@@ -313,7 +308,6 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <CoinsArt size={20} />
             Total savings
             <Hint label="Savings against what">Against the venue baseline at this block.</Hint>
           </p>
@@ -323,7 +317,6 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <PeopleArt size={20} />
             Participants
             <Hint label="Who counts as a participant">
               Distinct owners, which is what makes netting possible.
@@ -333,7 +326,6 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.total}>
           <p className={styles.totalLabel}>
-            <SheetsArt size={20} />
             Intents
             <Hint label="When intents are counted">Counted at the moment collection closed.</Hint>
           </p>
