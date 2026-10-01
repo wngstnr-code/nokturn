@@ -78,14 +78,33 @@ Lolos.
 
 | Item | Kenapa | Syarat |
 |---|---|---|
-| Kurva cadangan netting | Sembilan baris kueri `8595303` tersalin di kode, dipakai hanya kalau coordinator tidak menjawab. Angkanya cocok dengan API | Layar harus tetap menaut ke kueri yang sama saat cadangan dipakai. Kalau tim lebih suka layar kosong, cadangan ini dihapus |
-| Situs `app.nokturn.xyz` | Masih tanpa `NEXT_PUBLIC_COORDINATOR_URL`, jadi menampilkan testnet dan token uji | Variabel disetel di hosting sebelum submit |
+| Kurva cadangan netting | **Dihapus 1 Oktober 2026.** Tanpa coordinator, layar bilang tidak ada kurva yang bisa digambar dan menaut ke dashboard Dune | Tuntas |
+| Situs `app.nokturn.xyz` | **Tuntas 1 Oktober 2026.** Variabelnya menunjuk `https://api.nokturn.xyz`, dan layar membaca mainnet | Tuntas |
 | Struk di mainnet | Belum pernah terlihat, karena belum ada batch di sana | Dilihat ulang setelah batch pertama |
 | Struk di fork | Bacaan state lama gagal setelah beberapa waktu dan API menjawab 502 | Keputusan Dharu. Layar sudah menyebut bahwa struknya tidak bisa dibaca, bukan menampilkan isi lama |
-| Komitmen lelang dari dompet | Jalurnya sudah ada tapi belum pernah diklik dari dompet nyata | Dicoba di fork lelang sebelum direkam |
+| Komitmen lelang dari dompet | Jalurnya sudah ada tapi belum pernah diklik dari dompet nyata. Sejak 1 Oktober 2026 kartunya tidak tampil di fork, karena komitmen keenam menghentikan cross harness | Dicoba di mainnet pada lelang pertama yang dijalankan keeper |
 
 ## 5. Yang belum diaudit
 
 Deck, video demo, dan README belum ada. Tiap angka di sana harus melewati
 pertanyaan yang sama sebelum submit, dan audit ini dijalankan ulang untuk setiap
 layar yang berubah, sesuai §11.4.
+
+## 6. Review, 1 Oktober 2026
+
+Diperiksa ulang oleh Wangsit. Grep §11.3 dijalankan ulang secara terpisah dan
+hasilnya sama dengan bagian 3. Kurva cadangan netting dicocokkan dengan jawaban
+API dan cocok di kesembilan titiknya.
+
+README ternyata sudah ada saat audit ini dijalankan, dan dua hal di dalamnya tidak
+lolos.
+
+| Item | Temuan | Tindakan |
+|---|---|---|
+| Kolom Juli 2026 di tabel masalah terukur | Kueri Juli tidak bisa diambil kembali, jadi tidak ada yang bisa menjalankannya ulang | **Dipotong.** Tabel tinggal Agustus, dan rasio p90 serta p99 ditulis dari Agustus saja |
+| Bagian status | Masih menyebut feed baru hidup 1 Oktober dan backend membaca fork | Diganti dengan blok dan transaksi eksekusi `SetFeeds`, dan bahwa backend serta app membaca mainnet |
+
+Gerbang §11 belum dicentang. Yang masih terbuka adalah struk mainnet yang belum
+pernah terlihat, komitmen lelang yang belum dicoba di mainnet, serta deck dan video
+yang belum ada.
+
