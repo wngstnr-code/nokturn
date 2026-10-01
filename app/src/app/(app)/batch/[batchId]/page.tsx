@@ -1,9 +1,23 @@
 import Link from "next/link";
+import {
+  CheckIcon,
+  ClockIcon,
+  CoinsIcon,
+  CrossIcon,
+  LayersIcon,
+  MoonIcon,
+  NettingIcon,
+  UsersIcon,
+} from "@/components/Icons";
 import {ProvenanceStrip} from "@/components/Provenance";
+import {AddressChip} from "@/components/ui/AddressChip";
+import {Hint} from "@/components/ui/Hint";
+import {OwlState} from "@/components/ui/OwlState";
 import {VerifyCall} from "@/components/VerifyCall";
 import {batchReceipt, coordinatorUrl} from "@/lib/coordinator/client";
 import type {ApiError, BatchReceipt, FillReceipt} from "@/lib/coordinator/types";
-import {shortAddress, units} from "@/lib/format";
+import {explorerAddress} from "@/lib/chain";
+import {sessionLabel, units} from "@/lib/format";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -46,74 +60,101 @@ function difference(executed: string, baseline: string, decimals: number): strin
   }
 }
 
+/// Out of a hundred, for the width of a bar. Null when the two parts cannot be read.
+function nettedShare(netted: string, routed: string): number | null {
+  try {
+    const a = BigInt(netted);
+    const b = BigInt(routed);
+    if (a + b === 0n) return null;
+    return Number((a * 10000n) / (a + b)) / 100;
+  } catch {
+    return null;
+  }
+}
+
 /*
  * The baseline sits beside the result, never behind a disclosure. Binding rule,
- * docs/demo.md section 2.
+ * docs/demo.md section 2. So the two figures stand side by side at the same size
+ * with the difference between them, and only the explanation of a label is
+ * folded away.
  */
-function Fill({fill}: {fill: FillReceipt}) {
+function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
   const moved = Number(fill.improvementBps);
   const better = Number.isFinite(moved) && moved >= 0;
   const gap = difference(fill.executedBuy, fill.baselineBuy, fill.buyToken.decimals);
+  const share = nettedShare(fill.attribution.nettedSell, fill.attribution.routedSell);
 
   return (
     <article className={styles.fill}>
       <div className={styles.owner}>
-        <span className={styles.ownerLabel}>Owner</span>
-        <a
-          className={`${styles.ownerValue} chainvalue`}
-          href={fill.sellToken.explorerUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {shortAddress(fill.owner)}
-        </a>
+        <span className={styles.tokenMark} aria-hidden="true">
+          {fill.sellToken.symbol.slice(0, 2).toUpperCase()}
+        </span>
+        <span className={styles.sold}>
+          Sold{" "}
+          <strong className="chainvalue">
+            {amount(fill.executedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
+          </strong>
+        </span>
+        <AddressChip value={fill.owner} href={explorerAddress(fill.owner, chainId)} label="the owner address" />
         {fill.partial ? <span className={styles.partial}>Partial fill</span> : null}
       </div>
 
-      <div className={styles.legs}>
-        <div className={styles.leg}>
-          <span className={styles.legLabel}>Sold</span>
-          <span className={`${styles.legValue} chainvalue`}>
-            {amount(fill.executedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
+      <div className={styles.versus}>
+        <div className={styles.side}>
+          <span className={styles.sideLabel}>In this batch</span>
+          <span className={`${styles.sideValue} chainvalue`}>
+            {amount(fill.executedBuy, fill.buyToken.decimals, 4)}
           </span>
+          <span className={styles.sideUnit}>{fill.buyToken.symbol}</span>
         </div>
-        <div className={styles.leg}>
-          <span className={styles.legLabel}>Received</span>
-          <span className={`${styles.legValue} chainvalue`}>
-            {amount(fill.executedBuy, fill.buyToken.decimals, 4)} {fill.buyToken.symbol}
+        <span className={`${styles.delta} ${better ? styles.better : styles.worse} chainvalue`}>
+          {gap === null ? "" : `${gap} `}
+          {improvement(fill.improvementBps)}
+        </span>
+        <div className={styles.side}>
+          <span className={styles.sideLabel}>
+            Alone on the venue
+            <Hint label="What alone on the venue means">
+              What the same sale would have received from the venue by itself, read from pool state
+              at the same block. The command below recomputes it.
+            </Hint>
           </span>
-        </div>
-      </div>
-
-      <div className={styles.compare}>
-        <div className={styles.compareRow}>
-          <span className={styles.compareLabel}>Alone on the venue</span>
-          <span className={`${styles.compareValue} chainvalue`}>
-            {amount(fill.baselineBuy, fill.buyToken.decimals, 4)} {fill.buyToken.symbol}
+          <span className={`${styles.sideValue} chainvalue`}>
+            {amount(fill.baselineBuy, fill.buyToken.decimals, 4)}
           </span>
-        </div>
-        <div className={styles.compareRow}>
-          <span className={styles.compareLabel}>Difference</span>
-          <span className={`${styles.compareValue} ${better ? styles.better : styles.worse} chainvalue`}>
-            {gap === null ? "" : `${gap} ${fill.buyToken.symbol} `}
-            {improvement(fill.improvementBps)}
-          </span>
+          <span className={styles.sideUnit}>{fill.buyToken.symbol}</span>
         </div>
       </div>
 
       <div className={styles.attribution}>
-        <span className={styles.attributionLabel}>Where the difference came from</span>
-        <div className={styles.attributionRow}>
-          <span className="chainvalue">
-            {amount(fill.attribution.nettedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
-          </span>{" "}
-          met another intent inside the batch, so it never paid a spread
-        </div>
-        <div className={styles.attributionRow}>
-          <span className="chainvalue">
-            {amount(fill.attribution.routedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
-          </span>{" "}
-          was routed to the venue in one order
+        <span className={styles.attributionLabel}>
+          Where the difference came from
+          <Hint label="How the two parts differ">
+            The part that met another intent inside the batch never paid a spread. The rest was
+            routed to the venue in one order.
+          </Hint>
+        </span>
+        {share === null ? null : (
+          <div className={styles.split} aria-hidden="true">
+            <span className={styles.splitNetted} style={{width: `${share}%`}} />
+          </div>
+        )}
+        <div className={styles.splitLegend}>
+          <span>
+            <i className={styles.dotNetted} />
+            Met another intent{" "}
+            <strong className="chainvalue">
+              {amount(fill.attribution.nettedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
+            </strong>
+          </span>
+          <span>
+            <i className={styles.dotRouted} />
+            Routed to the venue{" "}
+            <strong className="chainvalue">
+              {amount(fill.attribution.routedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
+            </strong>
+          </span>
         </div>
       </div>
 
@@ -189,23 +230,19 @@ function Unavailable({batchId, error}: {batchId: string; error: ApiError}) {
   const configured = coordinatorUrl() !== null;
 
   return (
-    <div className={styles.unavailable}>
-      <p className={styles.eyebrow}>Batch {batchId}</p>
-      <h1 className={styles.unavailableTitle}>
-        {configured ? "The receipt is not being served yet" : "No coordinator is configured"}
-      </h1>
-      <p className={styles.unavailableBody}>
-        A receipt is assembled from settlement logs by the indexer, and until that exists this route
-        refuses to answer rather than returning numbers nobody could trace. The refusal below is the
-        coordinator&rsquo;s own words, passed through untouched.
-      </p>
-      <p className={`${styles.unavailableDetail} chainvalue`}>
-        {error.code}. {error.message}
-      </p>
+    <>
+      <OwlState
+        mood={configured ? "searching" : "asleep"}
+        title={configured ? `No receipt for batch ${batchId}` : "No coordinator is configured"}
+        detail={`${error.code}. ${error.message}`}
+      >
+        A receipt is put together from settlement logs by the indexer. Until it has this batch, the
+        screen shows nothing rather than numbers nobody could trace.
+      </OwlState>
       <Link className={styles.back} href="/batch">
-        Back to the live tail
+        Back to all batches
       </Link>
-    </div>
+    </>
   );
 }
 
@@ -227,24 +264,27 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <div>
+        <span className={styles.headMark} aria-hidden="true">
+          <LayersIcon size={28} />
+        </span>
+        <div className={styles.headName}>
           <p className={styles.eyebrow}>Batch receipt</p>
           <h1 className={styles.title}>
             <span className="chainvalue">#{receipt.batchId}</span>
           </h1>
         </div>
         <div className={styles.headFacts}>
-          <span className={styles.headFact}>
-            Session
-            <strong>{receipt.sessionName}</strong>
+          <span className={`${styles.outcome} ${settled ? styles.settled : styles.notSettled}`}>
+            {settled ? <CheckIcon size={15} /> : <CrossIcon size={15} />}
+            {receipt.outcome}
           </span>
           <span className={styles.headFact}>
-            Batch window
-            <strong className="chainvalue">{receipt.batchDurationSeconds}s</strong>
+            <MoonIcon size={15} />
+            {sessionLabel(receipt.sessionName)}
           </span>
           <span className={styles.headFact}>
-            Outcome
-            <strong className={settled ? styles.settled : styles.notSettled}>{receipt.outcome}</strong>
+            <ClockIcon size={15} />
+            <span className="chainvalue">{receipt.batchDurationSeconds}s</span> window
           </span>
         </div>
       </header>
@@ -253,26 +293,42 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
 
       <div className={styles.totals}>
         <div className={styles.total}>
-          <p className={styles.totalLabel}>Netting</p>
+          <p className={styles.totalLabel}>
+            <NettingIcon size={15} />
+            Netting
+            <Hint label="What netting is">
+              The share of the batch that met another intent instead of going to a venue.
+            </Hint>
+          </p>
           <p className={`${styles.totalValue} chainvalue`}>{ratio(receipt.totals.nettingRatioBps)}</p>
-          <p className={styles.totalHint}>Share that met another intent instead of a venue</p>
         </div>
         <div className={styles.total}>
-          <p className={styles.totalLabel}>Participants</p>
-          <p className={`${styles.totalValue} chainvalue`}>{receipt.participantCount}</p>
-          <p className={styles.totalHint}>Distinct owners, which is what makes netting possible</p>
-        </div>
-        <div className={styles.total}>
-          <p className={styles.totalLabel}>Total savings</p>
+          <p className={styles.totalLabel}>
+            <CoinsIcon size={15} />
+            Total savings
+            <Hint label="Savings against what">Against the venue baseline at this block.</Hint>
+          </p>
           <p className={`${styles.totalValue} chainvalue`}>
             {amount(receipt.totals.totalSavingsUsd, 18, 2)} USD
           </p>
-          <p className={styles.totalHint}>Against the venue baseline at this block</p>
         </div>
         <div className={styles.total}>
-          <p className={styles.totalLabel}>Intents</p>
+          <p className={styles.totalLabel}>
+            <UsersIcon size={15} />
+            Participants
+            <Hint label="Who counts as a participant">
+              Distinct owners, which is what makes netting possible.
+            </Hint>
+          </p>
+          <p className={`${styles.totalValue} chainvalue`}>{receipt.participantCount}</p>
+        </div>
+        <div className={styles.total}>
+          <p className={styles.totalLabel}>
+            <LayersIcon size={15} />
+            Intents
+            <Hint label="When intents are counted">Counted at the moment collection closed.</Hint>
+          </p>
           <p className={`${styles.totalValue} chainvalue`}>{receipt.intentCount}</p>
-          <p className={styles.totalHint}>Counted at the moment collection closed</p>
         </div>
       </div>
 
@@ -281,7 +337,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
           <p className={styles.sectionLabel}>Fills</p>
           <div className={styles.fills}>
             {receipt.fills.map((fill) => (
-              <Fill key={fill.intentHash} fill={fill} />
+              <Fill key={fill.intentHash} fill={fill} chainId={receipt.provenance.chainId} />
             ))}
           </div>
         </>
@@ -302,14 +358,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
                     {amount(route.amountOut, route.tokenOut.decimals, 4)} {route.tokenOut.symbol}
                   </span>
                 </span>
-                <a
-                  className={`${styles.routePool} chainvalue`}
-                  href={route.explorerUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {shortAddress(route.pool)}
-                </a>
+                <AddressChip value={route.pool} href={route.explorerUrl} label="the pool address" />
               </div>
             ))}
           </div>
@@ -322,9 +371,11 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
           <div className={styles.solutions}>
             {receipt.solutions.map((solution) => (
               <div key={solution.solutionHash} className={styles.solution}>
-                <span className={`${styles.solutionSolver} chainvalue`}>
-                  {shortAddress(solution.solver)}
-                </span>
+                <AddressChip
+                  value={solution.solver}
+                  href={explorerAddress(solution.solver, receipt.provenance.chainId)}
+                  label="the solver address"
+                />
                 <span className={`${styles.solutionClaim} chainvalue`}>
                   {amount(solution.claimedSavingsUsd, 18, 2)} USD claimed
                 </span>

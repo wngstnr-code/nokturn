@@ -6,7 +6,7 @@ import {listBatches} from "@/lib/coordinator/client";
 import type {BatchSummary} from "@/lib/coordinator/types";
 import {scanBatches, SCAN_SPAN, type BatchRow, type BatchScan} from "@/lib/batches";
 import {SESSION_NAMES} from "@/lib/session";
-import {shortAddress, units} from "@/lib/format";
+import {sessionLabel, shortAddress, units} from "@/lib/format";
 import {active} from "@/lib/network";
 import type {Session} from "@shared/types";
 import styles from "./page.module.css";
@@ -44,7 +44,7 @@ function IndexedRow({batch}: {batch: BatchSummary}) {
         </div>
       </div>
       <div className={styles.cell}>
-        {batch.sessionName}
+        {sessionLabel(batch.sessionName)}
         <strong className="chainvalue">
           {batch.intentCount} intents, {batch.participantCount} owners
         </strong>
