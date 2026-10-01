@@ -10,7 +10,8 @@ import type {ApiError, IntentStatusResponse} from "@/lib/coordinator/types";
 import type {TokenInfo} from "@/lib/tokens";
 import {EscapeHatch} from "./EscapeHatch";
 import {useIntents, type Sent} from "./IntentsProvider";
-import {CheckIcon, ClockIcon, CloseIcon, CrossIcon, LayersIcon, ShieldIcon} from "@/components/Icons";
+import {ClockArt, Seal, SheetsArt} from "@/components/art/Art";
+import {CloseIcon} from "@/components/Icons";
 import {Hint} from "@/components/ui/Hint";
 import styles from "./MyIntents.module.css";
 
@@ -22,18 +23,26 @@ const POLL_LIVE_MS = 20000;
 
 type Answer = {sent: Sent; status: IntentStatusResponse | null; error: ApiError | null};
 
-type Look = {label: string; tone: string | undefined; Icon: typeof ClockIcon};
+type Mark = "waiting" | "batched" | "pass" | "fail" | "unknown";
+
+type Look = {label: string; tone: string | undefined; mark: Mark};
 
 /* Each state has a shape as well as a colour, so a row can be read at a glance. */
 const LOOK: Record<string, Look> = {
-  pending: {label: "Waiting for a batch", tone: styles.pending, Icon: ClockIcon},
-  batched: {label: "In a batch", tone: styles.batched, Icon: LayersIcon},
-  settled: {label: "Settled", tone: styles.settled, Icon: CheckIcon},
-  partially_settled: {label: "Partly settled", tone: styles.settled, Icon: CheckIcon},
-  expired: {label: "Expired", tone: styles.gone, Icon: CrossIcon},
-  cancelled: {label: "Cancelled", tone: styles.gone, Icon: CrossIcon},
-  rejected: {label: "Refused", tone: styles.bad, Icon: ShieldIcon},
+  pending: {label: "Waiting for a batch", tone: styles.pending, mark: "waiting"},
+  batched: {label: "In a batch", tone: styles.batched, mark: "batched"},
+  settled: {label: "Settled", tone: styles.settled, mark: "pass"},
+  partially_settled: {label: "Partly settled", tone: styles.settled, mark: "pass"},
+  expired: {label: "Expired", tone: styles.gone, mark: "unknown"},
+  cancelled: {label: "Cancelled", tone: styles.gone, mark: "unknown"},
+  rejected: {label: "Refused", tone: styles.bad, mark: "fail"},
 };
+
+function StateMark({mark}: {mark: Mark}) {
+  if (mark === "waiting") return <ClockArt size={15} />;
+  if (mark === "batched") return <SheetsArt size={15} />;
+  return <Seal state={mark} size={15} />;
+}
 
 function age(sentAt: number, now: number): string {
   const seconds = Math.max(0, Math.round((now - sentAt) / 1000));
@@ -135,10 +144,10 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
 
             const look =
               status !== null
-                ? (LOOK[status.status] ?? {label: status.status, tone: styles.pending, Icon: ClockIcon})
+                ? (LOOK[status.status] ?? {label: status.status, tone: styles.pending, mark: "waiting" as Mark})
                 : forgotten
-                  ? {label: "No longer held", tone: styles.gone, Icon: CrossIcon}
-                  : {label: "Not reachable", tone: styles.bad, Icon: ShieldIcon};
+                  ? {label: "No longer held", tone: styles.gone, mark: "unknown" as Mark}
+                  : {label: "Not reachable", tone: styles.bad, mark: "fail" as Mark};
 
             const payload = status?.intent as Record<string, unknown> | undefined;
             const sellToken = bySymbol.get(String(payload?.sellToken ?? "").toLowerCase());
@@ -171,7 +180,7 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
                   <span className={`${styles.legMain} chainvalue`}>{sold}</span>
                   <span className={styles.rowActions}>
                     <span className={`${styles.badge} ${look.tone ?? ""}`}>
-                      <look.Icon size={13} />
+                      <StateMark mark={look.mark} />
                       {look.label}
                     </span>
                     <button
