@@ -1,6 +1,6 @@
 .card {
   display: flex;
-  flex-flow: column wrap;
+  flex-flow: column nowrap;
   gap: 10px;
   width: 100%;
   max-width: 100%;
@@ -90,11 +90,22 @@
   font-size: var(--n-font-small-plus);
 }
 
+/* The list is what scrolls. The title and the count stay where they are. */
 .rows {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 10px;
   width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--n-text-o15) transparent;
+}
+
+.rows > * {
+  flex-shrink: 0;
 }
 
 .row {

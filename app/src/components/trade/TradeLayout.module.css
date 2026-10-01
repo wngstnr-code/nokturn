@@ -16,11 +16,26 @@
   max-width: calc(var(--n-widget-width) + var(--n-intents-width) + var(--n-column-gap));
 }
 
+/*
+ * Side by side, the list is exactly as tall as the trade card and scrolls inside
+ * itself. It is taken out of the flow so that twenty intents cannot make the row
+ * taller than the card beside it.
+ */
 @media (min-width: 1140px) {
   .split {
     grid-template-columns: var(--n-widget-width) var(--n-intents-width);
     grid-template-areas: "primary secondary";
-    align-items: start;
+    align-items: stretch;
+  }
+
+  .split .secondary {
+    position: relative;
+    min-height: 320px;
+  }
+
+  .split .secondary > * {
+    position: absolute;
+    inset: 0;
   }
 }
 
