@@ -230,18 +230,6 @@ export function NettingArt({size = 40, className}: ArtProps) {
   );
 }
 
-/** A stopwatch, for how long a batch collects. */
-export function WindowArt({size = 22, className}: ArtProps) {
-  return (
-    <svg {...frame(size, className)}>
-      <rect x="19" y="3" width="10" height="6" rx="2" fill={AMBER_DEEP} />
-      <circle cx="24" cy="27" r="17" fill={PERI} />
-      <circle cx="24" cy="27" r="12" fill={PERI_PALE} />
-      <path d="M24 18v9l6 4" stroke={PERI_DEEP} strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 /** A price held between two rails. */
 export function BandArt({size = 22, className}: ArtProps) {
   return (
@@ -250,29 +238,6 @@ export function BandArt({size = 22, className}: ArtProps) {
       <rect x="4" y="35" width="40" height="6" rx="3" fill={PERI} />
       <path d="M8 27l8-5 7 4 8-7 9 5" stroke={AMBER} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx="31" cy="19" r="4" fill={AMBER_PALE} />
-    </svg>
-  );
-}
-
-/** The fence around a session edge. */
-export function GuardArt({size = 22, className}: ArtProps) {
-  return (
-    <svg {...frame(size, className)}>
-      <Shield left={PERI_PALE} right={PERI} />
-      <path d="M17 24.5l5 5 9.5-10" stroke={WHITE} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** A calendar page with the sun on it. */
-export function DayArt({size = 22, className}: ArtProps) {
-  return (
-    <svg {...frame(size, className)}>
-      <rect x="5" y="9" width="38" height="34" rx="6" fill={CREAM} />
-      <path d="M5 15a6 6 0 0 1 6-6h26a6 6 0 0 1 6 6v5H5Z" fill={AMBER} />
-      <rect x="13" y="4" width="5" height="10" rx="2.5" fill={AMBER_DARK} />
-      <rect x="30" y="4" width="5" height="10" rx="2.5" fill={AMBER_DARK} />
-      <circle cx="24" cy="31" r="6" fill={AMBER_DEEP} />
     </svg>
   );
 }
