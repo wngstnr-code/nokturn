@@ -31,6 +31,8 @@ const SERVED = new Set<Topic>([
   "session.changed",
   "token.protective",
   "oracle.unhealthy",
+  "auction.indicative",
+  "auction.crossed",
 ]);
 
 const NEEDS: Partial<Record<Topic, string>> = {
@@ -38,8 +40,6 @@ const NEEDS: Partial<Record<Topic, string>> = {
   "batch.solution_rejected": "the event indexer",
   "batch.settled": "the event indexer",
   "batch.failed": "the event indexer",
-  "auction.indicative": "the auction keeper",
-  "auction.crossed": "the auction keeper",
 };
 
 const bigintSafe = (_key: string, value: unknown) => (typeof value === "bigint" ? value.toString() : value);

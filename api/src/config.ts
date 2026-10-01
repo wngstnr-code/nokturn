@@ -70,6 +70,9 @@ export const env = {
   publicRpc: process.env.NOKTURN_API_PUBLIC_RPC || rpcs[0]!,
   /** Requests per minute above which the log warns. Nothing is refused. */
   rpcBudgetPerMinute: Number(process.env.NOKTURN_API_RPC_BUDGET_PER_MINUTE || 6000),
+  // Alchemy's free tier refuses eth_getLogs over more than 10 blocks, and
+  // mainnet seals about ten a second. Set 10 there.
+  logBlockRange: BigInt(process.env.NOKTURN_API_LOG_BLOCK_RANGE || 1000),
   host: process.env.NOKTURN_API_HOST ?? "127.0.0.1",
   port: Number(process.env.NOKTURN_API_PORT ?? 3000),
   explorer: process.env.NOKTURN_EXPLORER ?? "https://robinhoodchain.blockscout.com",
@@ -150,14 +153,14 @@ export function loadTestnetTokens(): ChainFile {
 /**
  * The solvers this deployment knows about.
  *
- * SolverRegistry emits SolverBonded rather than keeping a list, so enumerating
- * every solver needs the indexer. Until that lands the board reports the two the
- * demo runs, read from infra/accounts.json, and says nothing about solvers it
- * has not been told about rather than pretending the set is complete.
+ * SolverRegistry emits SolverBonded rather than keeping a list, so the board
+ * enumerates from the indexer. These are the two the demo runs, read from
+ * infra/accounts.json, so a fork board has names and survives the indexer being
+ * down.
  *
- * Those are anvil accounts, so they mean something on the fork only. On mainnet
- * or testnet the board stays empty rather than listing addresses that never
- * bonded there.
+ * Those are local accounts, so they mean something on the fork only. On mainnet
+ * or testnet only the indexer names solvers, rather than listing addresses that
+ * never bonded there.
  */
 export function loadKnownSolvers(isFork: boolean): {address: `0x${string}`; label: string}[] {
   if (!isFork) return [];

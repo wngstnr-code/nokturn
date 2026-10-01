@@ -6,7 +6,7 @@
 // named and tried once more on the next block, only in case it was transient.
 
 import {encodeFunctionData, parseEventLogs, type Address, type Hex, type PublicClient} from "viem";
-import type {HDAccount} from "viem/accounts";
+import type {LocalAccount} from "viem/accounts";
 import {settlementAbi} from "./abi.ts";
 import type {Contracts} from "./chain.ts";
 import {FINALIZE_DEADLINE, SOLUTION_WINDOW, replayRevert, sendToSettlement} from "./send.ts";
@@ -66,7 +66,7 @@ function finalizeData(s: Solution): Hex {
   return encodeFunctionData({abi: settlementAbi(), functionName: "finalize", args: [s.batchId, s]});
 }
 
-async function tryFinalize(c: PublicClient, account: HDAccount, k: Contracts, s: Solution): Promise<{ok: true; settled: boolean; tx: Hex; block: bigint; result: string; intentsSettled: number; savingsUsd: bigint} | {ok: false; tx: Hex | null; error: string}> {
+async function tryFinalize(c: PublicClient, account: LocalAccount, k: Contracts, s: Solution): Promise<{ok: true; settled: boolean; tx: Hex; block: bigint; result: string; intentsSettled: number; savingsUsd: bigint} | {ok: false; tx: Hex | null; error: string}> {
   const data = finalizeData(s);
   try {
     await c.call({account: account.address, to: k.settlement, data});
@@ -95,7 +95,7 @@ async function tryFinalize(c: PublicClient, account: HDAccount, k: Contracts, s:
   return {ok: true, settled: settled !== undefined, tx, block: receipt.blockNumber, result, intentsSettled, savingsUsd: settled ? (settled.args.totalSavingsUsd as bigint) : 0n};
 }
 
-export async function finalizeWon(c: PublicClient, account: HDAccount, k: Contracts, s: Solution, store: Store, log: (line: string) => void = () => {}): Promise<FinalizeOutcome> {
+export async function finalizeWon(c: PublicClient, account: LocalAccount, k: Contracts, s: Solution, store: Store, log: (line: string) => void = () => {}): Promise<FinalizeOutcome> {
   const solveEnd = s.batchId + SOLUTION_WINDOW;
   const deadline = solveEnd + FINALIZE_DEADLINE;
   const done = (outcome: FinalizeOutcome): FinalizeOutcome => {

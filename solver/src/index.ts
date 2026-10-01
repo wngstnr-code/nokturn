@@ -13,8 +13,8 @@
 import {fileURLToPath} from "node:url";
 import type {Hex} from "viem";
 import type {StreamEvent} from "../../packages/shared/api-types.ts";
-import {assertBare, solverAccount} from "./account.ts";
-import {API, client, contracts, settlementAddress} from "./chain.ts";
+import {assertBare, signer} from "./account.ts";
+import {API, client, contracts, deploymentRecord} from "./chain.ts";
 import {feed, solveAt} from "./feed.ts";
 import {describeSummary, run} from "./run.ts";
 import {solutionHash} from "./solution.ts";
@@ -45,9 +45,9 @@ type Frame = StreamEvent | {code: string; message: string};
 export async function once(opts: {batchId?: bigint; timeoutMs?: number; log?: (line: string) => void} = {}): Promise<Report> {
   const log = opts.log ?? ((line: string) => console.log(line));
   const c = client();
-  const solver = solverAccount().address;
+  const solver = (await signer(c)).address;
   await assertBare(c, solver);
-  const settlement = settlementAddress();
+  const settlement = (await deploymentRecord(c)).record.settlement!;
 
   const ws = new WebSocket(`${API.replace(/^http/, "ws")}/v1/stream`);
   const frames: Frame[] = [];

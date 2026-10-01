@@ -1152,7 +1152,7 @@ pnpm -C solver test:fork
 ```
 
 Setelah itu `make demo-fail` untuk ketiga kasus, `make demo-compete ARGS="--batches 3"`,
-dan terakhir `make replay ARGS="--duration 5 --speed 12"` setelah fixture ada.
+dan terakhir `make replay ARGS="--duration 5"` setelah fixture ada. Speed di atas 1 ditolak, lihat N19.
 
 ### Hari 8, 27 September. M3, feature freeze
 
@@ -1224,6 +1224,96 @@ belum dijalankan ulang sejak perubahan di atas.
   menggulirkannya kembali dengan harga `indicative()` yang volumenya lebih besar, dan
   harga itu tidak bisa di-cross siapa pun. Hasil akhirnya perpanjangan lalu abort,
   bukan kehilangan dana.
+
+**Yang terjadi, 30 September dan 1 Oktober 2026.** Semua yang tertulis "belum
+dijalankan" di atas kini dijalankan di fork, dan route terakhir yang masih stub diganti
+dengan implementasi nyata. Yang menunggu `SetFeeds` mainnet, yang baru bisa dieksekusi
+1 Oktober 2026 pukul 13.45.39 UTC, sengaja tidak disentuh.
+
+| Butir | Keadaan |
+|---|---|
+| D4 | C2-20 lulus di fork |
+| N3 | C2-21 lulus di fork |
+| Keeper lelang | K1 sampai K3 lulus 3 dari 3 di `make keeper-fork`, blok 66.491.729. Lelang NVDA di-cross dan dieksekusi oleh keeper, dari chain |
+| Port baseline | Gerbang nol selisih `v3math.test.ts` lulus 5 dari 5 token di dua fork, blok 66.491.729 dan 67.798.050. Tiap token minimal 20 ukuran sama persis dengan `quoteWithStats`, dua arah |
+| `GET /v1/auctions/:auctionId` | Nyata, dibaca dari view `AuctionHouse` pada satu blok. Dicocokkan ke chain di fork keeper sepanjang satu siklus. Harga 223,559534 USD, volume, dan 4 peserta sama dengan `auctionResult`. `sufficient` false karena volumenya di bawah $1.000 dan pesertanya di bawah 5 |
+| Stream lelang | `auction.indicative` dan `auction.crossed` kini dilayani, dari log `IndicativePublished` dan `CrossExecuted`. Di fork keeper satu klien menerima satu indikatif untuk tiap lelang yang dibuka keeper, dan satu `auction.crossed` NVDA yang hasilnya sama dengan `auctionResult`, dibangun di blok yang memancarkan log-nya |
+| Tabel lelang indexer | `indexer/test/fork/auction.test.ts`, di fork keeper. A1 men-cross dan mengeksekusi lelang NVDA, lalu `auctions`, `indicative`, dan `closing_prints_withheld` cocok dengan kontrak. Print ditahan dengan alasan "volume below minimum", karena volumenya 454,85 USDG. A2 memperpanjang tiga kali lalu abort "no cross in time". Keduanya lulus. Ini yang tidak pernah bisa diisi I9 |
+| Demo dan alat | `make demo` settled dengan netting 100 persen, dan perintah `cast` lantainya dijalankan ulang, hasilnya sama sampai wei terakhir. `make demo-compete ARGS="--batches 3"` dan `--same-side` lulus. `check-permit2` 3 dari 3, `check-batch` 41 dari 41, `postman-api` 168 dari 168 assertion di 34 request. Replay lima menit memutar 72 dari 72 trade ke 6 batch, semuanya punya struk, nol harness fault, netting irisan itu 2,06 persen |
+| Torture | Semua grup lulus. c0 5, c1 10, c2 24, c3 9, c4 6, h 5, r 7, l 5, f9 11, f10 10. C1-6c, C1-7, dan C2-9 dijalankan ulang sendiri setelah diperbaiki, sisanya lulus dalam satu run grup |
+| Suite fork indexer | 14 lulus, 1 dilewati. I10 sampai I12 (N13) kini berjalan dan lulus. I9 dilewati karena fork batch berdiri di akhir pekan dan tidak punya lelang |
+| Suite fork solver | Lulus, termasuk E1 sampai E6. K1 sampai K3 dilewati di fork batch dan lulus di fork keeper. `compete.test.ts` kini lulus dua kali berturut-turut, setelah dua perbaikan di bawah |
+
+Stub terakhir hilang, sehingga `api/src/routes/stubs.ts` dan `notImplemented` ikut
+dihapus. Harga lelang keluar sebagai USD 18 desimal per token utuh, dikonversi dengan
+cara yang sama seperti `_publishPrint`, dan `sufficient` adalah predikat yang sama
+dengan yang dipakai kontrak untuk menerbitkan closing print. Fase `accumulating` tidak
+pernah dikirim, karena `AuctionHouse` sudah mengungkap sejak blok pertama.
+
+**Diperbaiki, karena semua itu muncul begitu gerbang benar-benar dijalankan.**
+
+- **`make keeper-fork` tidak pernah melewati `Deploy`.** forge meminta `eth_feeHistory`
+  sepuluh blok terakhir, rentang itu jatuh di bawah blok fork, anvil meneruskannya ke
+  upstream, dan Alchemy menjawab "metadata is not found". Fork keeper kini menambang
+  12 blok sebelum deploy. Anvil juga ikut mati kalau deploy gagal.
+- **Keeper tidak bisa membaca revert kontrak.** `eth_call` mentah mengembalikan custom
+  error sebagai selector, jadi `TooEarly` dan `AuctionStillLive` tidak dikenali sebagai
+  "tunggu", dan keeper menyerah selamanya atas `extend` dan `abortAuction` untuk lelang
+  itu. Kini di-decode dengan ABI `AuctionHouse`.
+- **Provenansi fork menyebut blok yang salah.** API dan indexer membaca blok fork dari
+  `infra/pinned-block.json`, padahal `make keeper-fork` berdiri 1,3 juta blok lebih awal.
+  Setiap struk dari fork itu mengutip blok yang tidak pernah dibacanya, dan indexer
+  mulai di atas head lalu tidak mengindeks apa pun. Keduanya kini bertanya ke node
+  lewat `anvil_nodeInfo`.
+- **C1-7 mengukur hal yang salah.** RSS dari luar proses naik sekitar 15 MB sepanjang
+  run, sementara heap setelah GC paksa tetap 28 sampai 36 MB. Pertumbuhan itu allocator
+  yang menahan halaman, bukan retensi. C1-7 kini menilai lantai heap dari dalam proses
+  lewat preload di harness, hasilnya 26 byte per intent. Unit test baru menahan heap
+  mempool di bawah 64 byte per intent, dan terbukti gagal kalau penghapusan `byHash`
+  dimatikan. Intent C1-7 juga kini kedaluwarsa semenit setelah `solveEnd`, karena
+  `validUntil` 30 hari membuat penahanan nonce D5 ikut terukur sebagai kebocoran.
+- **Test yang tertinggal dari perubahan lain.** C2-9 (D4 memegang saldo), C1-6c (API kini
+  menolak `validUntil <= solveEnd`), C4-4 dan C4-4b (koleksi Postman yang dijalankan di
+  luar jendela validitasnya), F9-8 (`waitTick` menerima baris tick lama setelah
+  `evm_revert`), dan event keeper yang dihitung untuk kelima lelang sekaligus.
+- **Demo memakai ulang batch yang sudah berisi intent.** Mempool tidak ikut mundur
+  bersama `evm_revert`, jadi batch yang dipakai lagi setelah run yang di-revert masih
+  memuat intent run itu, dan solver menyelesaikan intent lama. `freshBatch` kini hanya
+  menerima batch kosong. Di `compete.test.ts` intent kasus pertama juga masih pending di
+  batch yang belum dicapai chain setelah revert, sehingga D4 memegang saldo pemilik
+  yang sama untuk kasus kedua. Setelah revert, jam chain kini dimajukan melewati akhir
+  kasus ditambah 310 detik.
+- **Saran `make replay ARGS="--duration 5 --speed 12"` sudah basi sejak N19.** Replay
+  menolak speed di atas 1 untuk fixture yang dipotong per batch. Komentar Makefile,
+  header `replay.ts`, dan contoh di dokumen ini diperbaiki.
+
+**Backend terhadap mainnet 4663, 1 Oktober 2026.** Jam blok mainnet saat dikerjakan
+masih 30 September sekitar 20.00 UTC, dan oracle menjawab `FeedNotSet` sampai `SetFeeds`
+dieksekusi. Jadi yang dikerjakan adalah semua jalur baca, ke kontrak Wangsit yang asli.
+Menjalankannya di mainnet langsung membuka masalah yang tidak pernah terlihat di fork.
+
+- **Key RPC berbayar bocor di setiap 502.** Pesan error viem memuat URL request lengkap.
+  Badan respons kini hanya memuat pesan pendek, dan URL di badan maupun log dipotong ke
+  host.
+- **API diam menghabiskan Alchemy free tier.** 1.052 permintaan per menit, dijawab 429.
+  Lifecycle kini tick sekali per detik chain di chain nyata, bacaan per token paralel
+  dan di-batch lewat Multicall3, hasilnya 624 per menit tanpa error. Fork tetap tick per
+  blok, dan torture c2, c3, f9, f10, r lulus sesudahnya.
+- **`eth_getLogs` dibatasi 10 blok di free tier.** Log lelang kini dibaca per potongan
+  yang bisa diatur, kursornya tidak pernah melompati rentang, dan kegagalannya tidak lagi
+  menggagalkan tick.
+- **Solver dan keeper menandatangani dengan mnemonic repo di chain mana pun.** Di mainnet
+  itu berarti bond di balik kunci publik. Kini ditolak di luar fork.
+- **Papan skor tidak pernah bisa menampilkan solver mainnet**, karena daftarnya dari
+  `infra/accounts.json`. Kini dari tabel `solvers` indexer.
+- **Lag indexer dihitung dalam blok**, dan 20 konfirmasi di mainnet sudah terbaca
+  `degraded`. Kini dalam detik chain.
+
+Cara menjalankannya dan angka yang terukur ada di `runbook-backend.md` §7.
+
+**Catatan.** E5 lulus di run ini. Temuan W5, `finalize` yang revert `LiquidityExhausted`
+ketika pool bergeser sedikit antara submit dan finalize, tetap temuan untuk kontrak
+sampai Wangsit memutuskan. Satu run yang lulus tidak membuktikan risikonya hilang.
 
 ---
 

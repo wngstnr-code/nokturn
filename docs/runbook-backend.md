@@ -171,3 +171,55 @@ berjalan terlewat. Anggap fork sudah tidak bisa dipakai, lalu ulangi §2 dari la
 
 Test fork memakai database sendiri. Arahkan ke port yang benar lewat
 `NOKTURN_DATABASE_ADMIN_URL`.
+
+---
+
+## 7. Mainnet 4663, hanya baca
+
+Ditulis 1 Oktober 2026, sehari setelah deploy mainnet Wangsit. Semua di bawah ini
+membaca chain dan tidak pernah menandatangani atau mengirim transaksi.
+
+```bash
+make db-up
+make rpc-proxy            # terminal 1, RPC resmi lewat alamat IP aslinya
+make mainnet-indexer      # terminal 2
+make mainnet-api          # terminal 3, port 3300, jadi API fork di 3000 tetap hidup
+make check-batch-mainnet  # sekali, batch.ts lawan Settlement mainnet
+```
+
+**Kenapa ada proxy.** ISP Indonesia mencegat nama `rpc.mainnet.chain.robinhood.com`,
+dan Node tidak punya `--resolve`. Proxy mendengarkan di `127.0.0.1:8547` dan membuka
+TLS ke `172.66.147.70` dengan nama aslinya, jadi sertifikatnya tetap diperiksa.
+
+**Siapa memakai endpoint mana.** Alchemy free tier menolak `eth_getLogs` lebih dari 10
+blok, sedangkan RPC resmi melayani 460.000 blok sekali panggil. RPC resmi hanya
+menyimpan state sekitar sepuluh menit. Karena itu indexer membaca lewat proxy dengan
+langkah 50.000 blok, dan API membaca lewat Alchemy dulu (struk membaca baseline di blok
+lama) lalu jatuh ke proxy. Log lelang di API dibaca 10 blok sekali.
+
+**Database sendiri.** Baris mainnet masuk ke `nokturn_mainnet`, dibuat otomatis, jadi
+run fork tidak pernah bercampur dengannya.
+
+**Diukur 1 Oktober 2026.**
+
+| Pemeriksaan | Hasil |
+|---|---|
+| Indexer dari blok 75.694.415 sampai head | 22 langkah, 38 detik, 121 log. Per kontrak sama persis dengan `getLogs` langsung, Settlement 9, AuctionHouse 6, SessionManager 104, SolverRegistry 2, PriceOracle 0, AgentMandate 0 |
+| `make check-batch-mainnet` | 41 dari 41, termasuk jalan 16 jam menembus 1 Oktober |
+| Gerbang nol selisih `v3math` di adapter mainnet | 5 dari 5 token, dua arah, pool mainnet yang hidup |
+| Beban RPC API diam | 1.052 permintaan per menit dan 429 sebelum diperbaiki, 624 tanpa error sesudahnya |
+| Health | Keempat komponen `up`, lag indexer diukur dalam detik chain |
+| Feed solver | Keenam token `FeedNotSet`, dilaporkan per token, nol harga |
+
+**Yang belum bisa, dan kenapa.** Oracle mainnet belum punya feed sampai `SetFeeds`
+dieksekusi, paling cepat 1 Oktober 2026 pukul 13.45.39 UTC, dengan kunci proposer
+Wangsit. Sebelum itu tidak ada batch yang bisa selesai. Sesudahnya pun batch pertama
+butuh tiga hal yang memakai uang sungguhan dan tidak dijalankan dari sini tanpa
+keputusan tim, yaitu solver yang bond 500 USDG dan punya gas, pengguna yang menandatangani
+intent dengan dana nyata, dan keeper yang membayar gas untuk lelang.
+
+**Kunci solver di mainnet.** Di chain yang bukan fork, solver dan keeper menolak
+mnemonic repo, karena mnemonic itu publik. Kuncinya dari `NOKTURN_SOLVER_PRIVATE_KEY`,
+dan kunci milik akun di `infra/accounts.json` ditolak. Preflight menyebut alamat
+SolverRegistry dan jumlah bond serta gas yang dibutuhkan, dihitung dari harga gas saat
+itu. Pada 0,022 gwei itu 0,016 ETH untuk tiga jam.

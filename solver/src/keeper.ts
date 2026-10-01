@@ -19,10 +19,10 @@ import {join} from "node:path";
 import {fileURLToPath} from "node:url";
 import {parseArgs} from "node:util";
 import {encodeFunctionData, erc20Abi, type Abi, type Address, type Hex, type PublicClient} from "viem";
-import type {HDAccount} from "viem/accounts";
-import {assertBare, solverAccount, type Profile} from "./account.ts";
+import type {LocalAccount} from "viem/accounts";
+import {assertBare, signer, type Profile} from "./account.ts";
 import {REPO_ROOT, loadAbi, oracleAbi, sessionAbi} from "./abi.ts";
-import {client, revertName, withRetry} from "./chain.ts";
+import {client, deploymentRecord, revertName, withRetry} from "./chain.ts";
 import {planCross, ymdOf, type BookEntry} from "./cross.ts";
 import {wallet} from "./send.ts";
 
@@ -52,11 +52,10 @@ interface DeploymentRecord {
   oracle: Address;
 }
 
-function record(): DeploymentRecord {
-  const path = process.env.NOKTURN_SOLVER_DEPLOYMENT ?? join(REPO_ROOT, "infra", "fork-deployment.json");
-  const r = JSON.parse(readFileSync(path, "utf8")) as Partial<DeploymentRecord>;
+async function record(c: PublicClient): Promise<DeploymentRecord> {
+  const {path, record: r} = await deploymentRecord(c);
   if (!r.auctionHouse || !r.sessions || !r.oracle) throw new Error(`${path} names no auctionHouse, sessions or oracle. run make deploy`);
-  return r as DeploymentRecord;
+  return r as unknown as DeploymentRecord;
 }
 
 function tokenList(): {symbol: string; token: Address}[] {
@@ -82,9 +81,9 @@ export interface KeeperSummary {
 export async function runKeeper(opts: KeeperOptions = {}): Promise<KeeperSummary> {
   const log = opts.log ?? ((line: string) => console.log(line));
   const c = client();
-  const account = solverAccount(opts.profile ?? "a");
+  const account = await signer(c, opts.profile ?? "a");
   await assertBare(c, account.address);
-  const r = record();
+  const r = await record(c);
   const house = r.auctionHouse;
   const abi = houseAbi();
   const read = <T>(address: Address, a: Abi, functionName: string, args: readonly unknown[] = [], blockNumber?: bigint) =>
@@ -134,7 +133,7 @@ export async function runKeeper(opts: KeeperOptions = {}): Promise<KeeperSummary
     try {
       await c.call({account: account.address, to: house, data});
     } catch (error) {
-      const name = revertName(error) ?? (error as Error).message.split("\n")[0]!;
+      const name = revertName(error, houseAbi()) ?? (error as Error).message.split("\n")[0]!;
       if (WAIT.test(name)) return "wait";
       refused.add(key);
       bump(summary.reverted, action);
@@ -254,7 +253,7 @@ export async function runKeeper(opts: KeeperOptions = {}): Promise<KeeperSummary
           await c.call({account: account.address, to: house, data});
         } catch (error) {
           refused.add(key);
-          log(`${t.symbol} openAuction refused in simulation, ${revertName(error) ?? (error as Error).message.split("\n")[0]}`);
+          log(`${t.symbol} openAuction refused in simulation, ${revertName(error, houseAbi()) ?? (error as Error).message.split("\n")[0]}`);
           continue;
         }
         const outcome = await sendAndWait(c, account, house, data);
@@ -302,7 +301,7 @@ export async function runKeeper(opts: KeeperOptions = {}): Promise<KeeperSummary
   return summary;
 }
 
-async function sendAndWait(c: PublicClient, account: HDAccount, to: Address, data: Hex): Promise<{ok: true; tx: Hex} | {ok: false; reason: string}> {
+async function sendAndWait(c: PublicClient, account: LocalAccount, to: Address, data: Hex): Promise<{ok: true; tx: Hex} | {ok: false; reason: string}> {
   const w = wallet(account);
   let tx: Hex;
   try {
@@ -310,7 +309,7 @@ async function sendAndWait(c: PublicClient, account: HDAccount, to: Address, dat
     const nonce = await c.getTransactionCount({address: account.address, blockTag: "pending"});
     tx = await w.sendTransaction({account, chain: null, to, data, gas: (gas * 6n) / 5n, nonce});
   } catch (error) {
-    return {ok: false, reason: revertName(error) ?? (error as Error).message.split("\n")[0]!};
+    return {ok: false, reason: revertName(error, houseAbi()) ?? (error as Error).message.split("\n")[0]!};
   }
   const receipt = await c.waitForTransactionReceipt({hash: tx, pollingInterval: 250, timeout: 60_000});
   if (receipt.status === "success") return {ok: true, tx};
@@ -318,7 +317,7 @@ async function sendAndWait(c: PublicClient, account: HDAccount, to: Address, dat
     await c.call({account: account.address, to, data, blockNumber: receipt.blockNumber});
     return {ok: false, reason: `reverted in ${tx}, and the replay on its block passes`};
   } catch (error) {
-    return {ok: false, reason: `${revertName(error) ?? "reverted"} in ${tx}`};
+    return {ok: false, reason: `${revertName(error, houseAbi()) ?? "reverted"} in ${tx}`};
   }
 }
 

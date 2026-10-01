@@ -54,6 +54,8 @@ const userAccounts = accounts.users.map((expected, i) => {
   return derived;
 });
 const user0 = userAccounts[0];
+/** For postman-api.mjs, which needs a second funded signer for the D4 case. */
+export const demoUsers = userAccounts;
 
 /**
  * Derived from the same mnemonic but outside accounts.json, so no suite relies

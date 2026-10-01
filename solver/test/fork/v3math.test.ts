@@ -2,7 +2,8 @@
 // adapter, in amountOut, crossings and steps, and the same error name when
 // either refuses. docs/desain-baseline.md 9.5 and rencana-backend.md F15.
 //
-// Runs on the batch fork, make fork then make deploy.
+// Runs on the batch fork, make fork then make deploy, or on mainnet with
+// NOKTURN_SOLVER_RPC set to make rpc-proxy.
 
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
@@ -10,12 +11,14 @@ import {join} from "node:path";
 import {describe, test} from "node:test";
 import type {Address} from "viem";
 import {REPO_ROOT, adapterAbi} from "../../src/abi.ts";
-import {client, revertName} from "../../src/chain.ts";
+import {client, deploymentRecord, revertName} from "../../src/chain.ts";
 import {QuoteError, quoteExactIn} from "../../src/v3math.ts";
 import {readPool} from "../../src/v3pool.ts";
 
 const c = client();
-const record = JSON.parse(readFileSync(join(REPO_ROOT, "infra", "fork-deployment.json"), "utf8")) as {adapter: Address; usdg: Address};
+// The deployment the node is on, so NOKTURN_SOLVER_RPC at mainnet runs the same
+// gate against the mainnet adapter and live pools.
+const record = (await deploymentRecord(c)).record as unknown as {adapter: Address; usdg: Address};
 const chainFile = JSON.parse(readFileSync(join(REPO_ROOT, "infra", "chain.json"), "utf8")) as {tokens: Record<string, {token: Address; pool: Address}>};
 
 const sizes = (from: bigint, to: bigint) => {
@@ -26,7 +29,7 @@ const sizes = (from: bigint, to: bigint) => {
 const USDG_SIZES = sizes(1n, 5_000_000_000_000n);
 const TOKEN_SIZES = sizes(1n, 50n * 10n ** 21n);
 
-describe("v3math against quoteWithStats on the fork, zero difference", () => {
+describe("v3math against the deployed quoteWithStats, zero difference", () => {
   for (const [symbol, t] of Object.entries(chainFile.tokens)) {
     test(`${symbol} both directions`, async () => {
       const block = await c.getBlockNumber();

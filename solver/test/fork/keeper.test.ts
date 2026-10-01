@@ -11,21 +11,16 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {join} from "node:path";
 import {after, before, describe, test} from "node:test";
-import {encodeFunctionData, parseEventLogs, type Abi, type Address, type Hex, type Log} from "viem";
+import {parseEventLogs, type Abi, type Address, type Hex, type Log} from "viem";
 import type {HDAccount} from "viem/accounts";
-import {witnessDigest, type DecodedIntent} from "../../../api/src/permit2.ts";
-import {PERMIT2, STOCK_TOKENS, USDG} from "../../../packages/shared/addresses.ts";
-import {REPO_ROOT, loadAbi, oracleAbi, sessionAbi} from "../../src/abi.ts";
+import {STOCK_TOKENS} from "../../../packages/shared/addresses.ts";
+import {REPO_ROOT, loadAbi, sessionAbi} from "../../src/abi.ts";
 import {client} from "../../src/chain.ts";
-import {quoteOf} from "../../src/cross.ts";
 import {runKeeper} from "../../src/keeper.ts";
-import {users} from "./lib.ts";
+import {commitAuction, fillAuctionBook, users} from "./lib.ts";
 
 const AUCTION_CLOSE = 4;
 const PHASE = {DISCLOSURE: 1, FROZEN: 2, CROSSED: 3, EXECUTED: 4, ABORTED: 5};
-const FLAG_AUCTION = 1 << 2;
-const SESSION_MASK_AUCTION_CLOSE = 1 << 4;
-const MOO = 1;
 const NVDA = STOCK_TOKENS.NVDA as Address;
 
 const c = client();
@@ -58,50 +53,9 @@ async function waitFor<T>(what: string, probe: () => Promise<T | null>, ms = 60_
   }
 }
 
-async function commit(user: HDAccount, sell: boolean, amount: bigint): Promise<void> {
-  const intent: DecodedIntent = {
-    owner: user.address,
-    receiver: user.address,
-    sellToken: sell ? NVDA : (USDG as Address),
-    buyToken: sell ? (USDG as Address) : NVDA,
-    sellAmount: amount,
-    minBuyAmount: 1n,
-    validAfter: 0,
-    validUntil: Number((await now()) + 7_200n),
-    flags: FLAG_AUCTION,
-    kind: MOO,
-    maxDevFromRefBps: 0,
-    allowedSessions: SESSION_MASK_AUCTION_CLOSE,
-    batchSpan: 1,
-    nonce: (nonce += 1n),
-  };
-  const [domainSeparator, witnessTypeString] = await Promise.all([
-    read<Hex>(PERMIT2, loadAbi("ISignatureTransfer"), "DOMAIN_SEPARATOR"),
-    read<string>(house, houseAbi, "WITNESS_TYPE_STRING"),
-  ]);
-  const sig = await user.sign({hash: witnessDigest({domainSeparator, witnessTypeString, intent, spender: house})});
-  const data = encodeFunctionData({abi: houseAbi, functionName: "commitAuctionIntent", args: [intent, sig]});
-  const hash = (await rpc("eth_sendTransaction", [{from: user.address, to: house, data}])) as Hex;
-  const receipt = await c.waitForTransactionReceipt({hash});
-  assert.equal(receipt.status, "success", `commit by ${user.address} reverted`);
-}
-
-/**
- * Two sellers with odd amounts and three buyers who together bring half a
- * percent more than the sellers' tokens are worth at the reference. That is the
- * side the contract's own price cannot cross, so it exercises the balancing.
- */
-async function fillBook(): Promise<void> {
-  const [ref] = await read<[bigint, bigint, boolean]>(record.oracle, oracleAbi(), "refPrice", [NVDA]);
-  const price = (ref * 10n ** 6n) / 10n ** 18n;
-  const sells = [1_234_567_890_123_456_789n, 800_000_000_000_000_001n];
-  await commit(people[0]!, true, sells[0]!);
-  await commit(people[1]!, true, sells[1]!);
-  const worth = (quoteOf(sells[0]! + sells[1]!, price) * 1_005n) / 1_000n;
-  await commit(people[2]!, false, worth / 3n + 17n);
-  await commit(people[3]!, false, worth / 3n - 11n);
-  await commit(people[2]!, false, worth - 2n * (worth / 3n) - 6n);
-}
+const nextNonce = () => (nonce += 1n);
+const commit = (user: HDAccount, sell: boolean, amount: bigint) => commitAuction(c, house, user, NVDA, sell, amount, nextNonce());
+const fillBook = () => fillAuctionBook(c, house, record.oracle, NVDA, people, nextNonce);
 
 async function auctionId(): Promise<bigint> {
   const crossAt = await read<bigint>(record.sessions, sessionAbi(), "nextTransition", [await now()]);
@@ -120,9 +74,15 @@ async function timing(id: bigint): Promise<{freezeAt: bigint; crossAt: bigint; r
   return {freezeAt, crossAt, referenceAt};
 }
 
-async function eventsSince(fromBlock: bigint): Promise<string[]> {
+/**
+ * The keeper opens an auction for every allowed token, not only the one the
+ * test committed to, so a count over all of AuctionHouse is five times too big.
+ */
+async function eventsSince(fromBlock: bigint, auctionId: bigint): Promise<string[]> {
   const logs = await c.getLogs({address: house, fromBlock, toBlock: "latest"});
-  return parseEventLogs({abi: houseAbi, logs: logs as Log[], strict: false}).map((l) => l.eventName as string);
+  return parseEventLogs({abi: houseAbi, logs: logs as Log[], strict: false})
+    .filter((l) => (l.args as {auctionId?: bigint}).auctionId === auctionId)
+    .map((l) => l.eventName as string);
 }
 
 const count = (names: string[], name: string) => names.filter((n) => n === name).length;
@@ -174,14 +134,14 @@ describe("auction keeper, K1 to K3", () => {
 
       await withKeeper(async () => {
         await waitFor("frozen", async () => ((await state(id)).phase === PHASE.FROZEN ? true : null));
-        await waitFor("an indicative after the freeze", async () => (count(await eventsSince(from), "IndicativePublished") > 0 ? true : null));
+        await waitFor("an indicative after the freeze", async () => (count(await eventsSince(from, id), "IndicativePublished") > 0 ? true : null));
         await warp(crossAt);
         await waitFor("crossed", async () => ((await state(id)).phase === PHASE.CROSSED ? true : null));
         await warp(crossAt + 121n);
         await waitFor("executed", async () => ((await state(id)).phase === PHASE.EXECUTED ? true : null));
       }, lines);
 
-      const names = await eventsSince(from);
+      const names = await eventsSince(from, id);
       assert.equal(count(names, "AuctionOpened"), 1, lines.join("\n"));
       assert.ok(count(names, "IndicativePublished") >= 1);
       assert.equal(count(names, "AuctionFrozen"), 1);
@@ -211,7 +171,7 @@ describe("auction keeper, K1 to K3", () => {
         await waitFor("aborted", async () => ((await state(id)).phase === PHASE.ABORTED ? true : null));
       }, lines);
 
-      const names = await eventsSince(from);
+      const names = await eventsSince(from, id);
       assert.equal(count(names, "AuctionExtended"), 3, lines.join("\n"));
       assert.equal(count(names, "AuctionAborted"), 1);
       assert.equal(count(names, "CrossSubmitted"), 0);
@@ -240,7 +200,7 @@ describe("auction keeper, K1 to K3", () => {
         await waitFor("executed", async () => ((await state(id)).phase === PHASE.EXECUTED ? true : null));
       }, second);
 
-      const names = await eventsSince(from);
+      const names = await eventsSince(from, id);
       for (const once of ["AuctionOpened", "AuctionFrozen", "CrossSubmitted", "CrossExecuted"]) {
         assert.equal(count(names, once), 1, `${once} ${count(names, once)} times\n${first.join("\n")}\n---\n${second.join("\n")}`);
       }

@@ -114,9 +114,8 @@ describe("F10 stream", () => {
     const d = refusal?.frame.detail ?? {};
     const ok =
       errors(c).length === 1 &&
-      String(d.topics).split(",").sort().join() === "auction.crossed,batch.settled" &&
-      /indexer/.test(d.needs) &&
-      /auction keeper/.test(d.needs) &&
+      String(d.topics) === "batch.settled" &&
+      d.needs === "the event indexer" &&
       snap !== null &&
       !c.closed;
     g.record("F10-4", {

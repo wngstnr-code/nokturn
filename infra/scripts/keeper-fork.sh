@@ -28,8 +28,16 @@ anvil --host 127.0.0.1 --port "${NOKTURN_FORK_PORT:-8545}" --chain-id 4663 \
   --mnemonic "$MNEMONIC" --auto-impersonate \
   --fork-url "$NOKTURN_RPC_MAINNET" --fork-block-number "$BLOCK" >"$LOG" 2>&1 &
 ANVIL_PID=$!
-trap 'kill "$ANVIL_PID" 2>/dev/null || true' INT TERM
+# EXIT too, or a deploy that dies leaves anvil holding the port.
+trap 'kill "$ANVIL_PID" 2>/dev/null || true' EXIT INT TERM
 wait_for_fork 90
+
+# forge asks eth_feeHistory over the last ten blocks before it broadcasts. On a
+# fresh fork that range reaches below the fork block, anvil forwards it, and the
+# upstream answers "metadata is not found". make fork never meets this because
+# its block time has mined past ten blocks by the time deploy runs. Measured
+# 30 September 2026 against Alchemy.
+cast rpc --rpc-url "$FORK_RPC" anvil_mine 12 >/dev/null
 
 # Frozen, so the minutes deploy and fund take do not walk the chain out of the
 # closing session. Time then only moves where a test warps it.

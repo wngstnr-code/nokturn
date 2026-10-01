@@ -44,13 +44,28 @@ help:
 	@echo "keeper-fork  a fork inside a closing session with the clock frozen, deployed and funded, foreground"
 	@echo "keeper       run the auction keeper, ARGS=\"--duration 10\" bounds it in chain minutes"
 
-.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo keeper-fork keeper
+.PHONY: db-up db-down db-reset indexer demo-fail demo-compete expire replay up down logs demo keeper-fork keeper rpc-proxy mainnet-api mainnet-indexer check-batch-mainnet
 
 keeper-fork:
 	@$(S)/keeper-fork.sh
 
 keeper:
 	@node ../solver/src/keeper.ts $(ARGS)
+
+# The official mainnet RPC on 127.0.0.1:8547, reached by address rather than by
+# DNS. For the indexer and the api on mainnet, see scripts/rpc-proxy.mjs.
+rpc-proxy:
+	@node scripts/rpc-proxy.mjs $(ARGS)
+
+# The api and the indexer on mainnet 4663, read only. Needs make rpc-proxy.
+mainnet-api:
+	@$(S)/mainnet.sh api $(ARGS)
+
+mainnet-indexer:
+	@$(S)/mainnet.sh indexer $(ARGS)
+
+check-batch-mainnet:
+	@$(S)/mainnet.sh check-batch
 
 up:
 	@$(S)/stack.sh up
@@ -64,7 +79,8 @@ logs:
 demo:
 	@node $(S)/demo.mjs
 
-# ARGS="--duration 5 --speed 12" plays the fixture's hour in five chain minutes.
+# ARGS="--duration 5" plays five chain minutes at speed 1. A faster speed is refused,
+# because the fixture is cut into windows as long as one fork batch.
 # Needs make api, make solver and make indexer running.
 replay:
 	@node ../analytics/src/replay.ts $(ARGS)

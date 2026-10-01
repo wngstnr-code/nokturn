@@ -7,7 +7,8 @@
 
 import {readFileSync} from "node:fs";
 import {join} from "node:path";
-import {BaseError, ContractFunctionRevertedError, createPublicClient, http, type Address, type PublicClient} from "viem";
+import {BaseError, ContractFunctionRevertedError, createPublicClient, decodeErrorResult, http, type Abi, type Address, type Hex, type PublicClient} from "viem";
+import {unknownMethod} from "../../packages/shared/rpc.ts";
 import {REPO_ROOT, settlementAbi} from "./abi.ts";
 
 export const RPC = process.env.NOKTURN_SOLVER_RPC ?? "http://127.0.0.1:8545";
@@ -18,6 +19,31 @@ export function client(rpc = RPC): PublicClient {
   // No block number cache, so a batch is solved at the real head and not at one
   // up to four seconds old, which after an evm_revert may not exist at all.
   return createPublicClient({cacheTime: 0, transport: http(rpc, {timeout: 8_000, retryCount: 2})});
+}
+
+/** Asked of the node. Only a node that does not know anvil_nodeInfo is a real chain. */
+export async function isFork(c: PublicClient): Promise<boolean> {
+  try {
+    await withRetry(() => c.request({method: "anvil_nodeInfo" as never, params: [] as never}), 3);
+    return true;
+  } catch (error) {
+    if (unknownMethod(error)) return false;
+    throw error;
+  }
+}
+
+/**
+ * The deployment record for the chain the node is on. A solver pointed at
+ * mainnet with the fork record would read a Settlement address that on mainnet
+ * is nobody's.
+ */
+export async function deploymentRecord(c: PublicClient): Promise<{path: string; record: Record<string, Address>}> {
+  const path =
+    process.env.NOKTURN_SOLVER_DEPLOYMENT ??
+    ((await isFork(c)) ? join(REPO_ROOT, "infra", "fork-deployment.json") : join(REPO_ROOT, "contracts", "deployments", `${await c.getChainId()}.json`));
+  const record = JSON.parse(readFileSync(path, "utf8")) as Record<string, Address>;
+  if (!record.settlement) throw new Error(`${path} names no settlement`);
+  return {path, record};
 }
 
 export function settlementAddress(): Address {
@@ -71,11 +97,25 @@ export async function contracts(c: PublicClient, settlement: Address, blockNumbe
  * failure was not a revert. Every ABI a solution touches is passed in by the
  * caller, so a revert from the adapter surfaces by name even through Settlement.
  */
-export function revertName(error: unknown): string | null {
+export function revertName(error: unknown, abi?: Abi): string | null {
   if (!(error instanceof BaseError)) return null;
   const reverted = error.walk((e) => e instanceof ContractFunctionRevertedError);
-  if (!(reverted instanceof ContractFunctionRevertedError)) return null;
-  const name = reverted.data?.errorName ?? reverted.reason ?? reverted.signature ?? "reverted";
-  const args = reverted.data?.args?.map((a) => String(a)).join(", ");
-  return args ? `${name}(${args})` : name;
+  if (reverted instanceof ContractFunctionRevertedError) {
+    const name = reverted.data?.errorName ?? reverted.reason ?? reverted.signature ?? "reverted";
+    const args = reverted.data?.args?.map((a) => String(a)).join(", ");
+    return args ? `${name}(${args})` : name;
+  }
+  // A raw eth_call or estimateGas carries the revert bytes with no ABI to read
+  // them, so a custom error came back as its selector and the keeper could not
+  // tell TooEarly, which means wait, from a refusal.
+  if (!abi) return null;
+  const raw = error.walk((e) => typeof (e as {data?: unknown}).data === "string" && /^0x[0-9a-fA-F]{8}/.test((e as {data: string}).data));
+  if (!raw) return null;
+  try {
+    const decoded = decodeErrorResult({abi, data: (raw as unknown as {data: Hex}).data});
+    const args = decoded.args?.map((a) => String(a)).join(", ");
+    return args ? `${decoded.errorName}(${args})` : decoded.errorName;
+  } catch {
+    return null;
+  }
 }

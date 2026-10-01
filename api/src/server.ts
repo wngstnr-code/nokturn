@@ -8,11 +8,14 @@
 
 import websocket from "@fastify/websocket";
 import Fastify, {type FastifyInstance} from "fastify";
+import {BaseError} from "viem";
+import {redactUrls} from "../../packages/shared/rpc.ts";
 import type {ApiError} from "../../packages/shared/api-types.ts";
 import {env} from "./config.ts";
 import {chain, deploymentMoved} from "./chain.ts";
 import {HttpError, fail} from "./errors.ts";
 import {allowlistRoutes} from "./routes/allowlist.ts";
+import {auctionRoutes} from "./routes/auctions.ts";
 import {backtestRoutes} from "./routes/backtest.ts";
 import {batchRoutes} from "./routes/batches.ts";
 import {configRoutes} from "./routes/config.ts";
@@ -23,7 +26,6 @@ import {quoteRoutes} from "./routes/quote.ts";
 import {sessionRoutes} from "./routes/session.ts";
 import {solverRoutes} from "./routes/solvers.ts";
 import {STREAM_MAX_MESSAGE_BYTES, streamRoutes} from "./routes/stream.ts";
-import {stubRoutes} from "./routes/stubs.ts";
 
 function bigintSafe(_key: string, value: unknown) {
   return typeof value === "bigint" ? value.toString() : value;
@@ -31,7 +33,18 @@ function bigintSafe(_key: string, value: unknown) {
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({
-    logger: {level: env.logLevel},
+    // Logs leave the machine once the API is hosted, and viem errors spell out
+    // the request url, key included.
+    logger: {
+      level: env.logLevel,
+      serializers: {
+        err: (e: Error) => ({
+          type: e instanceof Error ? e.name : typeof e,
+          message: redactUrls(e instanceof Error ? e.message : String(e)),
+          stack: e instanceof Error && e.stack ? redactUrls(e.stack) : "",
+        }),
+      },
+    },
     // Amounts here routinely exceed 2^53, so anything that leaks through as a
     // bigint becomes a decimal string rather than a thrown serialiser.
     serializerOpts: undefined,
@@ -91,16 +104,18 @@ export function buildServer(): FastifyInstance {
     if (status !== undefined && status >= 400 && status < 500) {
       const body: ApiError = {
         code: "COORDINATOR_INVALID_REQUEST",
-        message: error instanceof Error ? error.message : String(error),
+        message: redactUrls(error instanceof Error ? error.message : String(error)),
       };
       return reply.code(status).send(body);
     }
-    request.log.error({err: error}, "unhandled");
+    const message = redactUrls(error instanceof BaseError ? error.shortMessage : error instanceof Error ? error.message : String(error));
+    request.log.error({err: message}, "unhandled");
     const body: ApiError = {
       // Almost every unhandled failure on a read only surface is the node, so
-      // that is what it is reported as rather than a bare five hundred.
+      // that is what it is reported as rather than a bare five hundred. The
+      // short message only, since viem's full one spells out the request url.
       code: "COORDINATOR_UPSTREAM_DOWN",
-      message: error instanceof Error ? error.message : String(error),
+      message,
     };
     return reply.code(502).send(body);
   });
@@ -123,7 +138,7 @@ export function buildServer(): FastifyInstance {
   solverRoutes(app);
   batchRoutes(app);
   backtestRoutes(app);
-  stubRoutes(app);
+  auctionRoutes(app);
 
   // An oversized frame is closed with 1009 by ws itself, before any handler
   // allocates for it. The stream routes sit in their own scope so they are

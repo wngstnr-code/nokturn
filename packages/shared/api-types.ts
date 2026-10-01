@@ -729,10 +729,20 @@ export interface AuctionResponse {
   auctionId: Uint;
   token: TokenRef;
   kind: "open" | "close";
+  /**
+   * "accumulating" is never sent. AuctionHouse opens inside the auction session
+   * and publishes from its first block, so the book is disclosing from the start.
+   * "crossed" covers CROSSED and EXECUTED alike.
+   */
   phase: "accumulating" | "disclosing" | "frozen" | "crossed" | "aborted";
   crossAt: Timestamp;
+  /**
+   * USD at 18 decimals per whole token, converted from AuctionHouse's quote
+   * units the way the closing print is. So is result.price. Null once crossed
+   * or aborted.
+   */
   indicativePrice: Uint | null;
-  /** Signed. Positive is a buy imbalance, negative is a sell imbalance. */
+  /** Signed, in the token's smallest unit. Positive is a buy imbalance, negative is a sell imbalance. */
   imbalance: string | null;
   matchedVolume: Uint | null;
   participantCount: number;

@@ -306,11 +306,17 @@ describe("C2 POST /v1/intents", () => {
       const balance = await balanceOf(USDG().address, user.address);
       const exactBalance = await submit(g.api, await signed(user, {sellAmount: String(balance)}));
       const overBalance = await submit(g.api, await signed(user, {sellAmount: String(balance + 1n)}));
-      const limit = balance / 2n;
-      await sendAs({from: user.address, to: USDG().address, data: encodeFunctionData({abi: erc20, functionName: "approve", args: [ctx.permit2, limit]})});
-      const exactAllowance = await submit(g.api, await signed(user, {sellAmount: String(limit)}));
-      const overAllowance = await submit(g.api, await signed(user, {sellAmount: String(limit + 1n)}));
-      await sendAs({from: user.address, to: USDG().address, data: encodeFunctionData({abi: erc20, functionName: "approve", args: [ctx.permit2, maxUint256]})});
+      // A second owner, because since D4 the accepted exactBalance intent holds
+      // all of the first one's USDG, and any later intent of theirs is refused
+      // for balance before its allowance is ever looked at.
+      const other = users[2];
+      const limit = (await balanceOf(USDG().address, other.address)) / 2n;
+      await sendAs({from: other.address, to: USDG().address, data: encodeFunctionData({abi: erc20, functionName: "approve", args: [ctx.permit2, limit]})});
+      // One short first, since an accepted exact one would hold half the balance
+      // and the short one would then fail for balance rather than allowance.
+      const overAllowance = await submit(g.api, await signed(other, {sellAmount: String(limit + 1n)}));
+      const exactAllowance = await submit(g.api, await signed(other, {sellAmount: String(limit)}));
+      await sendAs({from: other.address, to: USDG().address, data: encodeFunctionData({abi: erc20, functionName: "approve", args: [ctx.permit2, maxUint256]})});
       const r = {
         exactBalance: exactBalance.status,
         overBalance: `${overBalance.status} ${overBalance.body?.code}`,

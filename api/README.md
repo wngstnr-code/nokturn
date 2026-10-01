@@ -18,31 +18,36 @@ API menolak start kalau fork mati atau belum ada `infra/fork-deployment.json`.
 Server yang tetap start lalu menjawab lima ratus di setiap permintaan terlihat
 sehat bagi yang menjalankannya, dan itu setengah jam yang hilang.
 
-## Tujuh rute nyata, enam belum
+## Semua rute nyata
 
-Pembagiannya tegas dan tidak ada yang di tengah. Sebuah rute menjawab data
-sungguhan dari rantai, atau menolak menjawab. Tidak ada yang mengarang angka
-supaya layar terlihat penuh, karena itu persis pelanggaran aturan 9 `CLAUDE.md`
-yang pernah menjatuhkan proyek ini.
+Sebuah rute menjawab data sungguhan dari rantai, atau menolak menjawab. Tidak ada
+yang mengarang angka supaya layar terlihat penuh, karena itu persis pelanggaran
+aturan 9 `CLAUDE.md` yang pernah menjatuhkan proyek ini. Stub terakhir, rute
+lelang, diganti 30 September 2026.
 
-| Rute | Keadaan | Bacanya dari |
-|---|---|---|
-| `GET /v1/health` | nyata | RPC, dan jujur bahwa indexer mati |
-| `GET /v1/config` | nyata | Settlement, Permit2, allowlist |
-| `GET /v1/session` | nyata | SessionManager |
-| `GET /v1/batches/current` | nyata | SessionManager lewat `packages/shared/batch.ts` |
-| `GET /v1/allowlist` | nyata | slot beacon ERC-1967 dan `uiMultiplier()` |
-| `GET /v1/quote` | nyata | `UniswapV3Adapter.quoteFromState` |
-| `GET /v1/solvers` | nyata | SolverRegistry |
-| `POST /v1/intents` | **503** | butuh coordinator |
-| `GET /v1/intents/:hash` | **503** | butuh coordinator |
-| `GET /v1/batches` | **503** | butuh indexer |
-| `GET /v1/batches/:batchId` | **503** | butuh indexer |
-| `GET /v1/auctions/:id` | **503** | butuh lelang yang sungguh dibuka |
-| `WS /v1/stream` | **503** | butuh siklus hidup batch |
+| Rute | Bacanya dari |
+|---|---|
+| `GET /v1/health` | Diukur saat request, RPC, indexer, database, dan scheduler |
+| `GET /v1/config` | Settlement, Permit2, allowlist |
+| `GET /v1/session` | SessionManager |
+| `GET /v1/batches/current` | SessionManager lewat `packages/shared/batch.ts` |
+| `GET /v1/allowlist` | Slot beacon ERC-1967 dan `uiMultiplier()` |
+| `GET /v1/quote` | `UniswapV3Adapter.quoteFromState` |
+| `GET /v1/solvers` | SolverRegistry |
+| `POST /v1/intents` | Mempool coordinator, setelah tanda tangan Permit2 dan pemeriksaan pra-terbang |
+| `GET /v1/intents/:hash` | Mempool coordinator |
+| `POST /v1/intents/escape` | Payload `submitIntentOnchain` untuk dikirim sendiri |
+| `GET /v1/nonces/:owner` | Bitmap Permit2 dan nonce yang masih dipegang mempool |
+| `GET /v1/batches/:batchId/intents` | Umpan solver, disaring ulang terhadap saldo, allowance, dan nonce |
+| `GET /v1/batches` | Tabel indexer |
+| `GET /v1/batches/:batchId` | Tabel indexer, dengan perintah `cast` untuk menghitung ulang baseline |
+| `GET /v1/auctions/:id` | View AuctionHouse pada satu blok. 404 sebelum lelang itu dibuka |
+| `GET /v1/backtest/netting-curve` | `data/backtest`, berlabel BACKTEST di setiap baris |
+| `WS /v1/stream` | Siklus hidup batch, mempool, dan log AuctionHouse |
 
-Yang 503 menjawab dengan bentuk `ApiError` yang sudah beku, bukan 404, dan
-menyebut apa yang masih ditunggu. Rutenya ada, dia cuma belum bisa menjawab.
+Satu-satunya yang masih ditolak dengan `COORDINATOR_NOT_IMPLEMENTED` adalah empat
+topik stream `batch.*` yang butuh indexer. Penolakannya menyebut topik dan apa yang
+ditunggu, dan topik lain di langganan yang sama tetap jalan.
 
 ## Tiga hal yang dikerjakan rute ini dan mungkin tidak terduga
 

@@ -1,6 +1,9 @@
 // Group C1. The mempool, commit 50c819f.
 
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import {describe, test} from "node:test";
 import {get, rssOf, submit} from "./lib/api.mjs";
 import {mb} from "./lib/evidence.mjs";
@@ -163,7 +166,9 @@ describe("C1 mempool", () => {
     const user = users[3];
     const batch = await freshWindow(g.api, 20);
     const nonce = await suggestedNonce(user);
-    const validUntil = batch.collectEndsAt + 5;
+    // One second past solveEnd, the earliest the API accepts since it mirrors
+    // submitSolution refusing validUntil <= solveEnd.
+    const validUntil = batch.solveEndsAt + 1;
     const first = await submit(g.api, await signFor(user, {nonce, validUntil: String(validUntil)}));
     assert.equal(first.status, 200, first.text);
     const whileHeld = await suggestedNonce(user);
@@ -182,7 +187,12 @@ describe("C1 mempool", () => {
   test("C1-7 memory across 20000 intents in 200 batches", {timeout: 60 * 60_000}, async () => {
     // A short status retention, so forgetting shows inside one run. D6.
     const retention = 600n;
-    const api = await restartApi(g, {NOKTURN_API_STATUS_RETENTION_SECONDS: String(retention)});
+    const heapLog = join(tmpdir(), `nokturn-c17-heap-${Date.now()}.log`);
+    const api = await restartApi(g, {
+      NOKTURN_API_STATUS_RETENTION_SECONDS: String(retention),
+      NODE_OPTIONS: `--expose-gc --import=${new URL("./lib/heapwatch.mjs", import.meta.url).href}`,
+      NOKTURN_TORTURE_HEAP_LOG: heapLog,
+    });
     const total = Number(process.env.NOKTURN_TORTURE_C17_TOTAL ?? 20_000);
     const perBatch = 100;
     const samples = [{accepted: 0, rss: rssOf(api.pid)}];
@@ -195,7 +205,11 @@ describe("C1 mempool", () => {
       const signed = [];
       for (let i = 0; i < perBatch; i += 1) {
         const u = users[i % users.length];
-        signed.push(await signRaw(makeIntent({owner: u.address, nonce: nextNonce(), now}), u));
+        // A minute past solveEnd rather than thirty days. A nonce is held until
+        // its validUntil by design (D5), so a thirty day deadline kept every one
+        // of the 20000 held for the whole run and measured that, not D6.
+        const validUntil = String(batch.solveEndsAt + 60);
+        signed.push(await signRaw(makeIntent({owner: u.address, nonce: nextNonce(), now, validUntil}), u));
       }
       const answers = await pool(signed, 16, (s) => submit(api, s));
       for (const a of answers) {
@@ -215,16 +229,28 @@ describe("C1 mempool", () => {
     // a leak, so growth is measured from the sample after that warm up.
     const warm = samples[1];
     const half = samples.slice(Math.floor(samples.length / 2));
-    const slope = (half.at(-1).rss - half[0].rss) / Math.max(1, half.at(-1).accepted - half[0].accepted);
+    const rssSlope = (half.at(-1).rss - half[0].rss) / Math.max(1, half.at(-1).accepted - half[0].accepted);
     const perIntent = (samples.at(-1).rss - warm.rss) / Math.max(1, accepted - warm.accepted);
-    const flat = slope < 200;
+
+    // Judged on the heap, not on RSS. Measured 30 September 2026, RSS rose about
+    // 15 MB over the run while the heap after a forced collection stayed between
+    // 28 and 36 MB, so the RSS slope was the allocator keeping freed pages. The
+    // floor of each third rather than a sample, because requests in flight
+    // lift any single reading by a few MB, and a leak raises the floor.
+    const heap = readFileSync(heapLog, "utf8").trim().split("\n").map(Number);
+    const third = Math.floor(heap.length / 3);
+    const floorMid = Math.min(...heap.slice(third, 2 * third));
+    const floorLast = Math.min(...heap.slice(2 * third));
+    const heapSlope = (floorLast - floorMid) / Math.max(1, accepted / 3);
+    const flat = heap.length >= 30 && heapSlope < 64;
     g.record("C1-7", {
       outcome: flat ? "pass" : "finding",
       suspect: "D6",
-      summary: `${accepted} diterima, RSS ${mb(samples[0].rss)} MB, ${mb(warm.rss)} MB setelah pemanasan, ${mb(samples.at(-1).rss)} MB di akhir setelah sapuan. ${Math.round(perIntent)} byte per intent setelah pemanasan, kemiringan paruh kedua ${Math.round(slope)} byte per intent`,
-      evidence: {failures, samples: samples.map((s) => `${s.accepted}:${mb(s.rss)}MB`)},
+      summary: `${accepted} diterima. Heap setelah GC paksa, lantai sepertiga tengah ${mb(floorMid)} MB, sepertiga akhir ${mb(floorLast)} MB, ${Math.round(heapSlope)} byte per intent. RSS ${mb(samples[0].rss)} MB, ${mb(warm.rss)} MB setelah pemanasan, ${mb(samples.at(-1).rss)} MB di akhir, ${Math.round(perIntent)} byte per intent, kemiringan paruh kedua ${Math.round(rssSlope)}`,
+      evidence: {failures, heapReadings: heap.length, samples: samples.map((s) => `${s.accepted}:${mb(s.rss)}MB`)},
     });
-    assert.ok(flat, `RSS keeps growing at ${Math.round(slope)} bytes per intent after sweeps`);
+    assert.ok(heap.length >= 30, `only ${heap.length} heap readings in ${heapLog}, the watcher did not run`);
+    assert.ok(flat, `the heap floor grows ${Math.round(heapSlope)} bytes per intent after sweeps`);
   });
 
   test("C1-8 status of an old intent after 30 idle batches", async () => {
