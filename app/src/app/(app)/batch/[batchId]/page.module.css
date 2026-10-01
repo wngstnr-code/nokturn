@@ -414,17 +414,6 @@
   gap: 20px;
 }
 
-.headMark {
-  display: grid;
-  place-items: center;
-  width: 68px;
-  height: 68px;
-  flex-shrink: 0;
-  border-radius: 22px;
-  background: var(--n-primary);
-  color: var(--n-button-text);
-}
-
 .headName {
   flex: 1;
   min-width: 0;
@@ -478,19 +467,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-}
-
-.tokenMark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: var(--n-primary-o25);
-  color: var(--n-primary);
-  font-size: var(--n-font-small);
-  font-weight: var(--n-weight-bold);
 }
 
 .sold {

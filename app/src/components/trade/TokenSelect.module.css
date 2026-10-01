@@ -38,19 +38,6 @@
   line-height: 1;
 }
 
-.mark {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: var(--n-primary-o25);
-  color: var(--n-primary);
-  font-size: var(--n-font-smaller);
-  font-weight: var(--n-weight-bold);
-  flex-shrink: 0;
-}
-
 .caret {
   width: 12px;
   height: 7px;

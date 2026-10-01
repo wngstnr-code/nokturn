@@ -18,24 +18,6 @@
   gap: 12px;
 }
 
-.token {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: var(--n-primary-o25);
-  color: var(--n-primary);
-  font-size: var(--n-font-small);
-  font-weight: var(--n-weight-bold);
-}
-
-.rejected .token {
-  background: var(--n-danger-bg);
-  color: var(--n-danger-text);
-}
-
 .identity {
   min-width: 0;
   flex: 1;
@@ -115,32 +97,6 @@
   grid-template-columns: 18px 1fr;
   gap: 12px;
   align-items: start;
-}
-
-.mark {
-  width: 18px;
-  height: 18px;
-  margin-top: 1px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  font-weight: var(--n-weight-bold);
-}
-
-.markPass {
-  background: var(--n-success-bg);
-  color: var(--n-success-text);
-}
-
-.markFail {
-  background: var(--n-danger-bg);
-  color: var(--n-danger-text);
-}
-
-.markUnknown {
-  background: var(--n-alert-bg);
-  color: var(--n-alert-text);
 }
 
 .unknownCard {

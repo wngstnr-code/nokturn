@@ -45,36 +45,6 @@
   font-size: var(--n-font-normal);
 }
 
-/* The picture of the hour. Its colour is the same one the wallet card gives it. */
-.face {
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 72px;
-  flex-shrink: 0;
-  border-radius: 24px;
-}
-
-.open {
-  background: var(--n-success);
-  color: var(--n-button-text);
-}
-
-.auction {
-  background: var(--n-primary);
-  color: var(--n-button-text);
-}
-
-.closed {
-  background: var(--n-blue-100);
-  color: var(--n-info-text);
-}
-
-.protective {
-  background: var(--n-danger);
-  color: var(--n-button-text);
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -263,19 +233,6 @@
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.tokenMark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: var(--n-primary-o25);
-  color: var(--n-primary);
-  font-size: var(--n-font-small);
-  font-weight: var(--n-weight-bold);
 }
 
 .tokenCell .symbol {
