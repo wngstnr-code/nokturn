@@ -177,7 +177,8 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
         </section>
       )}
 
-      {now === null ? null : (
+      {/* On a fork the book is the demo harness's five intents, and a sixth stops its cross. */}
+      {now === null || now.network.kind === "fork" ? null : (
         <CommitCard
           chainId={now.network.chainId}
           auctionHouse={now.contracts.auctionHouse}
