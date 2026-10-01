@@ -1,6 +1,6 @@
 "use client";
 
-import {useState} from "react";
+import {useState, type KeyboardEvent} from "react";
 import styles from "./NettingChart.module.css";
 
 export type Point = {share: number; counterparty: number; gross: number; traders: number};
@@ -132,6 +132,13 @@ export function NettingChart({points}: {points: Point[]}) {
     setIndex(best);
   }
 
+  function onKey(event: KeyboardEvent<SVGSVGElement>) {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const step = event.key === "ArrowRight" ? 1 : -1;
+    setIndex((now) => Math.min(points.length - 1, Math.max(0, (now ?? -1) + step)));
+  }
+
   // The card flips to the other side of the line past the middle, so it never
   // leaves the plot or covers the point it describes.
   const left = active === null ? 0 : (x(active.share) / W) * 100;
@@ -159,9 +166,12 @@ export function NettingChart({points}: {points: Point[]}) {
           className={styles.svg}
           viewBox={`0 0 ${W} ${H}`}
           role="img"
-          aria-label="Netting ratio against Nokturn's share of flow, August 2026 backtest."
+          tabIndex={0}
+          aria-label="Netting ratio against Nokturn's share of flow, August 2026 backtest. Use the left and right arrow keys to read each share level."
           onMouseMove={(event) => nearest(event.clientX, event.currentTarget)}
           onMouseLeave={() => setIndex(null)}
+          onKeyDown={onKey}
+          onBlur={() => setIndex(null)}
         >
           {/* The share range this project actually quotes, called out rather than
               left for the reader to find. parameter.md section 4. */}
@@ -252,7 +262,7 @@ export function NettingChart({points}: {points: Point[]}) {
       </div>
 
       <p className={styles.readoutHint}>
-        Hover the chart to read one share level
+        Hover the chart, or focus it and use the arrow keys, to read one share level
       </p>
     </div>
   );

@@ -57,6 +57,12 @@
   cursor: crosshair;
 }
 
+.svg:focus-visible {
+  outline: 2px solid var(--n-primary);
+  outline-offset: 6px;
+  border-radius: 8px;
+}
+
 .grid {
   stroke: var(--n-text-o10);
   stroke-width: 1;
