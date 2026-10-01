@@ -1,0 +1,286 @@
+/* Ported from libs/ui MenuBar in cowprotocol/cowswap, dark variant as cow.fi renders it. */
+
+.wrapper {
+  --height: 68px;
+  --bg: var(--nk-ink-10);
+  --bg-dropdown: var(--nk-ink-10);
+  --color: var(--nk-ink-98);
+  --default-fill: var(--nk-ink-60);
+  --active-bg: var(--nk-ink-30);
+  --hover-bg: var(--nk-ink-20);
+  --radius: 34px;
+
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  display: flex;
+  width: 100%;
+  max-width: 1760px;
+  margin: 0 auto;
+  padding: 10px 60px;
+  color: var(--color);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: var(--height);
+  padding: 6px;
+  background: var(--bg);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 0 22px;
+  color: var(--nk-amber);
+  text-decoration: none;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.wordmark {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--nk-ink-98);
+}
+
+.logo:hover {
+  opacity: 0.85;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  position: relative;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 14px 18px;
+  font: inherit;
+  font-size: 17px;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+.trigger:hover,
+.trigger[aria-expanded="true"] {
+  background: var(--active-bg);
+}
+
+.chevron {
+  width: 13px;
+  height: 8px;
+  margin: 3px auto 0;
+  color: var(--default-fill);
+  transition: transform 0.2s ease-in-out;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.dropdown {
+  position: absolute;
+  /* Measured from the trigger, which ends 9px above the bar's edge. This leaves 12px below the bar. */
+  top: calc(100% + 21px);
+  left: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 380px;
+  margin: 0;
+  padding: 10px;
+  list-style: none;
+  background: var(--bg-dropdown);
+  border: 1px solid var(--hover-bg);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px rgb(5 7 27 / 35%);
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  color: inherit;
+  border-radius: 22px;
+  text-decoration: none;
+  transition: background 0.2s ease-in-out;
+}
+
+.dropdownItem:hover,
+.dropdownItem:focus-visible {
+  background: var(--hover-bg);
+}
+
+.icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--nk-ink-10);
+  background: var(--nk-amber);
+  border-radius: 50%;
+  transition: transform 0.2s ease-in-out;
+}
+
+.dropdownItem:hover .icon {
+  transform: rotate(-8deg) scale(1.06);
+}
+
+.icon > svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.external {
+  margin: 0 0 0 6px;
+  font-weight: 400;
+  color: var(--default-fill);
+}
+
+.description {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--default-fill);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 0 auto;
+}
+
+.cta {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-height: 54px;
+  padding: 0 28px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--nk-ink-10);
+  background: var(--nk-amber);
+  border-radius: var(--radius);
+  text-decoration: none;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.cta:hover {
+  opacity: 0.8;
+}
+
+.burger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  width: 42px;
+  height: 42px;
+  padding: 0 11px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.burger span {
+  display: block;
+  height: 2px;
+  background: currentColor;
+}
+
+@media (max-width: 1280px) {
+  .wrapper {
+    padding: 10px;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .navOpen {
+    position: absolute;
+    top: 84px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 16px;
+    background: var(--bg);
+    border-radius: var(--radius);
+  }
+
+  .navOpen .trigger {
+    width: 100%;
+    font-size: 21px;
+    font-weight: 600;
+  }
+
+  .navOpen .chevron {
+    margin: 3px 0 0 auto;
+  }
+
+  .navOpen .dropdown {
+    position: relative;
+    top: auto;
+    width: 100%;
+    margin: 0 0 16px;
+    background: var(--hover-bg);
+    border: 0;
+    border-radius: 12px;
+  }
+
+  .burger {
+    display: flex;
+  }
+}
+
+@media (max-width: 720px) {
+  .cta {
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+}
