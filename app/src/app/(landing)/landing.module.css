@@ -4,6 +4,11 @@
  */
 
 .root {
+  /* The 3D icons draw wider than their boxes so they can turn. Clip rather than
+     hidden, so nothing past the screen edge adds a sideways scroll and the sticky
+     header still sticks. */
+  overflow-x: clip;
+
   /* Owl Amber, landing variant. Values and contrast checks live in brand.md. */
   --nk-ink-100: #ffffff;
   --nk-ink-98: #f8faff;

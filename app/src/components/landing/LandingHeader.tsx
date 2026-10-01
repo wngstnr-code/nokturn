@@ -81,7 +81,7 @@ export function LandingHeader() {
     <div className={styles.wrapper} ref={ref}>
       <div className={styles.inner}>
         <Link href="/" className={styles.logo} aria-label={`${BRAND.name} home`}>
-          <MaskIcon src={BRAND.mark} style={{height: 52, width: 52}} />
+          <MaskIcon src={BRAND.mark} className={styles.mark} />
           <span className={styles.wordmark}>{BRAND.name}</span>
         </Link>
 

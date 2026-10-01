@@ -43,6 +43,11 @@
   transition: opacity 0.2s ease-in-out;
 }
 
+.mark {
+  width: 52px;
+  height: 52px;
+}
+
 .wordmark {
   font-size: 26px;
   font-weight: 800;
@@ -193,7 +198,9 @@
 
 .cta {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
+  white-space: nowrap;
   height: 100%;
   min-height: 54px;
   padding: 0 28px;
@@ -282,5 +289,22 @@
     min-height: 40px;
     padding: 0 16px;
     font-size: 14px;
+  }
+}
+
+/* A phone has room for the owl, the name and the button on one line only when the
+   brand gives a little back. */
+@media (max-width: 420px) {
+  .logo {
+    padding-left: 12px;
+  }
+
+  .mark {
+    width: 40px;
+    height: 40px;
+  }
+
+  .wordmark {
+    font-size: 22px;
   }
 }
