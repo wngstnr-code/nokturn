@@ -37,7 +37,11 @@ const forkChain = {
   rpcUrls: {default: {http: [RPC]}},
 };
 
-const publicClient = createPublicClient({chain: forkChain, transport: http(RPC)});
+// The first send from a pool makes anvil fetch that account and its slots from
+// the upstream RPC, which outlasts viem's 10 second default on a slow link. A
+// retry would be unsafe, since a send that timed out may still have landed and
+// a second transfer would move twice the amount, so the wait is longer instead.
+const publicClient = createPublicClient({chain: forkChain, transport: http(RPC, {timeout: 120_000, retryCount: 0})});
 
 const ETH_EACH = parseUnits("100", 18);
 const STOCK_EACH = parseUnits("20", 18);
