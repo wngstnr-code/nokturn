@@ -1,4 +1,6 @@
 import Link from "next/link";
+import {LayersIcon} from "@/components/Icons";
+import {OwlState} from "@/components/ui/OwlState";
 import {explorerTx} from "@/lib/chain";
 import {listBatches} from "@/lib/coordinator/client";
 import type {BatchSummary} from "@/lib/coordinator/types";
@@ -32,9 +34,14 @@ function IndexedRow({batch}: {batch: BatchSummary}) {
 
   return (
     <Link className={styles.row} href={`/batch/${batch.batchId}`}>
-      <div className={styles.cell}>
-        Batch
-        <strong className="chainvalue">#{batch.batchId}</strong>
+      <div className={styles.lead}>
+        <span className={styles.rowMark} aria-hidden="true">
+          <LayersIcon size={18} />
+        </span>
+        <div className={styles.cell}>
+          Batch
+          <strong className="chainvalue">#{batch.batchId}</strong>
+        </div>
       </div>
       <div className={styles.cell}>
         {batch.sessionName}
@@ -63,13 +70,18 @@ function IndexedRow({batch}: {batch: BatchSummary}) {
 function TailRow({row, chainId}: {row: BatchRow; chainId: number}) {
   return (
     <div className={styles.row}>
-      <div className={styles.cell}>
-        Batch
-        <strong>
-          <Link className="chainvalue" href={`/batch/${row.batchId.toString()}`}>
-            #{row.batchId.toString()}
-          </Link>
-        </strong>
+      <div className={styles.lead}>
+        <span className={styles.rowMark} aria-hidden="true">
+          <LayersIcon size={18} />
+        </span>
+        <div className={styles.cell}>
+          Batch
+          <strong>
+            <Link className="chainvalue" href={`/batch/${row.batchId.toString()}`}>
+              #{row.batchId.toString()}
+            </Link>
+          </strong>
+        </div>
       </div>
       <div className={styles.cell}>
         Intents
@@ -110,20 +122,17 @@ function TailRow({row, chainId}: {row: BatchRow; chainId: number}) {
 
 function Empty({scan}: {scan: BatchScan}) {
   return (
-    <div className={styles.empty}>
-      <p className={styles.emptyTitle}>
-        {scan.error === null ? "No batch closed in the scanned window" : "The log scan did not run"}
-      </p>
-      <p className={styles.emptyBody}>
-        Without an indexer this page reads Settlement logs straight from the chain. The endpoint
-        refuses a range of a thousand blocks, so the window is {SCAN_SPAN.toString()} blocks wide,
-        which at this block time is about ten seconds. That is a live tail rather than a history.
-      </p>
-      <p className={`${styles.emptyDetail} chainvalue`}>
-        {scan.error ??
-          `scanned blocks ${scan.fromBlock.toString()} to ${scan.toBlock.toString()} on chain ${scan.chainId}`}
-      </p>
-    </div>
+    <OwlState
+      mood={scan.error === null ? "waiting" : "asleep"}
+      title={scan.error === null ? "No batch closed in the last ten seconds" : "The log scan did not run"}
+      detail={
+        scan.error ??
+        `scanned blocks ${scan.fromBlock.toString()} to ${scan.toBlock.toString()} on chain ${scan.chainId}`
+      }
+    >
+      Without an indexer this screen reads Settlement logs straight from the chain, {SCAN_SPAN.toString()}{" "}
+      blocks at a time. That is a live tail rather than a history.
+    </OwlState>
   );
 }
 
@@ -147,13 +156,10 @@ export default async function BatchesPage() {
         </div>
 
         {batches.length === 0 ? (
-          <div className={styles.empty}>
-            <p className={styles.emptyTitle}>No batch has closed yet</p>
-            <p className={styles.emptyBody}>
-              The indexer is answering and has nothing to show, which is a different thing from not
-              being able to look.
-            </p>
-          </div>
+          <OwlState mood="waiting" title="No batch has closed yet">
+            The indexer is answering and has nothing to show, which is a different thing from not
+            being able to look.
+          </OwlState>
         ) : (
           <div className={styles.rows}>
             {batches.map((batch) => (
@@ -193,10 +199,9 @@ export default async function BatchesPage() {
       </div>
 
       {failure !== null ? (
-        <div className={styles.failure}>
-          <h2>The chain did not answer</h2>
-          <p>Nothing is shown rather than something invented. The endpoint returned: {failure}</p>
-        </div>
+        <OwlState mood="asleep" title="The chain did not answer" detail={failure}>
+          Nothing is shown rather than something invented.
+        </OwlState>
       ) : null}
 
       {scan === null ? null : scan.rows.length === 0 ? (
