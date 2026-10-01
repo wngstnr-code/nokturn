@@ -8,6 +8,7 @@ import {explorerAddress} from "@/lib/chain";
 import {shortAddress} from "@/lib/format";
 import type {Network} from "@/lib/network";
 import {countdown, type SessionSnapshot} from "./SessionClock";
+import type {WalletNetwork} from "./useWalletNetwork";
 import {BellArt, ChainArt, HeldArt, MoonArt, Seal, SunArt} from "./art/Art";
 import {CheckIcon, CopyIcon, ExternalIcon, PowerIcon} from "./Icons";
 import styles from "./AccountCard.module.css";
@@ -33,11 +34,12 @@ type Props = {
   address: `0x${string}`;
   chainId: number | undefined;
   network: Network;
+  reading: WalletNetwork;
   snapshot: SessionSnapshot;
   onClose: () => void;
 };
 
-export function AccountCard({address, chainId, network, snapshot, onClose}: Props) {
+export function AccountCard({address, chainId, network, reading, snapshot, onClose}: Props) {
   const {disconnect} = useDisconnect();
   const {switchChain, isPending} = useSwitchChain();
   const [copied, setCopied] = useState(false);
@@ -125,6 +127,27 @@ export function AccountCard({address, chainId, network, snapshot, onClose}: Prop
         )}
       </div>
       {network.note === null ? null : <p className={styles.networkNote}>{network.note}</p>}
+      {/*
+        The ids agree and the heads do not. A fork and the chain it came from share
+        an id, so this is the only place that difference can be seen before a
+        transaction is refused. The wallet's endpoint is the wallet's to change, so
+        this says what to change rather than offering a button that cannot do it.
+      */}
+      {!wrongChain && reading.state === "other" ? (
+        <p className={styles.mismatch}>
+          Your wallet is reading another network.{" "}
+          {reading.walletHead === null ? (
+            "It did not say which block it is on."
+          ) : (
+            <>
+              It is at block <span className="chainvalue">{reading.walletHead.toLocaleString("en-US")}</span>{" "}
+              and this app reads block{" "}
+              <span className="chainvalue">{reading.appHead.toLocaleString("en-US")}</span>.
+            </>
+          )}{" "}
+          Change the RPC your wallet uses for this chain. Nothing will be sent until they match.
+        </p>
+      ) : null}
 
       <div className={styles.row}>
         <span className={styles.rowLabel}>Session</span>

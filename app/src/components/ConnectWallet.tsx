@@ -4,6 +4,7 @@ import {useEffect, useState} from "react";
 import {useAccount} from "wagmi";
 import {shortAddress} from "@/lib/format";
 import {AccountCard} from "./AccountCard";
+import {useWalletNetwork} from "./useWalletNetwork";
 import {WalletPicker} from "./WalletPicker";
 import {WalletIcon, WarningIcon} from "./Icons";
 import type {SessionSnapshot} from "./SessionClock";
@@ -15,6 +16,8 @@ export function ConnectWallet({snapshot, network}: {snapshot: SessionSnapshot; n
   const [picking, setPicking] = useState(false);
   const [showCard, setShowCard] = useState(false);
   const {address, isConnected, chainId, status} = useAccount();
+  // Asked only once the chain ids agree. When they do not, that is the finding.
+  const reading = useWalletNetwork(network.chainId, isConnected && chainId === network.chainId);
 
   useEffect(() => setMounted(true), []);
 
@@ -46,8 +49,11 @@ export function ConnectWallet({snapshot, network}: {snapshot: SessionSnapshot; n
 
   return (
     <div className={styles.anchor}>
-      {wrongChain ? (
-        <span className={styles.warning} title="You are on the wrong network">
+      {wrongChain || reading.state === "other" ? (
+        <span
+          className={styles.warning}
+          title={wrongChain ? "You are on the wrong network" : "Your wallet is reading another network"}
+        >
           <WarningIcon size={18} />
         </span>
       ) : null}
@@ -65,6 +71,7 @@ export function ConnectWallet({snapshot, network}: {snapshot: SessionSnapshot; n
           address={address}
           chainId={chainId}
           network={network}
+          reading={reading}
           snapshot={snapshot}
           onClose={() => setShowCard(false)}
         />

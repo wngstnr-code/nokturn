@@ -191,3 +191,13 @@
   background: var(--n-danger-bg);
   color: var(--n-danger-text);
 }
+
+.mismatch {
+  margin: 4px 0 6px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--n-alert-bg);
+  color: var(--n-alert-text);
+  font-size: var(--n-font-small);
+  line-height: var(--n-line-small);
+}
