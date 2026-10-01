@@ -1,13 +1,22 @@
 import {coordinatorUrl} from "./client";
 
 /*
- * The socket announces that something happened, it does not carry the answer.
- * batch.settled still needs the indexer wired into the stream, so the reliable
- * shape is to let an event trigger a read rather than to trust the socket alone.
- * A slow interval stays underneath, so a refused or dropped socket degrades to
- * the behaviour there was before rather than to silence.
+ * The socket announces that something happened, it does not carry the answer a
+ * screen shows. An event triggers a read, so what is on screen always came from
+ * a route that names its block. A slow interval stays underneath, so a refused or
+ * dropped socket degrades to polling rather than to silence.
  */
-const SERVED = ["batch.opened", "batch.intent_added", "batch.collect_closed"] as const;
+const BATCH_TOPICS = [
+  "batch.opened",
+  "batch.intent_added",
+  "batch.collect_closed",
+  "batch.solution_submitted",
+  "batch.solution_rejected",
+  "batch.settled",
+  "batch.failed",
+] as const;
+
+const AUCTION_TOPICS = ["auction.indicative", "auction.crossed"] as const;
 
 const CLOSE_CODES: Record<number, string> = {
   1008: "the coordinator refused too many bad messages",
@@ -22,6 +31,19 @@ export type Nudge = {
 };
 
 export function watchBatches(
+  owner: string | undefined,
+  onNudge: () => void,
+  onState: (state: Nudge) => void,
+): () => void {
+  return watch(BATCH_TOPICS, owner, onNudge, onState);
+}
+
+export function watchAuctions(onNudge: () => void, onState: (state: Nudge) => void): () => void {
+  return watch(AUCTION_TOPICS, undefined, onNudge, onState);
+}
+
+function watch(
+  topics: readonly string[],
   owner: string | undefined,
   onNudge: () => void,
   onState: (state: Nudge) => void,
@@ -56,7 +78,7 @@ export function watchBatches(
       next.send(
         JSON.stringify({
           type: "subscribe",
-          topics: SERVED,
+          topics,
           ...(owner === undefined ? {} : {owner}),
         }),
       );
