@@ -175,7 +175,7 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
             const line =
               status === null
                 ? forgotten
-                  ? `for ${entry.buySymbol}. The coordinator restarted and no longer holds it`
+                  ? `for ${entry.buySymbol}. This coordinator does not hold it. It restarted, or the intent went to another one`
                   : error === null
                     ? `for ${entry.buySymbol}. Reading its status`
                     : `for ${entry.buySymbol}. Its status cannot be read right now`
