@@ -6,6 +6,7 @@ import {ConnectWallet} from "./ConnectWallet";
 import {MaskIcon} from "./landing/MaskIcon";
 import {BRAND} from "./landing/content";
 import type {SessionSnapshot} from "./SessionClock";
+import type {Network} from "@/lib/network";
 import styles from "./SiteHeader.module.css";
 
 /*
@@ -22,7 +23,7 @@ const NAV = [
   {href: "/netting", label: "Netting"},
 ];
 
-export function SiteHeader({snapshot}: {snapshot: SessionSnapshot}) {
+export function SiteHeader({snapshot, network}: {snapshot: SessionSnapshot; network: Network}) {
   const pathname = usePathname();
 
   return (
@@ -51,7 +52,7 @@ export function SiteHeader({snapshot}: {snapshot: SessionSnapshot}) {
         <span className={styles.spacer} />
 
         <div className={styles.right}>
-          <ConnectWallet snapshot={snapshot} />
+          <ConnectWallet snapshot={snapshot} network={network} />
         </div>
       </div>
     </header>

@@ -88,6 +88,16 @@
   font-weight: var(--n-weight-normal);
 }
 
+/* Kept under the name, so a fork or a test chain is never read as the live one. */
+.networkNote {
+  margin: 0;
+  padding: 0 12px 4px;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+  line-height: var(--n-line-small);
+  text-align: right;
+}
+
 /* No icon by request. The colour is what says this is not where you should be. */
 .switch {
   padding: 0;
