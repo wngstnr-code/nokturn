@@ -14,6 +14,11 @@
  * night-forest.svg is drawn for this project. The owl is the logo's own geometry,
  * and the foreground is the footer colour, so the scene runs into the footer
  * rather than stopping at an edge.
+ *
+ * The scene is as wide as the page and five twenty fourths as tall, and the slab
+ * keeps exactly that much room under its content. A long screen therefore ends
+ * above the scene instead of on top of it, which is what hid the owl and left a
+ * footnote unreadable over the moon.
  */
 .body {
   display: flex;
@@ -24,11 +29,19 @@
   flex: 1 1 auto;
   z-index: 2;
   color: inherit;
-  padding: 96px 16px 120px;
+  padding: 96px 16px calc(100vw * 400 / 1920 + 16px);
   margin: calc(var(--n-header-offset) * -1) auto calc(var(--n-slab-radius) * -1);
   border-bottom-left-radius: var(--n-slab-radius);
   border-bottom-right-radius: var(--n-slab-radius);
   background: var(--n-slab) url("/night-forest.svg") no-repeat bottom -1px center / contain;
+}
+
+/*
+ * The trade card is narrow and sits in the middle, clear of the owl on the right,
+ * so that screen lets its card stand over the sky and keeps the page short.
+ */
+.body:has([data-scene="behind"]) {
+  padding-bottom: 120px;
 }
 
 .main {
@@ -37,10 +50,10 @@
 
 @media (max-width: 960px) {
   .body {
-    padding: 96px 16px 96px;
+    padding: 96px 16px 236px;
     flex: none;
     min-height: calc(100vh - 200px);
-    background-size: auto;
+    background-size: auto 220px;
   }
 }
 
@@ -59,4 +72,10 @@
   flex-direction: column;
   align-items: stretch;
   gap: 0;
+}
+
+@media (max-width: 960px) {
+  .body:has([data-scene="behind"]) {
+    padding-bottom: 96px;
+  }
 }

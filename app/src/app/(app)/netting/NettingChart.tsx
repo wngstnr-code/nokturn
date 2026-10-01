@@ -159,6 +159,7 @@ export function NettingChart({points}: {points: Point[]}) {
           <span className={styles.swatch} style={{background: GROSS}} />
           A bot trading against itself
         </span>
+        <span className={styles.kind}>Backtest, August 2026</span>
       </div>
 
       <div className={styles.plot}>

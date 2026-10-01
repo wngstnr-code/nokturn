@@ -14,23 +14,6 @@
   border-radius: var(--n-radius-normal);
 }
 
-.badgeRow {
-  margin-bottom: 16px;
-}
-
-/* Spoken on the screen, not only in the script. demo.md section 3b priority 4. */
-.badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 16px;
-  background: var(--n-alert-bg);
-  color: var(--n-alert-text);
-  font-size: var(--n-font-small);
-  font-weight: var(--n-weight-bold);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
 .eyebrow {
   color: var(--n-text-o50);
   font-size: var(--n-font-small);
@@ -176,12 +159,5 @@
   .lead {
     font-size: var(--n-font-normal);
   }
-}
-
-.badgeRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 0 14px;
 }
 

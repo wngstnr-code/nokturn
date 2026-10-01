@@ -135,7 +135,7 @@ export default async function TradePage() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-scene="behind">
       {failure !== null ? (
         <div className={styles.failure}>
           <h2>The chain did not answer</h2>

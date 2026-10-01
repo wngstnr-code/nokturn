@@ -110,6 +110,12 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
 
   const bySymbol = new Map(tokens.map((token) => [token.address.toLowerCase(), token]));
 
+  // Until the first answer is back, the rows are what this browser remembers
+  // sending. Saying no intents yet over a list of three would be wrong, even for
+  // the half second it lasted.
+  const shown: Answer[] =
+    answers.length > 0 ? answers : sent.map((entry) => ({sent: entry, status: null, error: null}));
+
   return (
     <section className={styles.card}>
       <div className={styles.head}>
@@ -126,7 +132,7 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
         </span>
       </div>
 
-      {answers.length === 0 ? (
+      {shown.length === 0 ? (
         <div className={styles.empty}>
           <p className={styles.emptyTitle}>
             {reachable ? "No intents yet" : "The intent mempool is not answering"}
@@ -139,7 +145,7 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
         </div>
       ) : (
         <div className={styles.rows}>
-          {answers.map(({sent: entry, status, error}) => {
+          {shown.map(({sent: entry, status, error}) => {
             const forgotten = status === null && error?.message.startsWith("no intent known") === true;
 
             // The coordinator calls an intent pending until its batch stops
@@ -153,7 +159,9 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
                 ? (LOOK[status.status] ?? {label: status.status, tone: styles.pending, mark: "waiting" as Mark})
                 : forgotten
                   ? {label: "No longer held", tone: styles.gone, mark: "unknown" as Mark}
-                  : {label: "Not reachable", tone: styles.bad, mark: "fail" as Mark};
+                  : error === null
+                      ? {label: "Checking", tone: styles.pending, mark: "waiting" as Mark}
+                      : {label: "Not reachable", tone: styles.bad, mark: "fail" as Mark};
 
             const payload = status?.intent as Record<string, unknown> | undefined;
             const sellToken = bySymbol.get(String(payload?.sellToken ?? "").toLowerCase());
@@ -168,7 +176,9 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
               status === null
                 ? forgotten
                   ? `for ${entry.buySymbol}. The coordinator restarted and no longer holds it`
-                  : `for ${entry.buySymbol}. Its status cannot be read right now`
+                  : error === null
+                    ? `for ${entry.buySymbol}. Reading its status`
+                    : `for ${entry.buySymbol}. Its status cannot be read right now`
                 : status.rejection !== null
                   ? status.rejection.message
                   : status.fill !== null

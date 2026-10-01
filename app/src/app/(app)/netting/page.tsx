@@ -73,9 +73,6 @@ export default async function NettingPage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
-        <div className={styles.badgeRow}>
-          <span className={styles.badge}>Backtest</span>
-        </div>
         <p className={styles.eyebrow}>Netting against share of flow</p>
         <h1 className={styles.title}>More flow is not a promise, it has a slope</h1>
         <p className={styles.lead}>

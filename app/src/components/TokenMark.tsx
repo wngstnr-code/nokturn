@@ -89,9 +89,21 @@ const FROM_FILE: Record<string, {file: string; background?: string; inset: numbe
   USDG: {file: "USDG.png", inset: 0},
 };
 
-export function TokenMark({symbol, size = 36}: {symbol: string; size?: number}) {
-  const mark = MARKS[symbol];
-  const filed = FROM_FILE[symbol];
+/**
+ * @param unverified The token only claims this symbol. It gets initials, never the
+ *   company mark, since the mark is exactly what an impostor is borrowing.
+ */
+export function TokenMark({
+  symbol,
+  size = 36,
+  unverified = false,
+}: {
+  symbol: string;
+  size?: number;
+  unverified?: boolean;
+}) {
+  const mark = unverified ? undefined : MARKS[symbol];
+  const filed = unverified ? undefined : FROM_FILE[symbol];
   const [missing, setMissing] = useState(false);
 
   if (mark === undefined && filed !== undefined && !missing) {
