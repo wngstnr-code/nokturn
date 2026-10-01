@@ -1,12 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 400" fill="none">
   <style>
     .lid { transform-box: fill-box; transform-origin: center top; transform: scaleY(0); animation: blink 7s infinite; }
+    .head { transform-box: fill-box; transform-origin: 50% 90%; animation: look 11s ease-in-out infinite; }
+    .pupils { animation: glance 11s ease-in-out infinite; }
     .fly { animation: glow 4s ease-in-out infinite; }
     .fly:nth-of-type(2n) { animation-delay: 1.3s; }
     .fly:nth-of-type(3n) { animation-delay: 2.6s; }
     @keyframes blink { 0%, 94%, 100% { transform: scaleY(0); } 96%, 98% { transform: scaleY(1); } }
+    @keyframes look {
+      0%, 12%, 44%, 56%, 88%, 100% { transform: translateX(0) rotate(0); }
+      18%, 36% { transform: translateX(-3px) rotate(-14deg); }
+      62%, 72% { transform: translateX(3px) rotate(12deg); }
+      76%, 80% { transform: translateX(2px) rotate(-4deg); }
+    }
+    @keyframes glance {
+      0%, 12%, 44%, 56%, 88%, 100% { transform: translateX(0); }
+      18%, 36% { transform: translateX(-3px); }
+      62%, 72% { transform: translateX(3px); }
+      76%, 80% { transform: translateX(-1px); }
+    }
     @keyframes glow { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.9; } }
-    @media (prefers-reduced-motion: reduce) { .lid, .fly { animation: none; } .fly { opacity: 0.7; } }
+    @media (prefers-reduced-motion: reduce) { .lid, .fly, .head, .pupils { animation: none; } .fly { opacity: 0.7; } }
   </style>
   <defs>
     <path id="pine" d="M30 0L48 36H40L54 70H44L60 104H34V120H26V104H0L16 70H6L20 36H12Z"/>
@@ -60,17 +74,21 @@
 
   <g transform="translate(1388 96) scale(1.5)">
     <ellipse cx="32" cy="76" rx="23" ry="27" fill="#2a2a2e"/>
-    <path d="M3 13L19 19.5Q32 16 45 19.5L61 13Q62.5 28 59 40Q53.5 58.5 32 60.5Q10.5 58.5 5 40Q1.5 28 3 13Z" fill="#3a3a40"/>
     <path d="M20 74Q32 66 44 74Q40 96 32 100Q24 96 20 74Z" fill="#222226"/>
+    <g class="head">
+    <path d="M3 13L19 19.5Q32 16 45 19.5L61 13Q62.5 28 59 40Q53.5 58.5 32 60.5Q10.5 58.5 5 40Q1.5 28 3 13Z" fill="#3a3a40"/>
     <circle cx="21" cy="35" r="11.4" fill="#0b0b0c"/>
     <circle cx="43" cy="35" r="11.4" fill="#0b0b0c"/>
     <circle cx="21" cy="35" r="6" fill="#FFB825"/>
     <circle cx="43" cy="35" r="6" fill="#FFB825"/>
+    <g class="pupils">
     <circle cx="21" cy="35" r="2.4" fill="#0b0b0c"/>
     <circle cx="43" cy="35" r="2.4" fill="#0b0b0c"/>
+    </g>
     <path d="M28 44H36L32 52Z" fill="#E09600"/>
     <circle class="lid" cx="21" cy="35" r="11.6" fill="#3a3a40"/>
     <circle class="lid" cx="43" cy="35" r="11.6" fill="#3a3a40"/>
+    </g>
     <path d="M24 103v5M28 104v5M36 104v5M40 103v5" stroke="#E09600" stroke-width="2" stroke-linecap="round"/>
   </g>
 </svg>
