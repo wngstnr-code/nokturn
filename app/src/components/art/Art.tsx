@@ -198,57 +198,6 @@ export function HeldArt({size = 40, className}: ArtProps) {
   );
 }
 
-/** Two flows meeting head on, which is what netting is. */
-export function NettingArt({size = 40, className}: ArtProps) {
-  return (
-    <svg {...frame(size, className)}>
-      <path d="M5 16h22" stroke={AMBER} strokeWidth="5" strokeLinecap="round" />
-      <path d="M22 9l8 7-8 7" stroke={AMBER} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M43 32H21" stroke={PERI} strokeWidth="5" strokeLinecap="round" />
-      <path d="M26 25l-8 7 8 7" stroke={PERI} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-      <Sparkle x={39} y={12} r={4} />
-      <Sparkle x={8} y={35} r={2.8} fill={MINT} />
-    </svg>
-  );
-}
-
-/** A price held between two rails. */
-export function BandArt({size = 22, className}: ArtProps) {
-  return (
-    <svg {...frame(size, className)}>
-      <rect x="4" y="7" width="40" height="6" rx="3" fill={PERI} />
-      <rect x="4" y="35" width="40" height="6" rx="3" fill={PERI} />
-      <path d="M8 27l8-5 7 4 8-7 9 5" stroke={AMBER} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="31" cy="19" r="4" fill={AMBER_PALE} />
-    </svg>
-  );
-}
-
-/** A stack of coins. */
-export function CoinsArt({size = 22, className}: ArtProps) {
-  return (
-    <svg {...frame(size, className)}>
-      <ellipse cx="20" cy="36" rx="15" ry="6" fill={AMBER_DARK} />
-      <ellipse cx="20" cy="29" rx="15" ry="6" fill={AMBER_DEEP} />
-      <ellipse cx="20" cy="22" rx="15" ry="6" fill={AMBER} />
-      <ellipse cx="20" cy="22" rx="8" ry="2.8" fill={AMBER_PALE} />
-      <Sparkle x={40} y={12} r={5} />
-    </svg>
-  );
-}
-
-/** Two people, for how many owners stood in a book. */
-export function PeopleArt({size = 22, className}: ArtProps) {
-  return (
-    <svg {...frame(size, className)}>
-      <circle cx="32" cy="16" r="7" fill={MINT} />
-      <path d="M20 42a12 12 0 0 1 24 0Z" fill={MINT_DEEP} />
-      <circle cx="17" cy="18" r="8" fill={PERI_PALE} />
-      <path d="M3 42a14 14 0 0 1 28 0Z" fill={PERI} />
-    </svg>
-  );
-}
-
 /** Sheets in a pile, for how many intents a batch held. */
 export function SheetsArt({size = 22, className}: ArtProps) {
   return (
