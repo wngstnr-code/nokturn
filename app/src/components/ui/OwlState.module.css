@@ -1,0 +1,91 @@
+.state {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  padding: 28px;
+  border-radius: var(--n-radius-normal);
+  background: var(--n-paper);
+}
+
+.owl {
+  flex-shrink: 0;
+}
+
+.ground {
+  fill: var(--n-paper-darker);
+}
+
+.head {
+  fill: var(--n-blue-400);
+}
+
+.socket {
+  fill: var(--n-paper-darkest);
+}
+
+.eye,
+.beak {
+  fill: var(--n-primary);
+}
+
+.closed,
+.snore,
+.handle {
+  fill: none;
+  stroke: var(--n-paper-darkest);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.snore {
+  stroke: var(--n-text-o50);
+  stroke-width: 2;
+}
+
+.lens {
+  fill: none;
+  stroke: var(--n-primary);
+  stroke-width: 3;
+}
+
+.handle {
+  stroke: var(--n-primary);
+  stroke-width: 4;
+}
+
+.words {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--n-font-large);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.body {
+  max-width: 62ch;
+  margin: 6px 0 0;
+  color: var(--n-text-o70);
+  font-size: var(--n-font-normal);
+  line-height: var(--n-line-medium);
+}
+
+.detail {
+  margin: 10px 0 0;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small-plus);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .state {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px;
+  }
+}

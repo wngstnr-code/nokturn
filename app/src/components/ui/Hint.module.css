@@ -1,0 +1,53 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--n-text-o50);
+  transition:
+    color var(--n-duration) var(--n-easing),
+    background var(--n-duration) var(--n-easing);
+}
+
+.trigger:hover,
+.trigger[aria-expanded="true"] {
+  background: var(--n-text-o10);
+  color: var(--n-text);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--n-primary);
+  outline-offset: 2px;
+}
+
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 30;
+  width: max-content;
+  max-width: min(320px, 78vw);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--n-blue-200);
+  color: var(--n-text);
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-normal);
+  line-height: var(--n-line-small);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  transform: translateX(-50%);
+  box-shadow: var(--n-shadow-3);
+}
