@@ -74,6 +74,8 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
+    // The chain the card trades on, not whichever one the wallet is parked on.
+    chainId: context.chainId as 4663 | 46630,
     query: {enabled: Boolean(address && sellToken)},
   });
 
