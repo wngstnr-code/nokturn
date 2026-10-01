@@ -16,3 +16,10 @@
   font-weight: var(--n-weight-bold);
   letter-spacing: 0.02em;
 }
+
+.file {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 999px;
+  object-fit: cover;
+}

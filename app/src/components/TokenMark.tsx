@@ -1,3 +1,6 @@
+"use client";
+
+import {useState} from "react";
 import styles from "./TokenMark.module.css";
 
 /*
@@ -9,7 +12,10 @@ import styles from "./TokenMark.module.css";
  *
  * Only the exact mainnet symbols are matched. A test token named tNVDA is not
  * NVDA, and it keeps its initials so the screen does not dress it as the real one.
- * A symbol with no mark here falls back to initials too.
+ *
+ * A mark that is not drawn here can be supplied as a file. Put an SVG named after
+ * the symbol in public/tokens, GME.svg for GME, and add the symbol to FROM_FILE.
+ * Until the file is there the token shows its initials.
  */
 type Mark = {background: string; viewBox: string; paths: Array<{d: string; fill: string}>; inset: number};
 
@@ -72,8 +78,26 @@ const MARKS: Record<string, Mark> = {
   },
 };
 
+/// Symbols whose mark is a file in public/tokens rather than a path above.
+const FROM_FILE = new Set(["GME", "USDG"]);
+
 export function TokenMark({symbol, size = 36}: {symbol: string; size?: number}) {
   const mark = MARKS[symbol];
+  const [missing, setMissing] = useState(false);
+
+  if (mark === undefined && FROM_FILE.has(symbol) && !missing) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        className={styles.file}
+        src={`/tokens/${symbol}.svg`}
+        alt=""
+        width={size}
+        height={size}
+        onError={() => setMissing(true)}
+      />
+    );
+  }
 
   if (mark === undefined) {
     return (
