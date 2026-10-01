@@ -1,10 +1,12 @@
 import Link from "next/link";
 import {Admission} from "@/components/auction/Admission";
 import {AuctionLive} from "@/components/auction/AuctionLive";
+import {CommitCard} from "@/components/auction/CommitCard";
 import {ProvenanceStrip} from "@/components/Provenance";
 import {auction, coordinatorUrl} from "@/lib/coordinator/client";
 import type {ApiError, AuctionResponse} from "@/lib/coordinator/types";
 import {units} from "@/lib/format";
+import {active} from "@/lib/network";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +68,9 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
   const imbalance = book.imbalance === null ? null : BigInt(book.imbalance);
 
   const settled = book.phase === "crossed" || book.phase === "aborted";
+  // AuctionHouse takes commitments until the freeze and refuses them after.
+  const taking = book.phase === "accumulating" || book.phase === "disclosing";
+  const now = taking ? await active().catch(() => null) : null;
 
   return (
     <div className={styles.page}>
@@ -148,6 +153,18 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
             </div>
           </div>
         </section>
+      )}
+
+      {now === null ? null : (
+        <CommitCard
+          chainId={now.network.chainId}
+          auctionHouse={now.contracts.auctionHouse}
+          permit2={now.contracts.permit2}
+          token={{symbol: book.token.symbol, address: book.token.address, decimals: book.token.decimals}}
+          quote={{symbol: now.quote.symbol, address: now.quote.address, decimals: now.quote.decimals}}
+          cross={book.kind}
+          crossAt={book.crossAt}
+        />
       )}
 
       <AuctionLive settled={settled} />
