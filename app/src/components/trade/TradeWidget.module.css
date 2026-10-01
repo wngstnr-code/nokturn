@@ -418,11 +418,34 @@
   overflow-wrap: anywhere;
 }
 
-.signedValue {
-  display: block;
-  margin-top: 8px;
+.signedHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--n-font-medium);
+  font-weight: var(--n-weight-semibold);
+}
+
+.signedBody {
+  margin: 8px 0 0;
   color: var(--n-text-o70);
   font-size: var(--n-font-small-plus);
+  line-height: var(--n-line-small);
+}
+
+.signedBody a {
+  color: var(--n-success-text);
+  font-weight: var(--n-weight-medium);
+}
+
+.signedProof {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
 }
 
 .toleranceInput {

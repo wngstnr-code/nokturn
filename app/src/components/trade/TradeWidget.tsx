@@ -11,7 +11,9 @@ import {
   useWalletClient,
   useWriteContract,
 } from "wagmi";
+import {Seal} from "@/components/art/Art";
 import {ChevronIcon} from "@/components/Icons";
+import {AddressChip} from "@/components/ui/AddressChip";
 import {walletSeesSameChain} from "@/lib/wallet-guard";
 import {Button} from "@/components/ui/Button";
 import {TokenSelect} from "./TokenSelect";
@@ -64,8 +66,19 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   const [amount, setAmount] = useState("");
   const [tolerance, setTolerance] = useState(50);
   const [partialFill, setPartialFill] = useState(true);
-  const [signature, setSignature] = useState<`0x${string}` | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /*
+   * What came back from the last intent this card sent. It replaces the form's
+   * amount, so the card reads as finished and a second press does not send the
+   * same intent again.
+   */
+  const [sent, setSent] = useState<{
+    sold: string;
+    batchId: string;
+    closesIn: number;
+    signature: `0x${string}`;
+  } | null>(null);
+
   const [baseline, setBaseline] = useState<BaselineQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -212,7 +225,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   async function sign() {
     if (!canSign || address === undefined || sellToken === undefined || sellAmount === null) return;
     setNote(null);
-    setSignature(null);
+    setSent(null);
 
     // Both are facts the chain owns. Guessing either is refused later.
     const [batch, nonce] = await Promise.all([currentBatch(), nextNonce(address)]);
@@ -253,8 +266,6 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
         primaryType: "PermitWitnessTransferFrom",
         message: permitWitnessMessage(intent, context.settlement),
       });
-      setSignature(signed);
-
       const result = await submitIntent({intent: serializeIntent(intent), signature: signed});
       if (result.ok) {
         remember({
@@ -263,7 +274,13 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
           sold: `${formatUnits(sellAmount, sellToken.decimals)} ${sellToken.symbol}`,
           buySymbol: quote.symbol,
         });
-        setNote(`Accepted into batch ${result.value.batchId}. Collection closes at ${result.value.collectEndsAt}`);
+        setSent({
+          sold: `${formatUnits(sellAmount, sellToken.decimals)} ${sellToken.symbol}`,
+          batchId: result.value.batchId,
+          closesIn: Math.max(0, result.value.collectEndsAt - batch.value.chainTime),
+          signature: signed,
+        });
+        setAmount("");
       } else {
         setNote(`${result.error.code}. ${result.error.message}`);
       }
@@ -338,7 +355,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
                 placeholder="0"
                 value={amount}
                 onChange={(event) => {
-                  setSignature(null);
+                  setSent(null);
                   setNote(null);
                   setAmount(event.target.value.replace(/[^0-9.]/g, ""));
                 }}
@@ -454,10 +471,24 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
             </div>
           </details>
 
-          {signature === null ? null : (
+          {sent === null ? null : (
             <div className={styles.signed}>
-              Intent signed. Nothing moved and no transaction was sent.
-              <span className={`${styles.signedValue} chainvalue`}>{signature}</span>
+              <p className={styles.signedHead}>
+                <Seal state="pass" size={18} />
+                Intent sent for {sent.sold}
+              </p>
+              <p className={styles.signedBody}>
+                It is in batch{" "}
+                <Link className="chainvalue" href={`/batch/${sent.batchId}`}>
+                  #{sent.batchId}
+                </Link>
+                , which closes about {sent.closesIn} seconds after you signed. Nothing has left
+                your wallet, and nothing does until that batch clears.
+              </p>
+              <span className={styles.signedProof}>
+                Your signature
+                <AddressChip value={sent.signature} label="your signature" />
+              </span>
             </div>
           )}
 
