@@ -1,3 +1,6 @@
+import {CrossIcon, ShieldIcon, CheckIcon} from "@/components/Icons";
+import {AddressChip} from "@/components/ui/AddressChip";
+import {Hint} from "@/components/ui/Hint";
 import {explorerAddress} from "@/lib/chain";
 import {bytesLabel, compactSupply, units} from "@/lib/format";
 import type {Check, CheckState, TokenReport} from "@/lib/allowlist-gate";
@@ -32,26 +35,49 @@ function Mark({state}: {state: CheckState}) {
   );
 }
 
+/*
+ * A check that passed needs one line. What was read and what was wanted are two
+ * long hex strings that agree, so they wait behind the info mark. A check that
+ * did not pass shows both, because the difference between them is the finding.
+ */
 function CheckRow({check}: {check: Check}) {
+  const settled = check.state === "pass";
+
   return (
     <li className={styles.check}>
       <span className={`${styles.mark} ${MARK_TONE[check.state]}`}>
         <Mark state={check.state} />
       </span>
-      <span>
-        <span className={styles.checkLabel}>{check.label}</span>
-        <div className={`${styles.reading} chainvalue`}>
-          <span className={styles.key}>read</span>
-          {check.reading}
-        </div>
-        <div className={`${styles.expected} chainvalue`}>
-          <span className={styles.key}>want</span>
-          {check.expected}
-        </div>
+      <span className={styles.checkBody}>
+        <span className={styles.checkLine}>
+          <span className={styles.checkLabel}>{check.label}</span>
+          {settled ? (
+            <Hint label={`What ${check.label} read`}>
+              <span className={styles.hintKey}>Read</span>
+              <span className={`${styles.hintValue} chainvalue`}>{check.reading}</span>
+              <span className={styles.hintKey}>Wanted</span>
+              <span className={`${styles.hintValue} chainvalue`}>{check.expected}</span>
+            </Hint>
+          ) : null}
+        </span>
+        {settled ? null : (
+          <>
+            <span className={`${styles.reading} chainvalue`}>
+              <span className={styles.key}>read</span>
+              {check.reading}
+            </span>
+            <span className={`${styles.expected} chainvalue`}>
+              <span className={styles.key}>want</span>
+              {check.expected}
+            </span>
+          </>
+        )}
       </span>
     </li>
   );
 }
+
+const VERDICT_ICON = {admitted: CheckIcon, rejected: CrossIcon, unknown: ShieldIcon} as const;
 
 const VERDICT_LABEL = {admitted: "Admitted", rejected: "Rejected", unknown: "Not answered"} as const;
 
@@ -63,9 +89,14 @@ export function TokenGateCard({report}: {report: TokenReport}) {
         ? styles.rejected
         : styles.unknownCard;
 
+  const VerdictIcon = VERDICT_ICON[report.verdict];
+
   return (
     <article className={`${styles.card} ${tone}`}>
       <div className={styles.head}>
+        <span className={styles.token} aria-hidden="true">
+          {report.requested.slice(0, 2).toUpperCase()}
+        </span>
         <div className={styles.identity}>
           <h2 className={styles.symbol}>
             {report.listed ? (
@@ -85,16 +116,16 @@ export function TokenGateCard({report}: {report: TokenReport}) {
                 : styles.unsure
           }`}
         >
+          <VerdictIcon size={13} />
           {VERDICT_LABEL[report.verdict]}
         </span>
       </div>
 
-      <div className={styles.address}>
-        <span className={`${styles.addressValue} chainvalue`}>{report.address}</span>
-        <a href={explorerAddress(report.address)} target="_blank" rel="noreferrer">
-          Open in explorer
-        </a>
-      </div>
+      <AddressChip
+        value={report.address}
+        href={explorerAddress(report.address)}
+        label={`the ${report.requested} contract address`}
+      />
 
       <ul className={styles.checks}>
         {report.checks.map((check) => (

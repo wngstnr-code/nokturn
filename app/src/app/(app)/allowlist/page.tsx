@@ -1,4 +1,7 @@
+import {BlockIcon, ClockIcon, GlobeIcon, ShieldIcon} from "@/components/Icons";
 import {TokenGateCard} from "@/components/TokenGateCard";
+import {Hint} from "@/components/ui/Hint";
+import {OwlState} from "@/components/ui/OwlState";
 import {runGate, type GateReport} from "@/lib/allowlist-gate";
 import {robinhoodMainnet} from "@/lib/chain";
 import {activeNetwork, type Network} from "@/lib/network";
@@ -12,26 +15,26 @@ function Provenance({report, network}: {report: GateReport; network: Network}) {
   return (
     <div className={styles.provenance}>
       <span className={styles.item}>
+        <BlockIcon size={15} />
         Block
         <strong className="chainvalue">{report.blockNumber.toLocaleString("en-US")}</strong>
       </span>
       <span className={styles.item}>
-        Chain
+        <GlobeIcon size={15} />
+        {network.kind === "fork" && network.chainId === report.chainId ? network.name : "Chain"}
         <strong className="chainvalue">{report.chainId}</strong>
+        {network.kind === "fork" && network.chainId === report.chainId && network.note ? (
+          <Hint label="Where this chain comes from">{network.note}</Hint>
+        ) : null}
       </span>
-      {network.kind === "fork" && network.chainId === report.chainId ? (
-        <span className={styles.item}>
-          Source
-          <strong>{network.note}</strong>
-        </span>
-      ) : null}
       <span className={styles.item}>
-        Read at
+        <ClockIcon size={15} />
+        Read
         <strong className="chainvalue">{report.readAt.replace("T", " ").slice(0, 19)} UTC</strong>
-      </span>
-      <span className={styles.item}>
-        Endpoint
-        <strong className="chainvalue">{robinhoodMainnet.rpcUrls.default.http[0]}</strong>
+        <Hint label="Which endpoint answered">
+          Read from <span className="chainvalue">{robinhoodMainnet.rpcUrls.default.http[0]}</span>.
+          Ask the same endpoint at the same block and you get the same answers.
+        </Hint>
       </span>
     </div>
   );
@@ -52,21 +55,27 @@ export default async function AllowlistPage() {
   return (
     <div className={styles.page}>
       <div className={styles.hero}>
-        <p className={styles.eyebrow}>Allowlist gate</p>
-        <h1 className={styles.title}>A ticker is not an identity</h1>
-        <p className={styles.lead}>
-          Nokturn never admits a token because of the symbol it reports. It admits a token because
-          the ERC-1967 beacon slot holds the Robinhood Stock Token beacon and the contract answers
-          uiMultiplier. Both checks run against mainnet below, at one block, so you can repeat them
-          yourself.
-        </p>
+        <span className={styles.heroMark} aria-hidden="true">
+          <ShieldIcon size={26} />
+        </span>
+        <div>
+          <p className={styles.eyebrow}>Allowlist gate</p>
+          <h1 className={styles.title}>A ticker is not an identity</h1>
+          <p className={styles.lead}>
+            A token gets in on two things read from the chain, never on the symbol it reports.
+            <Hint label="Which two things">
+              The ERC-1967 beacon slot has to hold the Robinhood Stock Token beacon, and the
+              contract has to answer uiMultiplier. Both are read at one block, so you can repeat
+              them yourself.
+            </Hint>
+          </p>
+        </div>
       </div>
 
       {failure !== null ? (
-        <div className={styles.failure}>
-          <h2>The chain did not answer</h2>
-          <p>Nothing is shown rather than something invented. The endpoint returned: {failure}</p>
-        </div>
+        <OwlState mood="asleep" title="The chain did not answer" detail={failure}>
+          Nothing is shown rather than something invented.
+        </OwlState>
       ) : null}
 
       {report === null ? null : (
