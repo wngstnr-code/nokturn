@@ -1,18 +1,14 @@
 import {Countdown} from "./Countdown";
 import {
-  BandArt,
   BellArt,
   BlockArt,
   ChainArt,
   ClockArt,
-  DayArt,
-  GuardArt,
   HeldArt,
   MoonArt,
   Seal,
   SunArt,
   Tile,
-  WindowArt,
 } from "@/components/art/Art";
 import {ClockIcon} from "@/components/Icons";
 import {AddressChip} from "@/components/ui/AddressChip";
@@ -130,7 +126,6 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
       <div className={styles.grid}>
         <div className={styles.card}>
           <p className={styles.label}>
-            <WindowArt size={20} />
             Batch window
             <Hint label="What the batch window is">
               {batch === 0
@@ -142,7 +137,6 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
         </div>
         <div className={styles.card}>
           <p className={styles.label}>
-            <BandArt size={20} />
             Price band
             <Hint label="What the price band is">
               The furthest an execution may sit from the reference price in this session.
@@ -152,7 +146,6 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
         </div>
         <div className={styles.card}>
           <p className={styles.label}>
-            <GuardArt size={20} />
             Guard band
             <Hint label="What the guard band is">
               The minutes around a session edge, where a batch could straddle two states. Nothing
@@ -163,7 +156,6 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
         </div>
         <div className={styles.card}>
           <p className={styles.label}>
-            <DayArt size={20} />
             New York day
             <Hint label="Why the New York day">
               Daily budgets reset on the New York calendar day, not on UTC midnight.
