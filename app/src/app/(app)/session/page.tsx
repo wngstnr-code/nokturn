@@ -1,21 +1,18 @@
 import {Countdown} from "./Countdown";
 import {explorerAddress} from "@/lib/chain";
 import {readSession, SESSION_NAMES, type SessionReport, type TokenOracle} from "@/lib/session";
-import {baseTokens} from "@/lib/tokens";
+import {active, type Network} from "@/lib/network";
 import {units} from "@/lib/format";
-import {CHAIN_ID_TESTNET} from "@shared/addresses";
 import {Session} from "@shared/types";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
-const CHAIN = CHAIN_ID_TESTNET;
-
 function utc(seconds: bigint | number): string {
   return new Date(Number(seconds) * 1000).toISOString().replace("T", " ").slice(0, 19);
 }
 
-function OracleRow({token}: {token: TokenOracle}) {
+function OracleRow({token, chainId}: {token: TokenOracle; chainId: number}) {
   const priceOf = (value: bigint | null, error: string | null) =>
     value === null ? (
       <span className={`${styles.badge} ${styles.warn} chainvalue`}>{error ?? "unreadable"}</span>
@@ -29,7 +26,7 @@ function OracleRow({token}: {token: TokenOracle}) {
         <div className={styles.symbol}>{token.symbol}</div>
         <a
           className={`${styles.muted} chainvalue`}
-          href={explorerAddress(token.address, CHAIN)}
+          href={explorerAddress(token.address, chainId)}
           target="_blank"
           rel="noreferrer"
         >
@@ -63,7 +60,7 @@ function OracleRow({token}: {token: TokenOracle}) {
   );
 }
 
-function Report({report}: {report: SessionReport}) {
+function Report({report, network}: {report: SessionReport; network: Network}) {
   const batch = report.batchDuration;
 
   return (
@@ -120,17 +117,20 @@ function Report({report}: {report: SessionReport}) {
           </thead>
           <tbody>
             {report.tokens.map((token) => (
-              <OracleRow key={token.address} token={token} />
+              <OracleRow key={token.address} token={token} chainId={report.chainId} />
             ))}
           </tbody>
         </table>
       </div>
 
-      <p className={styles.note}>
-        A reading that says FeedNotSet is the contract answering, not the page failing. Chain{" "}
-        {report.chainId} carries no Chainlink equity feeds, so PriceOracle has none registered for
-        these test tokens and says so. The same screen against a chain with feeds shows prices.
-      </p>
+      {network.kind === "testnet" ? (
+        <p className={styles.note}>
+          A reading that says FeedNotSet is the contract answering, not the page failing. Chain{" "}
+          {report.chainId} carries no Chainlink equity feeds, so PriceOracle has none registered
+          for these test tokens and says so. The same screen against a chain with feeds shows
+          prices.
+        </p>
+      ) : null}
 
       <div className={styles.provenance}>
         <span>
@@ -139,8 +139,16 @@ function Report({report}: {report: SessionReport}) {
         </span>
         <span>
           Chain
-          <strong className="chainvalue">{report.chainId}</strong>
+          <strong className="chainvalue">
+            {network.name} {report.chainId}
+          </strong>
         </span>
+        {network.note === null ? null : (
+          <span>
+            Source
+            <strong>{network.note}</strong>
+          </span>
+        )}
         <span>
           Block time
           <strong className="chainvalue">{utc(report.blockTimestamp)} UTC</strong>
@@ -150,7 +158,7 @@ function Report({report}: {report: SessionReport}) {
           <strong>
             <a
               className="chainvalue"
-              href={explorerAddress(report.sessionManager, CHAIN)}
+              href={explorerAddress(report.sessionManager, report.chainId)}
               target="_blank"
               rel="noreferrer"
             >
@@ -163,7 +171,7 @@ function Report({report}: {report: SessionReport}) {
           <strong>
             <a
               className="chainvalue"
-              href={explorerAddress(report.oracle, CHAIN)}
+              href={explorerAddress(report.oracle, report.chainId)}
               target="_blank"
               rel="noreferrer"
             >
@@ -178,11 +186,13 @@ function Report({report}: {report: SessionReport}) {
 
 export default async function SessionPage() {
   let report: SessionReport | null = null;
+  let network: Network | null = null;
   let failure: string | null = null;
 
   try {
-    const tokens = await baseTokens(CHAIN);
-    report = await readSession(CHAIN, tokens);
+    const now = await active();
+    network = now.network;
+    report = await readSession(now.network.chainId, now.bases, now.contracts);
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error);
   }
@@ -195,7 +205,7 @@ export default async function SessionPage() {
           <p>Nothing is shown rather than something invented. The endpoint returned: {failure}</p>
         </div>
       ) : null}
-      {report === null ? null : <Report report={report} />}
+      {report === null || network === null ? null : <Report report={report} network={network} />}
     </div>
   );
 }
