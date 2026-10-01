@@ -218,6 +218,23 @@ butuh tiga hal yang memakai uang sungguhan dan tidak dijalankan dari sini tanpa
 keputusan tim, yaitu solver yang bond 500 USDG dan punya gas, pengguna yang menandatangani
 intent dengan dana nyata, dan keeper yang membayar gas untuk lelang.
 
+**Di-host di Railway, 1 Oktober 2026.** `https://nokturn-production.up.railway.app`,
+tiga service dari repo yang sama, branch `main`. Root Directory kosong di keduanya
+karena image dibangun dari root repo. RPC resmi dipakai langsung tanpa proxy, karena
+pencegatan DNS hanya terjadi di ISP Indonesia.
+
+| Service | Dockerfile | Variabel |
+|---|---|---|
+| api | `api/Dockerfile`, domain publik port 8080, healthcheck `/v1/health` | `NOKTURN_API_PORT=8080`, `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_API_RPC` (Alchemy lalu RPC resmi, dipisah koma), `NOKTURN_API_PUBLIC_RPC` (RPC resmi), `NOKTURN_API_LOG_BLOCK_RANGE=10` |
+| indexer | `indexer/Dockerfile`, tanpa domain | `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_INDEXER_RPC` (RPC resmi), `NOKTURN_INDEXER_MAX_RANGE=50000`, `NOKTURN_INDEXER_FROM_BLOCK=75694415`, `NOKTURN_INDEXER_CONFIRMATIONS=20` |
+| Postgres | plugin Railway | tabelnya dibuat indexer saat start pertama |
+
+Diperiksa setelah deploy. Keempat komponen health `up`, lag indexer 28 blok, semua route
+baca menjawab 200, dan `wss://.../v1/stream` mengirim `batch.opened` serta
+`batch.collect_closed` dari mainnet. Satu jebakan yang sempat terjadi,
+`NOKTURN_INDEXER_MAX_RANGE=500000` membuat indexer crash berulang, karena RPC resmi
+menolak 500.000 blok dan menerima 50.000.
+
 **Kunci solver di mainnet.** Di chain yang bukan fork, solver dan keeper menolak
 mnemonic repo, karena mnemonic itu publik. Kuncinya dari `NOKTURN_SOLVER_PRIVATE_KEY`,
 dan kunci milik akun di `infra/accounts.json` ditolak. Preflight menyebut alamat
