@@ -32,6 +32,8 @@ export interface BatchFacts {
   venueRoutes: Row[];
   collectionFailures: Row[];
   winning: Row | null;
+  /** baseline_quotes, the answers the indexer read while the state was still there. */
+  quotes: Row[];
 }
 
 const FACT_TABLES = {
@@ -46,7 +48,7 @@ export async function loadFacts(q: Queryable, deployment: string, batchId: bigin
   const args = [deployment.toLowerCase(), String(batchId)];
   const one = async (table: string) => (await q.query(`SELECT * FROM ${table} WHERE deployment = $1 AND batch_id = $2`, args)).rows[0] ?? null;
   const many = async (table: string) => (await q.query(`SELECT * FROM ${table} WHERE deployment = $1 AND batch_id = $2 ORDER BY block_number, log_index`, args)).rows;
-  const [batch, winning, fills, prices, solutions, venueRoutes, collectionFailures] = await Promise.all([
+  const [batch, winning, fills, prices, solutions, venueRoutes, collectionFailures, quotes] = await Promise.all([
     one("batches"),
     one("batch_solutions"),
     many(FACT_TABLES.fills),
@@ -54,9 +56,58 @@ export async function loadFacts(q: Queryable, deployment: string, batchId: bigin
     many(FACT_TABLES.solutions),
     many(FACT_TABLES.venueRoutes),
     many(FACT_TABLES.collectionFailures),
+    q.query("SELECT * FROM baseline_quotes WHERE deployment = $1 AND batch_id = $2", args).then((r) => r.rows),
   ]);
-  return {batch, winning, fills, prices, solutions, venueRoutes, collectionFailures};
+  return {batch, winning, fills, prices, solutions, venueRoutes, collectionFailures, quotes};
 }
+
+export interface BaselineCall {
+  sellToken: Address;
+  buyToken: Address;
+  amount: bigint;
+  block: bigint;
+}
+
+/**
+ * verifyBaseline reads the pool state the verifier read, which is the parent of
+ * the block holding the winning submitSolution. Without a known winner, the
+ * parent of the fill's own block.
+ */
+function quoteBlock(facts: BatchFacts, fill: Row): bigint {
+  const winningSubmit = facts.winning ? facts.solutions.find((s) => same(s.solution_hash, facts.winning!.solution_hash)) : null;
+  return winningSubmit ? big(winningSubmit.block_number) - 1n : big(fill.block_number) - 1n;
+}
+
+function directions(facts: BatchFacts) {
+  const out = new Map<string, {sell: Address; buy: Address; block: bigint; fills: number; executedSell: bigint; baselineBuy: bigint}>();
+  for (const f of facts.fills) {
+    const sell = String(f.sell_token) as Address;
+    const buy = String(f.buy_token) as Address;
+    const key = `${sell}:${buy}`.toLowerCase();
+    const d = out.get(key) ?? {sell, buy, block: quoteBlock(facts, f), fills: 0, executedSell: 0n, baselineBuy: 0n};
+    d.fills += 1;
+    d.executedSell += big(f.executed_sell);
+    d.baselineBuy += big(f.baseline_buy);
+    out.set(key, d);
+  }
+  return [...out.values()];
+}
+
+/** Every quoteFromState a receipt shows, one per fill and one per direction. The indexer reads these at settle. */
+export function baselineCalls(facts: BatchFacts): BaselineCall[] {
+  const calls = new Map<string, BaselineCall>();
+  const add = (c: BaselineCall) => calls.set(quoteKey(c.sellToken, c.buyToken, c.amount, c.block), c);
+  for (const f of facts.fills) add({sellToken: String(f.sell_token) as Address, buyToken: String(f.buy_token) as Address, amount: big(f.executed_sell), block: quoteBlock(facts, f)});
+  for (const d of directions(facts)) add({sellToken: d.sell, buyToken: d.buy, amount: d.executedSell, block: d.block});
+  return [...calls.values()];
+}
+
+const quoteKey = (sell: string, buy: string, amount: bigint, block: bigint, adapter = "") => `${adapter}:${sell}:${buy}:${amount}:${block}`.toLowerCase();
+
+/** A quote, a revert, or a state the node no longer holds and the indexer never stored. */
+type Quoted = bigint | "reverts" | "unavailable";
+
+const shown = (q: Quoted) => (typeof q === "bigint" ? String(q) : q);
 
 export interface TokenMeta {
   symbol: string;
@@ -77,7 +128,11 @@ export interface ReceiptContext {
   sessionName: SessionName;
   batchDurationSeconds: number;
   maxDeviationBps: number;
-  /** quoteFromState through eth_call at a block, or null when it reverts. */
+  /**
+   * quoteFromState through eth_call at a block, or null when it reverts. Asked
+   * only when baseline_quotes holds no answer, and a throw is taken as the node
+   * having dropped that state.
+   */
   quote: (sellToken: Address, buyToken: Address, amount: bigint, blockNumber: bigint) => Promise<bigint | null>;
   log?: (line: string) => void;
 }
@@ -150,7 +205,7 @@ export interface BuiltReceipt {
   receipt: BatchReceipt;
   /**
    * Directions whose summed baseline sits under the venue's quote on their
-   * volume, or whose quote could not be read, at the block the verifier read.
+   * volume, or whose quote reverts, at the block the verifier read.
    * The rule Settlement enforces, so any entry here means the rows or the
    * chain disagree with what was accepted.
    */
@@ -163,10 +218,17 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
   const solution = facts.winning ? ((typeof facts.winning.solution === "string" ? JSON.parse(facts.winning.solution) : facts.winning.solution) as SolutionJson) : null;
   const outcome = b.outcome as BatchReceipt["outcome"];
 
-  // verifyBaseline reads the pool state the verifier read, which is the parent
-  // of the block holding the winning submitSolution.
-  const winningSubmit = facts.winning ? facts.solutions.find((s) => same(s.solution_hash, facts.winning!.solution_hash)) : null;
-  const verifyBlock = winningSubmit ? big(winningSubmit.block_number) - 1n : null;
+  const stored = new Map(facts.quotes.map((r) => [quoteKey(String(r.sell_token), String(r.buy_token), big(r.amount), big(r.quote_block), String(r.adapter)), r.amount_out === null ? null : big(r.amount_out)]));
+  const quote = async (sell: Address, buy: Address, amount: bigint, block: bigint): Promise<Quoted> => {
+    const key = quoteKey(sell, buy, amount, block, ctx.baselineAdapter);
+    if (stored.has(key)) return stored.get(key) ?? "reverts";
+    try {
+      return (await ctx.quote(sell, buy, amount, block)) ?? "reverts";
+    } catch (error) {
+      ctx.log?.(`quoteFromState ${sell} to ${buy} on ${amount} at ${block} unavailable, ${(error as Error).message.split("\n")[0]}`);
+      return "unavailable";
+    }
+  };
 
   const quoteAbi = loadAbi("UniswapV3Adapter");
   const attributed = attribute(
@@ -188,8 +250,8 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
 
     const sellToken = String(f.sell_token) as Address;
     const buyToken = String(f.buy_token) as Address;
-    const block = verifyBlock ?? big(f.block_number) - 1n;
-    const expected = await ctx.quote(sellToken, buyToken, executedSell, block);
+    const block = quoteBlock(facts, f);
+    const expected = await quote(sellToken, buyToken, executedSell, block);
     const sellMeta = ctx.tokens.get(sellToken.toLowerCase());
     fills.push({
       intentHash: String(f.intent_hash) as Hex,
@@ -209,7 +271,7 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
         data: encodeFunctionData({abi: quoteAbi, functionName: "quoteFromState", args: [sellToken, buyToken, executedSell]}),
         blockNumber: String(block),
         castCommand: `cast call ${ctx.baselineAdapter} "quoteFromState(address,address,uint256)(uint256)" ${sellToken} ${buyToken} ${executedSell} --block ${block} --rpc-url ${ctx.rpcUrl}`,
-        expected: expected === null ? "reverts" : String(expected),
+        expected: shown(expected),
         describes: `UniswapV3Adapter.quoteFromState, ${sellMeta?.symbol ?? sellToken} to ${ctx.tokens.get(buyToken.toLowerCase())?.symbol ?? buyToken} at the block the verifier read`,
       },
       provenance: provenanceOf(f, ctx.source),
@@ -217,23 +279,13 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
   }
 
   const baselineFloors: BaselineFloor[] = [];
-  const byDirection = new Map<string, {sell: Address; buy: Address; block: bigint; fills: number; executedSell: bigint; baselineBuy: bigint}>();
-  for (const f of facts.fills) {
-    const sell = String(f.sell_token) as Address;
-    const buy = String(f.buy_token) as Address;
-    const key = `${sell}:${buy}`.toLowerCase();
-    const d = byDirection.get(key) ?? {sell, buy, block: verifyBlock ?? big(f.block_number) - 1n, fills: 0, executedSell: 0n, baselineBuy: 0n};
-    d.fills += 1;
-    d.executedSell += big(f.executed_sell);
-    d.baselineBuy += big(f.baseline_buy);
-    byDirection.set(key, d);
-  }
-  for (const d of byDirection.values()) {
-    const floor = await ctx.quote(d.sell, d.buy, d.executedSell, d.block);
-    const holds = floor === null ? null : d.baselineBuy >= floor;
-    if (holds !== true) {
-      mismatches.push({sellToken: d.sell, buyToken: d.buy, baselineBuy: String(d.baselineBuy), floor: floor === null ? null : String(floor)});
-      ctx.log?.(`baseline floor in batch ${batchId}, ${d.sell} to ${d.buy}: sum ${d.baselineBuy}, quoteFromState on ${d.executedSell} at ${d.block} ${floor ?? "reverts"}`);
+  for (const d of directions(facts)) {
+    const floor = await quote(d.sell, d.buy, d.executedSell, d.block);
+    const holds = typeof floor === "bigint" ? d.baselineBuy >= floor : null;
+    // A state the node dropped says nothing about the batch, so it is no mismatch.
+    if (holds === false || floor === "reverts") {
+      mismatches.push({sellToken: d.sell, buyToken: d.buy, baselineBuy: String(d.baselineBuy), floor: typeof floor === "bigint" ? String(floor) : null});
+      ctx.log?.(`baseline floor in batch ${batchId}, ${d.sell} to ${d.buy}: sum ${d.baselineBuy}, quoteFromState on ${d.executedSell} at ${d.block} ${shown(floor)}`);
     }
     baselineFloors.push({
       sellToken: tokenRef(d.sell, ctx),
@@ -246,7 +298,7 @@ export async function buildReceipt(batchId: bigint, facts: BatchFacts, ctx: Rece
         data: encodeFunctionData({abi: quoteAbi, functionName: "quoteFromState", args: [d.sell, d.buy, d.executedSell]}),
         blockNumber: String(d.block),
         castCommand: `cast call ${ctx.baselineAdapter} "quoteFromState(address,address,uint256)(uint256)" ${d.sell} ${d.buy} ${d.executedSell} --block ${d.block} --rpc-url ${ctx.rpcUrl}`,
-        expected: floor === null ? "reverts" : String(floor),
+        expected: shown(floor),
         describes: `UniswapV3Adapter.quoteFromState on the direction's whole volume, ${ctx.tokens.get(d.sell.toLowerCase())?.symbol ?? d.sell} to ${ctx.tokens.get(d.buy.toLowerCase())?.symbol ?? d.buy}, at the block the verifier read`,
       },
       holds,
