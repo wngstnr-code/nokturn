@@ -16,6 +16,7 @@ import {fileURLToPath} from "node:url";
 import {createPublicClient, http, type Address, type PublicClient} from "viem";
 import {unknownMethod} from "../../packages/shared/rpc.ts";
 import {INDEXED, REPO_ROOT, loadAbi, type ContractKey} from "./abi.ts";
+import {recordBaselines} from "./baseline.ts";
 import {closeDb, db, migrate} from "./db.ts";
 import {Ingest, RangeRefused, type Deployment} from "./ingest.ts";
 import {reconcile, report, viemReader} from "./reconcile.ts";
@@ -200,6 +201,11 @@ export async function run(opts: RunOptions = {}): Promise<{lastBlock: bigint; st
       lastBlock = r.to;
       backoff = BACKOFF_START_MS;
       if (r.logs || r.undecoded || r.rewoundTo !== null) log(`blocks ${r.from} to ${r.to}, ${r.logs} logs${r.undecoded ? `, ${r.undecoded} undecoded` : ""}${r.rewoundTo !== null ? `, rewound to ${r.rewoundTo}` : ""}`);
+      // After the commit, so the batch rows are there to read. Its own failure
+      // never fails the step, because the receipt can still ask the chain.
+      if (!opts.store && r.logs) {
+        await recordBaselines(db(), c, d.chainId, d.settlement, r.from, r.to, log).catch((error) => log(`baselines for ${r.from} to ${r.to} not stored. ${(error as Error).message.split("\n")[0]}`));
+      }
       if (await done()) break;
       // Compared with the confirmed head, not the raw one. Against the raw head a
       // nonzero depth would never look caught up, and this would spin.

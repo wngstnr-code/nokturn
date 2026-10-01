@@ -184,7 +184,7 @@ export function batchRoutes(app: FastifyInstance) {
     try {
       const built = await receiptFor(batchId);
       if (built) {
-        if (built.baselineMismatches.length) request.log.warn({batchId: String(batchId), mismatches: built.baselineMismatches}, "a direction's baseline sits under the venue floor, or its quote could not be read");
+        if (built.baselineMismatches.length) request.log.warn({batchId: String(batchId), mismatches: built.baselineMismatches}, "a direction's baseline sits under the venue floor, or its quote reverts");
         return built.receipt;
       }
     } catch (error) {

@@ -150,7 +150,7 @@ export class MemoryStore implements IndexStore {
 
   async rewind(c: Checkpoint): Promise<void> {
     const above = (r: Row) => r.deployment === c.settlement && BigInt(String(r.block_number)) > c.lastBlock;
-    for (const table of ["logs", "undecoded_logs", "batch_solutions"]) this.tables.set(table, this.rows(table).filter((r) => !above(r)));
+    for (const table of ["logs", "undecoded_logs", "batch_solutions", "baseline_quotes"]) this.tables.set(table, this.rows(table).filter((r) => !above(r)));
     for (const table of DOMAIN_TABLES) this.tables.set(table, this.rows(table).filter((r) => r.deployment !== c.settlement));
     const remaining = this.rows("logs")
       .filter((r) => r.deployment === c.settlement)
@@ -247,6 +247,7 @@ export class PgStore implements IndexStore {
       await client.query("DELETE FROM logs WHERE deployment = $1 AND block_number > $2", above);
       await client.query("DELETE FROM undecoded_logs WHERE deployment = $1 AND block_number > $2", above);
       await client.query("DELETE FROM batch_solutions WHERE deployment = $1 AND block_number > $2", above);
+      await client.query("DELETE FROM baseline_quotes WHERE deployment = $1 AND block_number > $2", above);
       await client.query("DELETE FROM chain_blocks WHERE chain_id = $1 AND deployment = $2 AND number > $3", [c.chainId, ...above]);
       for (const table of DOMAIN_TABLES) await client.query(`DELETE FROM ${ident(table)} WHERE deployment = $1`, [c.settlement]);
       const remaining = await client.query("SELECT * FROM logs WHERE deployment = $1 ORDER BY block_number, log_index", [c.settlement]);

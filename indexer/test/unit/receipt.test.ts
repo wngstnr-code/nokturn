@@ -45,6 +45,7 @@ function nettedFacts(): BatchFacts {
     solutions: [{solver: "0xsolver", solution_hash: "0xhash", claimed_savings: "9", accepted: true, rejection_reason: null, ...prov(12, 0)}],
     venueRoutes: [{adapter: ADAPTER, token_in: USDG, token_out: NVDA, amount_in: "150", amount_out: "78", ...prov(20, 2)}],
     collectionFailures: [],
+    quotes: [],
     winning: {
       solution_hash: "0xhash",
       solution: {
@@ -110,6 +111,35 @@ describe("receipt", () => {
       [[2, "400", "198", "198", true]],
     );
     assert.deepEqual(built.receipt.fills.map((x) => x.verifyBaseline.expected), ["50", "150"]);
+  });
+
+  test("a stored answer is used without asking the chain, and a dropped state reads unavailable", async () => {
+    const f = nettedFacts();
+    const row = (sell: string, buy: string, amount: string, out: string | null, adapter = ADAPTER) => ({deployment: "0xs", batch_id: "1789893780", adapter, sell_token: sell, buy_token: buy, amount, quote_block: "11", amount_out: out, chain_id: 4663, block_number: "20"});
+    // The NVDA direction's answer was stored under an adapter since replaced, so it is not trusted.
+    f.quotes = [row(USDG, NVDA, "400", "200"), row(NVDA, USDG, "100", "251", "0x0000000000000000000000000000000000000001")];
+    const asked: string[] = [];
+    const c = {
+      ...ctx(),
+      quote: async (sell: Address, _buy: Address, amount: bigint) => {
+        asked.push(`${sell}:${amount}`);
+        throw new Error("Invalid parameters were provided to the RPC method.");
+      },
+    };
+    const built = (await buildReceipt(1_789_893_780n, f, c))!;
+    assert.deepEqual(asked, [`${NVDA}:100`, `${NVDA}:100`]);
+    assert.deepEqual(built.receipt.fills.map((x) => x.verifyBaseline.expected), ["200", "unavailable"]);
+    assert.deepEqual(built.receipt.baselineFloors.map((d) => [d.verifyFloor.expected, d.holds]), [["200", true], ["unavailable", null]]);
+    assert.deepEqual(built.baselineMismatches, []);
+  });
+
+  test("a stored revert stays a revert", async () => {
+    const f = nettedFacts();
+    f.fills = [f.fills[0]!];
+    f.quotes = [{deployment: "0xs", batch_id: "1789893780", adapter: ADAPTER, sell_token: USDG, buy_token: NVDA, amount: "400", quote_block: "11", amount_out: null, chain_id: 4663, block_number: "20"}];
+    const built = (await buildReceipt(1_789_893_780n, f, ctx({[`${USDG}:400`]: 200n})))!;
+    assert.equal(built.receipt.baselineFloors[0]!.verifyFloor.expected, "reverts");
+    assert.equal(built.baselineMismatches.length, 1);
   });
 
   test("a passthrough names the owner that could not be collected, and carries no invented figures", async () => {

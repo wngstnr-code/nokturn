@@ -72,8 +72,13 @@ export interface VerifiableCall {
   blockNumber: Uint;
   /** Ready to paste, including the rpc url and the block. */
   castCommand: string;
-  /** What the call returns when it is run, so a mismatch is visible. */
-  expected: Uint;
+  /**
+   * What the call returns when it is run, so a mismatch is visible. "reverts"
+   * when the call reverts at that block. "unavailable" when the state is gone
+   * from every node the coordinator can reach and the indexer did not read it
+   * in time. The call is still correct, it needs an archive node to run.
+   */
+  expected: Uint | "reverts" | "unavailable";
   /** Human readable, for example "UniswapV3Adapter.quoteFromState". */
   describes: string;
 }
@@ -654,7 +659,7 @@ export interface BaselineFloor {
   baselineBuy: Uint;
   /** quoteFromState on executedSell at the block the verifier read. baselineBuy must be at or above it. */
   verifyFloor: VerifiableCall;
-  /** baselineBuy >= verifyFloor.expected. Null when the quote could not be read. */
+  /** baselineBuy >= verifyFloor.expected. Null when expected is "reverts" or "unavailable". */
   holds: boolean | null;
 }
 
