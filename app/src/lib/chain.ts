@@ -5,8 +5,20 @@ import {CHAIN_ID_MAINNET, CHAIN_ID_TESTNET} from "@shared/addresses";
 /// Verified present on 46630 at the address it carries on every other chain.
 const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const;
 
-const rpcMainnet = process.env.NOKTURN_RPC_MAINNET ?? "https://robinhood.drpc.org";
-const rpcTestnet = process.env.NOKTURN_RPC_TESTNET ?? "https://robinhood-testnet.drpc.org";
+/*
+ * The public names come first because the browser reads balances through the same
+ * endpoint the server reads state through. Against a fork that endpoint is a local
+ * anvil, and a browser left on the public one would show mainnet balances beside
+ * fork prices.
+ */
+const rpcMainnet =
+  process.env.NEXT_PUBLIC_RPC_MAINNET ??
+  process.env.NOKTURN_RPC_MAINNET ??
+  "https://robinhood.drpc.org";
+const rpcTestnet =
+  process.env.NEXT_PUBLIC_RPC_TESTNET ??
+  process.env.NOKTURN_RPC_TESTNET ??
+  "https://robinhood-testnet.drpc.org";
 
 export const robinhoodMainnet = defineChain({
   id: CHAIN_ID_MAINNET,
