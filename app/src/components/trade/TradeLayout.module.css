@@ -19,13 +19,15 @@
 /*
  * Side by side, the list is exactly as tall as the trade card and scrolls inside
  * itself. It is taken out of the flow so that twenty intents cannot make the row
- * taller than the card beside it.
+ * taller than the card beside it. The room left under both is on purpose. It is
+ * where the owl sits, and a full row would otherwise cover it.
  */
 @media (min-width: 1140px) {
   .split {
     grid-template-columns: var(--n-widget-width) var(--n-intents-width);
     grid-template-areas: "primary secondary";
     align-items: stretch;
+    padding-bottom: 170px;
   }
 
   .split .secondary {
