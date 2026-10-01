@@ -465,6 +465,18 @@ head ditolak dengan peringatan.
 Ia bisa dieksekusi mulai 1 Oktober 2026 pukul 13.45.39 UTC. Sebelum itu oracle tidak
 punya harga dan tidak ada batch yang bisa selesai.
 
+Dieksekusi 1 Oktober 2026 di blok 77.423.153, transaksi
+`0xfb8efc533e48e24768ea1f9762579a7360f2e006748d77768aa2475a58453d21`, 507.726 gas,
+lewat `https://robinhood.drpc.org`. Simulasi tanpa `--broadcast` dijalankan lebih dulu
+dan memilih `executeBatch`, bukan `scheduleBatch`. Itu penting, karena skrip menghitung
+ulang batch dari `Addresses.sol`, dan batch yang berbeda sedikit saja akan dijadwalkan
+ulang dengan tunggu 48 jam lagi. `Addresses.sol` terakhir berubah 21 September, jadi
+batch-nya identik dengan yang dijadwalkan.
+
+Dibaca lewat `refPrice` tepat setelahnya, keenam aset menjawab `healthy`, yaitu NVDA,
+AAPL, TSLA, GOOGL, GME, dan USDG. Layar sesi di `app.nokturn.xyz` berhenti menampilkan
+`FeedNotSet` tanpa deploy ulang.
+
 ## Gladi resik testnet 46630, keenam, 29 September 2026
 
 Digelar ulang karena `Settlement` berubah. `setExposureCaps` sekarang menolak nilai di
