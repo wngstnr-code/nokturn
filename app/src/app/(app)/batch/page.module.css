@@ -158,6 +158,10 @@ a.row:hover {
   .row {
     grid-template-columns: 1fr 1fr;
   }
+
+  .window {
+    text-align: left;
+  }
 }
 
 /* Named by IntentCollectionFailed. Settlement says who, never why. */
