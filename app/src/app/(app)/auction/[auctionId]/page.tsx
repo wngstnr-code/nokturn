@@ -1,3 +1,6 @@
+import Link from "next/link";
+import {Admission} from "@/components/auction/Admission";
+import {AuctionLive} from "@/components/auction/AuctionLive";
 import {ProvenanceStrip} from "@/components/Provenance";
 import {auction, coordinatorUrl} from "@/lib/coordinator/client";
 import type {ApiError, AuctionResponse} from "@/lib/coordinator/types";
@@ -6,10 +9,6 @@ import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
-/*
- * Kept out of the navigation until the open decision in docs/demo.md section 3b
- * priority 3 is made. Its participants are demo wallets we wrote intents for.
- */
 
 const PHASE_COPY: Record<AuctionResponse["phase"], string> = {
   accumulating: "Taking commitments. Nothing is disclosed yet",
@@ -55,6 +54,9 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
   if (!result.ok) {
     return (
       <div className={styles.page}>
+        <Link href="/auction" className={styles.back}>
+          All auctions
+        </Link>
         <Unavailable auctionId={auctionId} error={result.error} />
       </div>
     );
@@ -63,8 +65,16 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
   const book = result.value;
   const imbalance = book.imbalance === null ? null : BigInt(book.imbalance);
 
+  const settled = book.phase === "crossed" || book.phase === "aborted";
+
   return (
     <div className={styles.page}>
+      <Link href="/auction" className={styles.back}>
+        All auctions
+      </Link>
+
+      <Admission kind={book.provenance.source.kind} />
+
       <header className={styles.head}>
         <div>
           <p className={styles.eyebrow}>
@@ -139,6 +149,8 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
           </div>
         </section>
       )}
+
+      <AuctionLive settled={settled} />
 
       <p className={styles.sectionLabel}>Provenance</p>
       <ProvenanceStrip at={book.provenance} />

@@ -1,0 +1,20 @@
+.admission {
+  width: 100%;
+  padding: 16px var(--n-padding-normal);
+  border-radius: var(--n-radius-normal);
+  background: var(--n-alert-bg);
+  color: var(--n-alert-text);
+}
+
+.lead {
+  margin: 0;
+  font-size: var(--n-font-medium);
+  font-weight: var(--n-weight-semibold);
+}
+
+.body {
+  max-width: 86ch;
+  margin: 6px 0 0;
+  font-size: var(--n-font-normal);
+  line-height: var(--n-line-medium);
+}
