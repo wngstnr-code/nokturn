@@ -2,9 +2,19 @@
 
 import Link from "next/link";
 import {useEffect, useMemo, useState} from "react";
-import {erc20Abi, formatUnits, parseUnits, type Address} from "viem";
-import {useAccount, useReadContract, useSignTypedData} from "wagmi";
+import {erc20Abi, formatUnits, maxUint256, parseUnits, type Address} from "viem";
+import {
+  useAccount,
+  usePublicClient,
+  useReadContract,
+  useSignTypedData,
+  useWalletClient,
+  useWriteContract,
+} from "wagmi";
+import {Seal} from "@/components/art/Art";
 import {ChevronIcon} from "@/components/Icons";
+import {AddressChip} from "@/components/ui/AddressChip";
+import {walletSeesSameChain} from "@/lib/wallet-guard";
 import {Button} from "@/components/ui/Button";
 import {TokenSelect} from "./TokenSelect";
 import {useIntents} from "./IntentsProvider";
@@ -56,8 +66,19 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   const [amount, setAmount] = useState("");
   const [tolerance, setTolerance] = useState(50);
   const [partialFill, setPartialFill] = useState(true);
-  const [signature, setSignature] = useState<`0x${string}` | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /*
+   * What came back from the last intent this card sent. It replaces the form's
+   * amount, so the card reads as finished and a second press does not send the
+   * same intent again.
+   */
+  const [sent, setSent] = useState<{
+    sold: string;
+    batchId: string;
+    closesIn: number;
+    signature: `0x${string}`;
+  } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [baseline, setBaseline] = useState<BaselineQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -77,6 +98,25 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
     chainId: context.chainId as 4663 | 46630,
     query: {enabled: Boolean(address && sellToken)},
   });
+
+  /*
+   * Settlement pulls the sell leg through Permit2, and Permit2 can only move a
+   * token its owner has approved to it. That approval is a transaction, the one
+   * thing here that is not just a signature, and it is needed once per token.
+   * Without it an intent is accepted and then cannot be collected.
+   */
+  const {data: allowance, refetch: recheckAllowance} = useReadContract({
+    address: sellToken?.address,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: address ? [address, context.permit2] : undefined,
+    chainId: context.chainId as 4663 | 46630,
+    query: {enabled: Boolean(address && sellToken)},
+  });
+  const client = usePublicClient({chainId: context.chainId as 4663 | 46630});
+  const {data: wallet} = useWalletClient();
+  const {writeContractAsync} = useWriteContract();
+  const [approving, setApproving] = useState(false);
 
   const sellAmount = useMemo(() => {
     if (sellToken === undefined || amount.trim() === "") return null;
@@ -139,13 +179,53 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
 
   const wrongChain = isConnected && chainId !== context.chainId;
   const openAuction = sellToken === undefined ? undefined : context.auctions[sellToken.address];
+  const short = sellAmount !== null && balance !== undefined && balance < sellAmount;
+  const unapproved = sellAmount !== null && !short && allowance !== undefined && allowance < sellAmount;
   const canSign =
-    isConnected && !wrongChain && context.signingOk && sellAmount !== null && sellToken !== undefined;
+    isConnected &&
+    !wrongChain &&
+    context.signingOk &&
+    sellAmount !== null &&
+    sellToken !== undefined &&
+    !short &&
+    !unapproved;
+
+  async function approve() {
+    if (sellToken === undefined || client === undefined || wallet === undefined) return;
+    setNote(null);
+    setApproving(true);
+    try {
+      // An approval is a transaction, and the wallet sends it wherever its own
+      // endpoint points. Checked first, so a fork never spends on the real chain.
+      const guard = await walletSeesSameChain(
+        wallet as never,
+        await client.getBlockNumber({cacheTime: 0}),
+      );
+      if (!guard.ok) {
+        setNote(guard.reason);
+        setApproving(false);
+        return;
+      }
+
+      const hash = await writeContractAsync({
+        address: sellToken.address,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [context.permit2, maxUint256],
+        chainId: context.chainId as 4663 | 46630,
+      });
+      await client.waitForTransactionReceipt({hash});
+      await recheckAllowance();
+    } catch (error) {
+      setNote(error instanceof Error ? (error.message.split("\n")[0] ?? "Approval failed") : "Approval failed");
+    }
+    setApproving(false);
+  }
 
   async function sign() {
     if (!canSign || address === undefined || sellToken === undefined || sellAmount === null) return;
     setNote(null);
-    setSignature(null);
+    setSent(null);
 
     // Both are facts the chain owns. Guessing either is refused later.
     const [batch, nonce] = await Promise.all([currentBatch(), nextNonce(address)]);
@@ -186,9 +266,11 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
         primaryType: "PermitWitnessTransferFrom",
         message: permitWitnessMessage(intent, context.settlement),
       });
-      setSignature(signed);
-
+      // The wallet has let go but the coordinator has not answered yet. Without
+      // a word for this the button reads as idle and gets pressed again.
+      setSubmitting(true);
       const result = await submitIntent({intent: serializeIntent(intent), signature: signed});
+      setSubmitting(false);
       if (result.ok) {
         remember({
           hash: result.value.intentHash,
@@ -196,7 +278,13 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
           sold: `${formatUnits(sellAmount, sellToken.decimals)} ${sellToken.symbol}`,
           buySymbol: quote.symbol,
         });
-        setNote(`Accepted into batch ${result.value.batchId}. Collection closes at ${result.value.collectEndsAt}`);
+        setSent({
+          sold: `${formatUnits(sellAmount, sellToken.decimals)} ${sellToken.symbol}`,
+          batchId: result.value.batchId,
+          closesIn: Math.max(0, result.value.collectEndsAt - batch.value.chainTime),
+          signature: signed,
+        });
+        setAmount("");
       } else {
         setNote(`${result.error.code}. ${result.error.message}`);
       }
@@ -224,9 +312,17 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
         ? "Signing is disabled"
         : sellAmount === null
           ? "Enter an amount"
-          : isPending
-            ? "Waiting for your wallet"
-            : "Sign intent";
+          : short
+            ? `Not enough ${sellToken?.symbol ?? "balance"}`
+            : approving
+              ? "Waiting for the approval to land"
+              : unapproved
+                ? `Approve ${sellToken?.symbol ?? "token"} for Permit2`
+                : isPending
+                  ? "Waiting for your wallet"
+                  : submitting
+                    ? "Sending to the coordinator"
+                    : "Sign intent";
 
   return (
     <div className={styles.container}>
@@ -265,7 +361,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
                 placeholder="0"
                 value={amount}
                 onChange={(event) => {
-                  setSignature(null);
+                  setSent(null);
                   setNote(null);
                   setAmount(event.target.value.replace(/[^0-9.]/g, ""));
                 }}
@@ -381,10 +477,24 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
             </div>
           </details>
 
-          {signature === null ? null : (
+          {sent === null ? null : (
             <div className={styles.signed}>
-              Intent signed. Nothing moved and no transaction was sent.
-              <span className={`${styles.signedValue} chainvalue`}>{signature}</span>
+              <p className={styles.signedHead}>
+                <Seal state="pass" size={18} />
+                Intent sent for {sent.sold}
+              </p>
+              <p className={styles.signedBody}>
+                It is in batch{" "}
+                <Link className="chainvalue" href={`/batch/${sent.batchId}`}>
+                  #{sent.batchId}
+                </Link>
+                , which closes about {sent.closesIn} seconds after you signed. Nothing has left
+                your wallet, and nothing does until that batch clears.
+              </p>
+              <span className={styles.signedProof}>
+                Your signature
+                <AddressChip value={sent.signature} label="your signature" />
+              </span>
             </div>
           )}
 
@@ -400,9 +510,15 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
             <div className={`${styles.notice} ${styles.noticeInfo}`}>{context.coordinatorDetail}</div>
           )}
 
-            <Button disabled={!canSign || isPending} onClick={sign}>
-              {action}
-            </Button>
+            {unapproved && isConnected && !wrongChain ? (
+              <Button disabled={approving} onClick={approve}>
+                {action}
+              </Button>
+            ) : (
+              <Button disabled={!canSign || isPending || submitting} onClick={sign}>
+                {action}
+              </Button>
+            )}
           </>
         )}
       </div>

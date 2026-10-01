@@ -17,9 +17,13 @@
   letter-spacing: 0.02em;
 }
 
+.mark {
+  overflow: hidden;
+}
+
 .file {
   display: block;
-  flex-shrink: 0;
-  border-radius: 999px;
-  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }

@@ -1,10 +1,13 @@
 Token marks that are not drawn in src/components/TokenMark.tsx.
 
-One SVG per token, named after the symbol exactly as the chain reports it.
-Square artwork, the mark centred, with its own background if it needs one.
-The app clips it to a circle.
+One file per token, named after the symbol exactly as the chain reports it.
+PNG or SVG, square artwork, the mark centred. The app clips it to a circle.
 
-  GME.svg
-  USDG.svg
+  GME.png
+  USDG.png
 
-A new symbol also has to be added to FROM_FILE in TokenMark.tsx.
+Each file is listed in FROM_FILE in TokenMark.tsx, where a background can be
+given for artwork that is transparent and dark.
+
+The marks are trademarks of their owners and are used only to say which asset
+a token follows.

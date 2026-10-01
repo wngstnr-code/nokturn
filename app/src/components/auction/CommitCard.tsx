@@ -11,11 +11,19 @@ import {
   parseUnits,
   type Address,
 } from "viem";
-import {useAccount, usePublicClient, useReadContracts, useSignTypedData, useWriteContract} from "wagmi";
+import {
+  useAccount,
+  usePublicClient,
+  useReadContracts,
+  useSignTypedData,
+  useWalletClient,
+  useWriteContract,
+} from "wagmi";
 import {auctionHouseAbi} from "@/lib/abi";
 import {nextNonce} from "@/lib/coordinator/client";
 import {buildAuctionIntent} from "@/lib/intent";
 import {permit2Domain, permitWitnessMessage, PERMIT2_WITNESS_TYPES} from "@/lib/permit2";
+import {walletSeesSameChain} from "@/lib/wallet-guard";
 import styles from "./CommitCard.module.css";
 
 type Token = {symbol: string; address: Address; decimals: number};
@@ -56,7 +64,23 @@ export function CommitCard({chainId, auctionHouse, permit2, token, quote, cross,
   const {address, isConnected, chainId: walletChain} = useAccount();
   const client = usePublicClient({chainId: chain});
   const {signTypedDataAsync} = useSignTypedData();
+  const {data: wallet} = useWalletClient();
   const {writeContractAsync} = useWriteContract();
+
+  /*
+   * Asked before every transaction this card sends. The wallet sends through its
+   * own endpoint, and on a fork that endpoint has to be the fork, or the approval
+   * and the commitment land on the real chain.
+   */
+  async function sameChain(): Promise<boolean> {
+    if (client === undefined || wallet === undefined) {
+      setNote("Your wallet is not ready. Reconnect it and try again");
+      return false;
+    }
+    const guard = await walletSeesSameChain(wallet as never, await client.getBlockNumber({cacheTime: 0}));
+    if (!guard.ok) setNote(guard.reason);
+    return guard.ok;
+  }
 
   const [side, setSide] = useState<Side>("sell");
   const [amount, setAmount] = useState("");
@@ -108,6 +132,7 @@ export function CommitCard({chainId, auctionHouse, permit2, token, quote, cross,
   async function approve() {
     if (address === undefined) return;
     setNote(null);
+    if (!(await sameChain())) return;
     setBusy("Approve in your wallet");
     try {
       const hash = await writeContractAsync({
@@ -132,6 +157,7 @@ export function CommitCard({chainId, auctionHouse, permit2, token, quote, cross,
     }
     setNote(null);
     setSent(null);
+    if (!(await sameChain())) return;
 
     // Permit2 takes any nonce not yet spent. The coordinator knows which those are,
     // and the clock is a fair stand in when there is no coordinator to ask.
