@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import {useEffect, useMemo, useState} from "react";
-import {erc20Abi, formatUnits, parseUnits, type Address} from "viem";
-import {useAccount, useReadContract, useSignTypedData} from "wagmi";
+import {erc20Abi, formatUnits, maxUint256, parseUnits, type Address} from "viem";
+import {useAccount, usePublicClient, useReadContract, useSignTypedData, useWriteContract} from "wagmi";
 import {ChevronIcon} from "@/components/Icons";
 import {Button} from "@/components/ui/Button";
 import {TokenSelect} from "./TokenSelect";
@@ -78,6 +78,24 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
     query: {enabled: Boolean(address && sellToken)},
   });
 
+  /*
+   * Settlement pulls the sell leg through Permit2, and Permit2 can only move a
+   * token its owner has approved to it. That approval is a transaction, the one
+   * thing here that is not just a signature, and it is needed once per token.
+   * Without it an intent is accepted and then cannot be collected.
+   */
+  const {data: allowance, refetch: recheckAllowance} = useReadContract({
+    address: sellToken?.address,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: address ? [address, context.permit2] : undefined,
+    chainId: context.chainId as 4663 | 46630,
+    query: {enabled: Boolean(address && sellToken)},
+  });
+  const client = usePublicClient({chainId: context.chainId as 4663 | 46630});
+  const {writeContractAsync} = useWriteContract();
+  const [approving, setApproving] = useState(false);
+
   const sellAmount = useMemo(() => {
     if (sellToken === undefined || amount.trim() === "") return null;
     try {
@@ -139,8 +157,36 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
 
   const wrongChain = isConnected && chainId !== context.chainId;
   const openAuction = sellToken === undefined ? undefined : context.auctions[sellToken.address];
+  const short = sellAmount !== null && balance !== undefined && balance < sellAmount;
+  const unapproved = sellAmount !== null && !short && allowance !== undefined && allowance < sellAmount;
   const canSign =
-    isConnected && !wrongChain && context.signingOk && sellAmount !== null && sellToken !== undefined;
+    isConnected &&
+    !wrongChain &&
+    context.signingOk &&
+    sellAmount !== null &&
+    sellToken !== undefined &&
+    !short &&
+    !unapproved;
+
+  async function approve() {
+    if (sellToken === undefined) return;
+    setNote(null);
+    setApproving(true);
+    try {
+      const hash = await writeContractAsync({
+        address: sellToken.address,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [context.permit2, maxUint256],
+        chainId: context.chainId as 4663 | 46630,
+      });
+      await client?.waitForTransactionReceipt({hash});
+      await recheckAllowance();
+    } catch (error) {
+      setNote(error instanceof Error ? (error.message.split("\n")[0] ?? "Approval failed") : "Approval failed");
+    }
+    setApproving(false);
+  }
 
   async function sign() {
     if (!canSign || address === undefined || sellToken === undefined || sellAmount === null) return;
@@ -224,9 +270,15 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
         ? "Signing is disabled"
         : sellAmount === null
           ? "Enter an amount"
-          : isPending
-            ? "Waiting for your wallet"
-            : "Sign intent";
+          : short
+            ? `Not enough ${sellToken?.symbol ?? "balance"}`
+            : approving
+              ? "Waiting for the approval to land"
+              : unapproved
+                ? `Approve ${sellToken?.symbol ?? "token"} for Permit2`
+                : isPending
+                  ? "Waiting for your wallet"
+                  : "Sign intent";
 
   return (
     <div className={styles.container}>
@@ -400,9 +452,15 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
             <div className={`${styles.notice} ${styles.noticeInfo}`}>{context.coordinatorDetail}</div>
           )}
 
-            <Button disabled={!canSign || isPending} onClick={sign}>
-              {action}
-            </Button>
+            {unapproved && isConnected && !wrongChain ? (
+              <Button disabled={approving} onClick={approve}>
+                {action}
+              </Button>
+            ) : (
+              <Button disabled={!canSign || isPending} onClick={sign}>
+                {action}
+              </Button>
+            )}
           </>
         )}
       </div>
