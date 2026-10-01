@@ -18,7 +18,6 @@ import type {TokenInfo} from "@/lib/tokens";
 import {IntentKind} from "@shared/types";
 import styles from "./TradeWidget.module.css";
 
-type Mode = "spot" | "auction";
 
 export type TradeContext = {
   chainId: number;
@@ -52,7 +51,6 @@ function band(bps: number | null): string {
 }
 
 export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
-  const [mode, setMode] = useState<Mode>("spot");
   const [sellToken, setSellToken] = useState<TokenInfo | undefined>(bases[0]);
   const [amount, setAmount] = useState("");
   const [tolerance, setTolerance] = useState(50);
@@ -171,7 +169,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
       minBuyAmount: 0n,
       toleranceBps: tolerance,
       partialFill,
-      kind: mode === "spot" ? IntentKind.SPOT : IntentKind.ROO,
+      kind: IntentKind.SPOT,
       nonce: BigInt(nonce.value.next),
       chainTime: batch.value.chainTime,
       collectEndsAt: batch.value.collectEndsAt,
@@ -240,20 +238,15 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
           <>
             <div className={styles.head}>
               <div className={styles.tabs}>
-                <button
-                  type="button"
-                  className={`${styles.tab} ${mode === "spot" ? styles.tabActive : ""}`}
-                  onClick={() => setMode("spot")}
-                >
-                  Spot
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.tab} ${mode === "auction" ? styles.tabActive : ""}`}
-                  onClick={() => setMode("auction")}
-                >
-                  Auction
-                </button>
+                {/*
+                  An auction commitment is a transaction to AuctionHouse, not an
+                  intent handed to the coordinator. This card only does the second,
+                  so it offers the second and links to where the first is shown.
+                */}
+                <span className={`${styles.tab} ${styles.tabActive}`}>Spot</span>
+                <Link className={styles.tab} href="/auction">
+                  Auctions
+                </Link>
               </div>
               <Link className={styles.headRight} href="/session">
                 {context.sessionName ?? "Session unavailable"}
