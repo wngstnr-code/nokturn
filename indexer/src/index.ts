@@ -269,7 +269,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   };
   const until = flag("--until-block");
   const duration = flag("--duration");
-  const depth = flag("--confirmations");
+  // The flag, or the environment where a host sets variables but not a command line.
+  const depth = flag("--confirmations") ?? process.env.NOKTURN_INDEXER_CONFIRMATIONS;
   const at = flag("--at-block");
   const job: Promise<number> = argv.includes("--reconcile")
     ? reconcileCommand(at === undefined ? undefined : BigInt(at))

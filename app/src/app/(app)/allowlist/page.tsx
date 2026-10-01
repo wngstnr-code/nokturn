@@ -4,6 +4,8 @@ import {robinhoodMainnet} from "@/lib/chain";
 import {activeNetwork, type Network} from "@/lib/network";
 import styles from "./page.module.css";
 
+export const metadata = {title: "Allowlist"};
+
 export const dynamic = "force-dynamic";
 
 function Provenance({report, network}: {report: GateReport; network: Network}) {

@@ -1,6 +1,8 @@
 import {NettingChart, type Point} from "./NettingChart";
 import styles from "./page.module.css";
 
+export const metadata = {title: "Netting backtest"};
+
 /*
  * Copied from docs/parameter.md section 4, never recomputed. A second
  * computation would be a second answer.

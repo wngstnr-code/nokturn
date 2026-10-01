@@ -5,7 +5,10 @@ import "./globals.css";
 const body = Inter({subsets: ["latin"], variable: "--font-body", display: "swap"});
 
 export const metadata: Metadata = {
-  title: "Nokturn",
+  title: {
+    default: "Nokturn · Tokenized stocks, settled around the clock",
+    template: "%s · Nokturn",
+  },
   description:
     "Intent based settlement for tokenized equities on Robinhood Chain. Every number on screen carries the block it was read at.",
 };

@@ -11,6 +11,10 @@ import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({params}: {params: Promise<{auctionId: string}>}) {
+  const {auctionId} = await params;
+  return {title: `Auction #${auctionId}`};
+}
 
 const PHASE_COPY: Record<AuctionResponse["phase"], string> = {
   accumulating: "Taking commitments. Nothing is disclosed yet",

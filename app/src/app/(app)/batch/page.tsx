@@ -9,6 +9,8 @@ import {active} from "@/lib/network";
 import type {Session} from "@shared/types";
 import styles from "./page.module.css";
 
+export const metadata = {title: "Batches"};
+
 export const dynamic = "force-dynamic";
 
 const OUTCOME_LABEL: Record<string, string> = {

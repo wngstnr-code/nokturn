@@ -11,6 +11,9 @@ on:
     branches: [main, develop]
   schedule:
     - cron: "0 4 * * *"
+  # The fork job by hand, from the Actions tab, so a new secret or a fix can be
+  # checked without waiting for the nightly run.
+  workflow_dispatch:
   pull_request:
     paths:
       - "api/**"
@@ -91,9 +94,26 @@ jobs:
     # endpoint stopped serving anything but latest on 26 September 2026 (N13),
     # so the fork reads an archive RPC from the repository secret. GitHub masks
     # its value in the log, and the scripts print the host only.
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     env:
       NOKTURN_RPC_MAINNET: ${{ secrets.NOKTURN_RPC_MAINNET }}
+      NOKTURN_DATABASE_URL: postgres://nokturn:nokturn@127.0.0.1:5440/nokturn
+    # The receipt routes read the indexer's tables, so the api collection needs
+    # them. Same image and port as infra/docker-compose.yml.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: nokturn
+          POSTGRES_PASSWORD: nokturn
+          POSTGRES_DB: nokturn
+        ports:
+          - 5440:5432
+        options: >-
+          --health-cmd "pg_isready -U nokturn"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
     steps:
       - name: the archive RPC secret is set
         run: |
@@ -115,6 +135,7 @@ jobs:
           node-version: 24
       - run: pnpm install --dir infra
       - run: pnpm install --dir api
+      - run: pnpm install --dir indexer
 
       # Re-pinned rather than reusing the committed block, because the endpoint
       # keeps a finite window and a nightly job outlives it. The committed pin is
@@ -140,6 +161,20 @@ jobs:
       - name: the witness digest is the one permit2 verifies
         run: ./infra/scripts/check-permit2.sh
 
+      # Before the durability suite, so D4 and D5 load and cross a session
+      # boundary with the api in front of the node, as in a demo, rather than
+      # skipping their api half.
+      - name: index to head and start the api
+        run: |
+          ./infra/scripts/prewarm.sh
+          node indexer/src/index.ts --until-block "$(cast block-number --rpc-url http://127.0.0.1:8545)"
+          (cd api && node src/index.ts > /tmp/api.log 2>&1 &)
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3000/v1/health >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:3000/v1/health
+
       # Carries D7 and D8, which are the cross team checks. D7 catches
       # packages/shared/addresses.ts drifting from Addresses.sol, D8 catches a
       # committed abi no longer matching the bytecode it claims to describe.
@@ -148,12 +183,6 @@ jobs:
 
       - name: the api answers on every route it claims
         run: |
-          ./infra/scripts/prewarm.sh
-          (cd api && node src/index.ts > /tmp/api.log 2>&1 &)
-          for _ in $(seq 1 30); do
-            curl -sf http://127.0.0.1:3000/v1/health >/dev/null 2>&1 && break
-            sleep 1
-          done
           ./infra/scripts/postman.sh
           pnpm dlx newman run infra/postman/nokturn-fork.postman_collection.json \
             -e infra/postman/nokturn-local.postman_environment.json \

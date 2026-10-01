@@ -6,6 +6,8 @@ import {units} from "@/lib/format";
 import {Session} from "@shared/types";
 import styles from "./page.module.css";
 
+export const metadata = {title: "Session"};
+
 export const dynamic = "force-dynamic";
 
 function utc(seconds: bigint | number): string {
