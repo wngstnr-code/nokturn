@@ -12,11 +12,14 @@ const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)"
 export function Icon3D({
   src,
   colored = false,
+  unit,
   className,
   style,
 }: {
   src: string;
   colored?: boolean;
+  /** Pixels per SVG unit, for icons that have to match each other in scale. */
+  unit?: number;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -33,7 +36,7 @@ export function Icon3D({
     const color = colored ? null : getComputedStyle(box).color;
 
     import("./icon3d-scene")
-      .then(({mountIcon3D}) => mountIcon3D(element, {src, color, still: reducedMotion(), watch: element}))
+      .then(({mountIcon3D}) => mountIcon3D(element, {src, color, still: reducedMotion(), watch: element, unit}))
       .then((stop) => {
         if (gone) stop();
         else {
@@ -47,7 +50,7 @@ export function Icon3D({
       gone = true;
       cleanup?.();
     };
-  }, [src, colored]);
+  }, [src, colored, unit]);
 
   const flat = `${styles.flat} ${ready ? styles.hidden : ""}`;
   return (

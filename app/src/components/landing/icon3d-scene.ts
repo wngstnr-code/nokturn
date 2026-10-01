@@ -2,6 +2,8 @@ import {contours} from "d3-contour";
 import * as THREE from "three";
 
 const MAX_TILT = 0.45;
+// Shared by icons drawn at a fixed scale, so their thickness matches as well.
+const SECTION_DEPTH = 22;
 
 type Layer = {shapes: THREE.Shape[]; color: THREE.Color; hex: string; lift: number};
 type Traced = {layers: Layer[]; width: number; height: number; depth: number};
@@ -16,6 +18,8 @@ export type Icon3DOptions = {
   /** For a canvas that is not in the page. Without it the canvas's own box is used. */
   size?: {width: number; height: number};
   onFrame?: () => void;
+  /** Pixels per SVG unit. Fixes the scale instead of fitting the icon to its canvas. */
+  unit?: number;
   /** Fly instead of turning. The layers in these colours are the wings and flap. */
   wings?: string[];
 };
@@ -33,7 +37,7 @@ function pointInRing(point: THREE.Vector2, ring: THREE.Vector2[]): boolean {
   return inside;
 }
 
-async function trace(src: string, color: string | null): Promise<Traced> {
+async function trace(src: string, color: string | null, fixedDepth?: number): Promise<Traced> {
   const text = await (await fetch(src)).text();
   const box = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(text);
   const width = Number(box?.[1] ?? 100);
@@ -43,7 +47,7 @@ async function trace(src: string, color: string | null): Promise<Traced> {
   // Pixels per icon unit. Fine enough that the bevel hides the steps, coarse enough
   // that a large illustration still traces well under a frame.
   const scale = THREE.MathUtils.clamp(600 / longest, 1.5, 4);
-  const depth = longest * 0.15;
+  const depth = fixedDepth ?? longest * 0.15;
 
   const svg = color === null ? text : text.replace('fill="currentColor"', 'fill="#fff"');
   const url = URL.createObjectURL(new Blob([svg], {type: "image/svg+xml"}));
@@ -141,8 +145,8 @@ async function trace(src: string, color: string | null): Promise<Traced> {
 
 /** Draws the icon at src as a lit, extruded solid on canvas. Returns a cleanup. */
 export async function mountIcon3D(canvas: HTMLCanvasElement, options: Icon3DOptions): Promise<() => void> {
-  const {src, color, still, watch, size, onFrame, wings} = options;
-  const {layers, width, height, depth} = await trace(src, color);
+  const {src, color, still, watch, size, onFrame, wings, unit} = options;
+  const {layers, width, height, depth} = await trace(src, color, unit === undefined ? undefined : SECTION_DEPTH);
 
   const renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: true});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -224,6 +228,11 @@ export async function mountIcon3D(canvas: HTMLCanvasElement, options: Icon3DOpti
     // Fit the icon's own height into the middle of the taller canvas, the way the flat
     // picture fitted its box.
     const half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    if (unit !== undefined) {
+      camera.position.set(0, 0, h / unit / 2 / half);
+      camera.updateProjectionMatrix();
+      return;
+    }
     const byHeight = (height + depth) / 0.8 / 2 / half;
     const byWidth = (width + depth) / camera.aspect / 2 / half;
     camera.position.set(0, 0, Math.max(byHeight, byWidth));
