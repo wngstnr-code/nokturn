@@ -3,6 +3,8 @@
 import Link from "next/link";
 import {useRef, useState} from "react";
 import {ArrowCircleIcon, GithubIcon} from "./Icons";
+import {MaskIcon} from "./landing/MaskIcon";
+import {BRAND, FOOTER} from "./landing/content";
 import styles from "./SiteFooter.module.css";
 
 const REPO = "https://github.com/wngstnr-code/nokturn";
@@ -38,12 +40,6 @@ const GROUPS = [
   },
 ];
 
-function Mark({size}: {size: number}) {
-  return (
-    <span className={styles.mark} style={{width: size, height: size}} aria-hidden="true" />
-  );
-}
-
 export function SiteFooter() {
   const [expanded, setExpanded] = useState(false);
   const root = useRef<HTMLElement>(null);
@@ -64,7 +60,7 @@ export function SiteFooter() {
           <div className={styles.content}>
             <div className={styles.about}>
               <span className={styles.brand}>
-                <Mark size={26} />
+                <MaskIcon src={BRAND.mark} style={{width: 26, height: 26}} />
                 Nokturn
               </span>
               <p className={styles.description}>
@@ -108,10 +104,13 @@ export function SiteFooter() {
 
           <div className={styles.marquee} aria-hidden="true">
             <div className={styles.marqueeTrack}>
-              <b>MOOOOOOOOOOOOOOOOOO</b>
-              <b>MOOOOOOOOOOOOOOOOOO</b>
-              <b>MOOOOOOOOOOOOOOOOOO</b>
-              <b>MOOOOOOOOOOOOOOOOOO</b>
+              {[0, 1, 2, 3].map((index) => (
+                <div key={index} className={styles.marqueeSegment}>
+                  <b>{FOOTER.marquee.text}</b>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={FOOTER.marquee.image} alt="" />
+                </div>
+              ))}
             </div>
           </div>
         </>
@@ -119,7 +118,7 @@ export function SiteFooter() {
 
       <div className={styles.bottom}>
         <p className={styles.bottomText}>
-          <Mark size={16} />
+          <MaskIcon src={BRAND.mark} style={{width: 18, height: 18}} />
           Nokturn - {new Date().getFullYear()}
         </p>
         <div className={styles.bottomRight}>

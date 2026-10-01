@@ -38,15 +38,6 @@
   letter-spacing: -0.02em;
 }
 
-/* Placeholder mark. Takes the colour of whatever line it sits on. */
-.mark {
-  display: inline-block;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: currentColor;
-  box-shadow: inset -30% -30% 0 0 var(--n-footer-bg);
-}
-
 .description {
   margin: 0;
   line-height: 1.5;
@@ -121,10 +112,7 @@
   text-decoration: none;
 }
 
-/*
- * Placeholder wordmark run, borrowed from the reference footer until the Nokturn
- * one is drawn.
- */
+/* The same wordmark run the landing footer carries, from the shared content file. */
 .marquee {
   display: flex;
   align-items: center;
@@ -145,14 +133,30 @@
   will-change: transform;
 }
 
-.marqueeTrack b {
+.marqueeSegment {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 56px;
+  height: 112px;
+}
+
+.marqueeSegment > b {
+  font-size: 95%;
   font-weight: var(--n-weight-bold);
   line-height: 1;
 }
 
+.marqueeSegment > img {
+  height: 112px;
+  width: auto;
+  padding: 0 0 20px;
+  border-bottom: 4px solid var(--n-footer-text);
+}
+
 @keyframes run {
   to {
-    transform: translateX(-50%);
+    transform: translateX(calc(-50% - 28px));
   }
 }
 
