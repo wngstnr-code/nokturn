@@ -1,5 +1,6 @@
 # Built from the repo root, docker build -f indexer/Dockerfile .
-# Chain records are read from infra/, which docker-compose.yml mounts read only.
+# The mainnet record is baked in. Under compose the fork record is read from
+# infra/, which docker-compose.yml mounts read only.
 
 FROM node:24-alpine AS deps
 WORKDIR /app
@@ -23,6 +24,14 @@ COPY --from=deps /app /app
 COPY packages/shared packages/shared
 COPY indexer/src indexer/src
 COPY indexer/sql indexer/sql
+# The mainnet record and the token list, for a host like Railway with no mounts.
+# Under compose ./ is mounted over /app/infra and the fork record wins. The
+# token list is generated from Addresses.sol the way make does it, since the
+# generated file is not committed.
+COPY contracts/deployments/4663.json contracts/deployments/4663.json
+COPY contracts/script/Addresses.sol /tmp/Addresses.sol
+COPY infra/scripts/extract-addresses.mjs /tmp/extract-addresses.mjs
+RUN mkdir -p infra && node /tmp/extract-addresses.mjs /tmp/Addresses.sol infra/chain.json && rm /tmp/Addresses.sol /tmp/extract-addresses.mjs
 USER node
 # The checkpoint moves on every step, one step a block.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 \

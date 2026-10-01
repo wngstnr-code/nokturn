@@ -13,6 +13,12 @@
 .github
 app
 contracts
+# The mainnet record, baked into the api and indexer images for a host with no
+# mounts. A fork reads infra/fork-deployment.json, which compose mounts.
+!contracts/deployments/4663.json
+# The source infra/chain.json is generated from at build time, the same way
+# make does it, since the generated file is not committed.
+!contracts/script/Addresses.sol
 docs
 data
 # The netting curve export is a published Dune result the api serves at boot, so
