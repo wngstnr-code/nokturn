@@ -28,9 +28,6 @@
   font-weight: var(--n-weight-semibold);
   letter-spacing: -0.03em;
   line-height: 1.1;
-  text-shadow:
-    0 0 26px var(--n-text-o10),
-    0 0 28px var(--n-text-o25);
 }
 
 .phase {

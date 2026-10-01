@@ -44,9 +44,6 @@
   font-weight: var(--n-weight-semibold);
   line-height: 1.1;
   letter-spacing: -0.035em;
-  text-shadow:
-    0 0 26px var(--n-text-o10),
-    0 0 28px var(--n-text-o25);
 }
 
 .lead {
