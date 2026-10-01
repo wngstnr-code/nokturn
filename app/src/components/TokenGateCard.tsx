@@ -62,7 +62,8 @@ export function TokenGateCard({report}: {report: TokenReport}) {
   return (
     <article className={`${styles.card} ${tone}`}>
       <div className={styles.head}>
-        <TokenMark symbol={report.requested} size={40} />
+        {/* A refused contract only claims the symbol, so it does not wear the mark. */}
+        <TokenMark symbol={report.requested} size={40} unverified={report.verdict !== "admitted"} />
         <div className={styles.identity}>
           <h2 className={styles.symbol}>
             {report.listed ? (
