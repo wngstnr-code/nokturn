@@ -2,12 +2,14 @@ import {IntentsProvider} from "@/components/trade/IntentsProvider";
 import {TradeLayout} from "@/components/trade/TradeLayout";
 import {MyIntents} from "@/components/trade/MyIntents";
 import {TradeWidget, type TradeContext} from "@/components/trade/TradeWidget";
-import {health} from "@/lib/coordinator/client";
+import {health, session as servedSession} from "@/lib/coordinator/client";
 import {deploymentFor} from "@/lib/deployments";
+import {servedConfig} from "@/lib/network";
 import {signingContext} from "@/lib/permit2";
 import {readSession, SESSION_NAMES} from "@/lib/session";
 import {baseTokens, quoteToken, type TokenInfo} from "@/lib/tokens";
 import {CHAIN_ID_TESTNET} from "@shared/addresses";
+import type {Session} from "@shared/types";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +18,45 @@ const CHAIN = CHAIN_ID_TESTNET;
 
 type Loaded = {bases: TokenInfo[]; quote: TokenInfo; context: TradeContext};
 
-async function load(): Promise<Loaded> {
+/*
+ * With a coordinator, everything the card signs against comes from the chain the
+ * coordinator is on. Its Settlement is the spender Permit2 binds the signature to,
+ * so an address kept in this app would produce a signature it refuses.
+ */
+async function loadServed(served: NonNullable<Awaited<ReturnType<typeof servedConfig>>>): Promise<Loaded> {
+  const {settlement, permit2} = served.contracts;
+  const named = (token: {symbol: string; address: `0x${string}`; decimals: number}): TokenInfo => ({
+    symbol: token.symbol,
+    name: null,
+    address: token.address,
+    decimals: token.decimals,
+  });
+
+  const [signing, session, coordinator] = await Promise.all([
+    signingContext(served.chainId, settlement, permit2),
+    servedSession(),
+    health(),
+  ]);
+
+  return {
+    bases: served.tokens.filter((token) => token.allowed).map(named),
+    quote: named(served.quoteToken),
+    context: {
+      chainId: served.chainId,
+      settlement,
+      permit2,
+      signingOk: signing.ok,
+      signingProblem: signing.problem,
+      sessionName: session.ok ? SESSION_NAMES[session.value.session as Session] : null,
+      batchDuration: session.ok ? session.value.batchDurationSeconds : null,
+      maxDeviationBps: session.ok ? session.value.maxDeviationBps : null,
+      coordinatorDetail: coordinator.detail,
+      coordinatorReachable: coordinator.reachable,
+    },
+  };
+}
+
+async function loadOwn(): Promise<Loaded> {
   const deployment = deploymentFor(CHAIN);
   if (deployment === null) throw new Error(`Nokturn is not deployed on chain ${CHAIN}`);
 
@@ -50,6 +90,11 @@ async function load(): Promise<Loaded> {
       coordinatorReachable: coordinator.reachable,
     },
   };
+}
+
+async function load(): Promise<Loaded> {
+  const served = await servedConfig();
+  return served === null ? loadOwn() : loadServed(served);
 }
 
 export default async function TradePage() {
