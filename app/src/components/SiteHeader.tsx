@@ -13,7 +13,7 @@ import styles from "./SiteHeader.module.css";
  * reachable by address until that is settled.
  */
 const NAV = [
-  {href: "/", label: "Trade"},
+  {href: "/trade", label: "Trade"},
   {href: "/batch", label: "Batches"},
   {href: "/session", label: "Session"},
   {href: "/allowlist", label: "Allowlist"},
@@ -33,7 +33,7 @@ export function SiteHeader({snapshot}: {snapshot: SessionSnapshot}) {
 
         <nav className={styles.nav} aria-label="Primary">
           {NAV.map((item) => {
-            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const active = pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}

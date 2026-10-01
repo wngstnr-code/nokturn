@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect} from "react";
-import styles from "./message.module.css";
+import styles from "../message.module.css";
 
 /*
  * The message is the one thrown, not a friendly replacement for it. Most
