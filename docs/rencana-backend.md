@@ -1311,6 +1311,23 @@ Menjalankannya di mainnet langsung membuka masalah yang tidak pernah terlihat di
 
 Cara menjalankannya dan angka yang terukur ada di `runbook-backend.md` §7.
 
+**Empat topik stream terakhir, 1 Oktober 2026.** `batch.solution_submitted`,
+`batch.solution_rejected`, `batch.settled`, dan `batch.failed` kini dilayani, dari log
+Settlement dan struk indexer. Dibuktikan di fork, dari chain.
+
+| Topik | Bukti |
+|---|---|
+| `solution_submitted` | `make demo` dan `make demo-compete`, satu frame per solusi, `accepted` dari `bestSolution` di blok log |
+| `solution_rejected` | `demo-compete --same-side`, solverB tiba kedua, alasan `not the best` |
+| `settled` | `make demo` kini gagal kalau frame ini tidak datang atau isinya beda dengan `GET /v1/batches/:batchId` |
+| `failed` | `demo-fail CASE=expired`, outcome `expired`, kode `WinnerNeverFinalized` |
+
+Batch di bawah ambang savings memancarkan `BatchPassthrough` dan `BatchSettled` di
+finalize yang sama, dan struknya `settled` dengan kode kegagalan. Jenis frame karena itu
+mengikuti `outcome` struk, bukan event mana yang terakhir dibaca. Solusi terbaik yang
+digantikan tidak punya event penolakan di kontrak, jadi ia hanya muncul sebagai
+`solution_submitted` dengan `accepted` false, sama seperti di struk.
+
 **Catatan.** E5 lulus di run ini. Temuan W5, `finalize` yang revert `LiquidityExhausted`
 ketika pool bergeser sedikit antara submit dan finalize, tetap temuan untuk kontrak
 sampai Wangsit memutuskan. Satu run yang lulus tidak membuktikan risikonya hilang.
