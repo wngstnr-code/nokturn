@@ -1,5 +1,8 @@
 import {cache} from "react";
+import type {Address} from "viem";
 import {config} from "./coordinator/client";
+import {deploymentFor} from "./deployments";
+import {baseTokens, quoteToken, type TokenInfo} from "./tokens";
 import type {ConfigResponse, ProvenanceSource} from "./coordinator/types";
 import {CHAIN_ID_TESTNET} from "@shared/addresses";
 
@@ -47,4 +50,42 @@ export const servedConfig = cache(async (): Promise<ConfigResponse | null> => {
 export async function activeNetwork(): Promise<Network> {
   const served = await servedConfig();
   return served === null ? TESTNET : describe(served.chainId, served.source);
+}
+
+export type Active = {
+  network: Network;
+  contracts: {settlement: Address; sessions: Address; oracle: Address; permit2: Address};
+  bases: TokenInfo[];
+  quote: TokenInfo;
+};
+
+/*
+ * One answer to which chain, which contracts and which tokens, for every screen.
+ * Each screen used to decide for itself, and with a coordinator on a fork the
+ * trade card spoke of one chain while the session screen read another.
+ */
+export async function active(): Promise<Active> {
+  const served = await servedConfig();
+
+  if (served !== null) {
+    const named = (token: {symbol: string; address: Address; decimals: number}): TokenInfo => ({
+      symbol: token.symbol,
+      name: null,
+      address: token.address,
+      decimals: token.decimals,
+    });
+    const {settlement, sessions, oracle, permit2} = served.contracts;
+    return {
+      network: describe(served.chainId, served.source),
+      contracts: {settlement, sessions, oracle, permit2},
+      bases: served.tokens.filter((token) => token.allowed).map(named),
+      quote: named(served.quoteToken),
+    };
+  }
+
+  const own = deploymentFor(TESTNET.chainId);
+  if (own === null) throw new Error(`Nokturn is not deployed on chain ${TESTNET.chainId}`);
+  const [bases, quote] = await Promise.all([baseTokens(TESTNET.chainId), quoteToken(TESTNET.chainId)]);
+  const {settlement, sessions, oracle, permit2} = own;
+  return {network: TESTNET, contracts: {settlement, sessions, oracle, permit2}, bases, quote};
 }

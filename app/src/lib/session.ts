@@ -139,8 +139,11 @@ async function readOracle(
 export async function readSession(
   chainId: number,
   tokens: Array<{symbol: string; address: Address}>,
+  contracts?: {sessions: Address; oracle: Address},
 ): Promise<SessionReport> {
-  const deployment = deploymentFor(chainId);
+  // Given when the caller already knows them, which is the case on a fork, where
+  // the addresses come from the coordinator and this app holds no record of them.
+  const deployment = contracts ?? deploymentFor(chainId);
   if (deployment === null) {
     throw new Error(`Nokturn is not deployed on chain ${chainId}`);
   }

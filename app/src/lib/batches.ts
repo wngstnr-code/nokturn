@@ -105,8 +105,8 @@ function decode(log: Log): BatchRow | null {
   }
 }
 
-export async function scanBatches(chainId: number): Promise<BatchScan> {
-  const deployment = deploymentFor(chainId);
+export async function scanBatches(chainId: number, settlement?: Address): Promise<BatchScan> {
+  const deployment = settlement === undefined ? deploymentFor(chainId) : {settlement};
   if (deployment === null) throw new Error(`Nokturn is not deployed on chain ${chainId}`);
 
   const client = clientFor(chainId);
