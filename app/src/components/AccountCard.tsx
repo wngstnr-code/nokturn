@@ -5,36 +5,28 @@ import {useEffect, useRef, useState} from "react";
 import {useDisconnect, useSwitchChain} from "wagmi";
 import {Session} from "@shared/types";
 import {explorerAddress} from "@/lib/chain";
+import {shortAddress} from "@/lib/format";
 import type {Network} from "@/lib/network";
 import {countdown, type SessionSnapshot} from "./SessionClock";
-import {
-  BoltIcon,
-  CheckIcon,
-  CopyIcon,
-  ExternalIcon,
-  GlobeIcon,
-  MoonIcon,
-  OfflineIcon,
-  PowerIcon,
-  ShieldIcon,
-} from "./Icons";
+import {BellArt, ChainArt, HeldArt, MoonArt, Seal, SunArt} from "./art/Art";
+import {CheckIcon, CopyIcon, ExternalIcon, PowerIcon} from "./Icons";
 import styles from "./AccountCard.module.css";
 
 /*
- * A colour alone says a state is different without saying which, and the four
- * session groups already read differently to a colourblind eye only by luck. Each
- * tone carries a glyph so the shape carries the meaning too.
+ * A colour alone says a state is different without saying which. Each group of
+ * sessions has its own picture, the same one the session screen opens on, so the
+ * card and the screen never draw one hour two ways.
  */
-const TONE: Record<Session, {key: string; Icon: typeof CheckIcon}> = {
-  [Session.OPEN]: {key: "open", Icon: CheckIcon},
-  [Session.PRE_MARKET]: {key: "open", Icon: CheckIcon},
-  [Session.POST_MARKET]: {key: "open", Icon: CheckIcon},
-  [Session.AUCTION_OPEN]: {key: "auction", Icon: BoltIcon},
-  [Session.AUCTION_CLOSE]: {key: "auction", Icon: BoltIcon},
-  [Session.CLOSED_OVERNIGHT]: {key: "closed", Icon: MoonIcon},
-  [Session.CLOSED_WEEKEND]: {key: "closed", Icon: MoonIcon},
-  [Session.HOLIDAY]: {key: "closed", Icon: MoonIcon},
-  [Session.PROTECTIVE]: {key: "protective", Icon: ShieldIcon},
+const TONE: Record<Session, {key: string; Art: typeof MoonArt}> = {
+  [Session.OPEN]: {key: "open", Art: SunArt},
+  [Session.PRE_MARKET]: {key: "open", Art: SunArt},
+  [Session.POST_MARKET]: {key: "open", Art: SunArt},
+  [Session.AUCTION_OPEN]: {key: "auction", Art: BellArt},
+  [Session.AUCTION_CLOSE]: {key: "auction", Art: BellArt},
+  [Session.CLOSED_OVERNIGHT]: {key: "closed", Art: MoonArt},
+  [Session.CLOSED_WEEKEND]: {key: "closed", Art: MoonArt},
+  [Session.HOLIDAY]: {key: "closed", Art: MoonArt},
+  [Session.PROTECTIVE]: {key: "protective", Art: HeldArt},
 };
 
 type Props = {
@@ -84,30 +76,34 @@ export function AccountCard({address, chainId, network, snapshot, onClose}: Prop
   };
 
   const tone = snapshot === null ? null : TONE[snapshot.session];
-  const StatusIcon = tone?.Icon ?? OfflineIcon;
 
   return (
     <div className={styles.card} ref={card} role="dialog" aria-label="Your wallet">
-      <div className={styles.addressRow}>
-        <span className={`${styles.address} chainvalue`}>{address}</span>
-        <div className={styles.addressTools}>
-          <button type="button" className={styles.tool} onClick={copy} aria-label="Copy address">
-            <CopyIcon size={15} />
-          </button>
-          <a
-            className={styles.tool}
-            href={explorerAddress(address, network.chainId)}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Open in the explorer"
-          >
-            <ExternalIcon size={15} />
-          </a>
+      <div className={styles.who}>
+        <div className={styles.whoTop}>
+          <span className={`${styles.short} chainvalue`}>{shortAddress(address)}</span>
+          <div className={styles.addressTools}>
+            <button
+              type="button"
+              className={styles.tool}
+              onClick={copy}
+              aria-label={copied ? "Copied" : "Copy address"}
+            >
+              {copied ? <CheckIcon size={15} /> : <CopyIcon size={15} />}
+            </button>
+            <a
+              className={styles.tool}
+              href={explorerAddress(address, network.chainId)}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Open in the explorer"
+            >
+              <ExternalIcon size={15} />
+            </a>
+          </div>
         </div>
+        <span className={`${styles.address} chainvalue`}>{address}</span>
       </div>
-      <p className={styles.copied} aria-live="polite">
-        {copied ? "Copied" : ""}
-      </p>
 
       <div className={styles.row}>
         <span className={styles.rowLabel}>Network</span>
@@ -122,7 +118,7 @@ export function AccountCard({address, chainId, network, snapshot, onClose}: Prop
           </button>
         ) : (
           <span className={styles.network}>
-            <GlobeIcon size={15} />
+            <ChainArt size={18} />
             {network.name}
             <span className={`${styles.networkId} chainvalue`}>{network.chainId}</span>
           </span>
@@ -134,7 +130,7 @@ export function AccountCard({address, chainId, network, snapshot, onClose}: Prop
         <span className={styles.rowLabel}>Session</span>
         {snapshot === null ? (
           <span className={`${styles.status} ${styles.offline}`}>
-            <StatusIcon size={14} />
+            <Seal state="unknown" size={16} />
             Unavailable
           </span>
         ) : (
@@ -143,7 +139,7 @@ export function AccountCard({address, chainId, network, snapshot, onClose}: Prop
             className={`${styles.status} ${styles[tone?.key ?? "closed"]}`}
             onClick={onClose}
           >
-            <StatusIcon size={14} />
+            {tone === null ? null : <tone.Art size={18} />}
             {snapshot.name}
             <span className={styles.countdown}>
               {countdown(snapshot.nextTransition - snapshot.readAt - elapsed)}

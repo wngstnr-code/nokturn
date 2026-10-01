@@ -11,19 +11,32 @@
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
 }
 
-.addressRow {
+/* Who is connected, in the short form a person recognises, with the whole
+   address underneath for the one who wants to check it. */
+.who {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
   border-radius: 16px;
   background: var(--n-paper-darker);
 }
 
-/* Shown in full and on two lines, because a truncated address proves nothing. */
+.whoTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.short {
+  font-size: var(--n-font-large);
+  font-weight: var(--n-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
 .address {
-  flex: 1;
-  min-width: 0;
+  color: var(--n-text-o50);
   font-size: var(--n-font-small);
   line-height: 1.35;
   word-break: break-all;
@@ -53,13 +66,6 @@
   color: var(--n-text);
 }
 
-.copied {
-  margin: 0;
-  min-height: 16px;
-  padding: 2px 12px 0;
-  color: var(--n-success-text);
-  font-size: var(--n-font-small);
-}
 
 .row {
   display: flex;
