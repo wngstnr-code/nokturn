@@ -1,11 +1,12 @@
 import {TokenGateCard} from "@/components/TokenGateCard";
 import {runGate, type GateReport} from "@/lib/allowlist-gate";
 import {robinhoodMainnet} from "@/lib/chain";
+import {activeNetwork, type Network} from "@/lib/network";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
-function Provenance({report}: {report: GateReport}) {
+function Provenance({report, network}: {report: GateReport; network: Network}) {
   return (
     <div className={styles.provenance}>
       <span className={styles.item}>
@@ -16,6 +17,12 @@ function Provenance({report}: {report: GateReport}) {
         Chain
         <strong className="chainvalue">{report.chainId}</strong>
       </span>
+      {network.kind === "fork" && network.chainId === report.chainId ? (
+        <span className={styles.item}>
+          Source
+          <strong>{network.note}</strong>
+        </span>
+      ) : null}
       <span className={styles.item}>
         Read at
         <strong className="chainvalue">{report.readAt.replace("T", " ").slice(0, 19)} UTC</strong>
@@ -31,6 +38,8 @@ function Provenance({report}: {report: GateReport}) {
 export default async function AllowlistPage() {
   let report: GateReport | null = null;
   let failure: string | null = null;
+
+  const network = await activeNetwork();
 
   try {
     report = await runGate();
@@ -60,7 +69,7 @@ export default async function AllowlistPage() {
 
       {report === null ? null : (
         <>
-          <Provenance report={report} />
+          <Provenance report={report} network={network} />
 
           <p className={styles.sectionLabel}>Launch allowlist</p>
           <div className={styles.grid}>
