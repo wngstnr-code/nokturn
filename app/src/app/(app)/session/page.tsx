@@ -1,4 +1,18 @@
 import {Countdown} from "./Countdown";
+import {
+  BandIcon,
+  BellIcon,
+  BlockIcon,
+  ClockIcon,
+  GlobeIcon,
+  LayersIcon,
+  MoonIcon,
+  ShieldIcon,
+  SunIcon,
+} from "@/components/Icons";
+import {AddressChip} from "@/components/ui/AddressChip";
+import {Hint} from "@/components/ui/Hint";
+import {OwlState} from "@/components/ui/OwlState";
 import {explorerAddress} from "@/lib/chain";
 import {readSession, SESSION_NAMES, type SessionReport, type TokenOracle} from "@/lib/session";
 import {active, type Network} from "@/lib/network";
@@ -9,6 +23,23 @@ import styles from "./page.module.css";
 export const metadata = {title: "Session"};
 
 export const dynamic = "force-dynamic";
+
+/*
+ * The session is the first thing this screen is for, so it gets a picture. Four
+ * pictures cover nine sessions, because what a person needs to tell apart is
+ * whether the market is trading, crossing, shut or held.
+ */
+const FACE: Record<Session, {Icon: typeof MoonIcon; tone: string}> = {
+  [Session.OPEN]: {Icon: SunIcon, tone: "open"},
+  [Session.PRE_MARKET]: {Icon: SunIcon, tone: "open"},
+  [Session.POST_MARKET]: {Icon: SunIcon, tone: "open"},
+  [Session.AUCTION_OPEN]: {Icon: BellIcon, tone: "auction"},
+  [Session.AUCTION_CLOSE]: {Icon: BellIcon, tone: "auction"},
+  [Session.CLOSED_OVERNIGHT]: {Icon: MoonIcon, tone: "closed"},
+  [Session.CLOSED_WEEKEND]: {Icon: MoonIcon, tone: "closed"},
+  [Session.HOLIDAY]: {Icon: MoonIcon, tone: "closed"},
+  [Session.PROTECTIVE]: {Icon: ShieldIcon, tone: "protective"},
+};
 
 function utc(seconds: bigint | number): string {
   return new Date(Number(seconds) * 1000).toISOString().replace("T", " ").slice(0, 19);
@@ -25,15 +56,19 @@ function OracleRow({token, chainId}: {token: TokenOracle; chainId: number}) {
   return (
     <tr>
       <td>
-        <div className={styles.symbol}>{token.symbol}</div>
-        <a
-          className={`${styles.muted} chainvalue`}
-          href={explorerAddress(token.address, chainId)}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {token.address}
-        </a>
+        <div className={styles.tokenCell}>
+          <span className={styles.tokenMark} aria-hidden="true">
+            {token.symbol.slice(0, 2).toUpperCase()}
+          </span>
+          <div>
+            <div className={styles.symbol}>{token.symbol}</div>
+            <AddressChip
+              value={token.address}
+              href={explorerAddress(token.address, chainId)}
+              label={`the ${token.symbol} address`}
+            />
+          </div>
+        </div>
       </td>
       <td>{priceOf(token.refPrice, token.refError)}</td>
       <td>{priceOf(token.chainlink, token.dualError)}</td>
@@ -64,43 +99,72 @@ function OracleRow({token, chainId}: {token: TokenOracle; chainId: number}) {
 
 function Report({report, network}: {report: SessionReport; network: Network}) {
   const batch = report.batchDuration;
+  const face = FACE[report.session];
 
   return (
     <>
       <div className={styles.hero}>
+        <span className={`${styles.face} ${styles[face.tone]}`} aria-hidden="true">
+          <face.Icon size={30} />
+        </span>
         <div>
           <p className={styles.eyebrow}>Session right now</p>
           <h1 className={styles.session}>{SESSION_NAMES[report.session]}</h1>
           <p className={styles.until}>
-            Next transition in{" "}
-            <Countdown target={Number(report.nextTransition)} readAt={Number(report.blockTimestamp)} />, at{" "}
-            <span className="chainvalue">{utc(report.nextTransition)} UTC</span>
+            <ClockIcon size={14} />
+            Changes in{" "}
+            <Countdown target={Number(report.nextTransition)} readAt={Number(report.blockTimestamp)} />
+            <Hint label="When exactly">
+              At <span className="chainvalue">{utc(report.nextTransition)} UTC</span>, read from
+              SessionManager. This page never works the calendar out for itself.
+            </Hint>
           </p>
         </div>
       </div>
 
       <div className={styles.grid}>
         <div className={styles.card}>
-          <p className={styles.label}>Batch window</p>
-          <p className={`${styles.value} chainvalue`}>{batch === 0 ? "none" : `${batch}s`}</p>
-          <p className={styles.hint}>
-            {batch === 0 ? "This session settles by auction, not by batch" : "Intents collect for this long"}
+          <p className={styles.label}>
+            <LayersIcon size={15} />
+            Batch window
+            <Hint label="What the batch window is">
+              {batch === 0
+                ? "This session settles by auction, not by batch."
+                : "Intents collect for this long, then the batch clears at one price."}
+            </Hint>
           </p>
+          <p className={`${styles.value} chainvalue`}>{batch === 0 ? "none" : `${batch}s`}</p>
         </div>
         <div className={styles.card}>
-          <p className={styles.label}>Price band</p>
+          <p className={styles.label}>
+            <BandIcon size={15} />
+            Price band
+            <Hint label="What the price band is">
+              The furthest an execution may sit from the reference price in this session.
+            </Hint>
+          </p>
           <p className={`${styles.value} chainvalue`}>{report.maxDeviationBps} bps</p>
-          <p className={styles.hint}>Furthest an execution may sit from the reference</p>
         </div>
         <div className={styles.card}>
-          <p className={styles.label}>Guard band</p>
+          <p className={styles.label}>
+            <ShieldIcon size={15} />
+            Guard band
+            <Hint label="What the guard band is">
+              The minutes around a session edge, where a batch could straddle two states. Nothing
+              opens inside it.
+            </Hint>
+          </p>
           <p className={styles.value}>{report.inGuardBand ? "Inside" : "Outside"}</p>
-          <p className={styles.hint}>Near a session edge, where a batch could straddle two states</p>
         </div>
         <div className={styles.card}>
-          <p className={styles.label}>New York day</p>
+          <p className={styles.label}>
+            <SunIcon size={15} />
+            New York day
+            <Hint label="Why the New York day">
+              Daily budgets reset on the New York calendar day, not on UTC midnight.
+            </Hint>
+          </p>
           <p className={`${styles.value} chainvalue`}>{report.easternDay}</p>
-          <p className={styles.hint}>Daily budgets reset on this, not on UTC midnight</p>
         </div>
       </div>
 
@@ -136,50 +200,36 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
 
       <div className={styles.provenance}>
         <span>
+          <BlockIcon size={15} />
           Block
           <strong className="chainvalue">{report.blockNumber.toLocaleString("en-US")}</strong>
         </span>
         <span>
-          Chain
-          <strong className="chainvalue">
-            {network.name} {report.chainId}
-          </strong>
+          <GlobeIcon size={15} />
+          {network.name}
+          <strong className="chainvalue">{report.chainId}</strong>
+          {network.note === null ? null : <Hint label="Where this chain comes from">{network.note}</Hint>}
         </span>
-        {network.note === null ? null : (
-          <span>
-            Source
-            <strong>{network.note}</strong>
-          </span>
-        )}
         <span>
+          <ClockIcon size={15} />
           Block time
           <strong className="chainvalue">{utc(report.blockTimestamp)} UTC</strong>
         </span>
         <span>
           SessionManager
-          <strong>
-            <a
-              className="chainvalue"
-              href={explorerAddress(report.sessionManager, report.chainId)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {report.sessionManager}
-            </a>
-          </strong>
+          <AddressChip
+            value={report.sessionManager}
+            href={explorerAddress(report.sessionManager, report.chainId)}
+            label="the SessionManager address"
+          />
         </span>
         <span>
           PriceOracle
-          <strong>
-            <a
-              className="chainvalue"
-              href={explorerAddress(report.oracle, report.chainId)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {report.oracle}
-            </a>
-          </strong>
+          <AddressChip
+            value={report.oracle}
+            href={explorerAddress(report.oracle, report.chainId)}
+            label="the PriceOracle address"
+          />
         </span>
       </div>
     </>
@@ -202,10 +252,9 @@ export default async function SessionPage() {
   return (
     <div className={styles.page}>
       {failure !== null ? (
-        <div className={styles.failure}>
-          <h2>The chain did not answer</h2>
-          <p>Nothing is shown rather than something invented. The endpoint returned: {failure}</p>
-        </div>
+        <OwlState mood="asleep" title="The chain did not answer" detail={failure}>
+          Nothing is shown rather than something invented.
+        </OwlState>
       ) : null}
       {report === null || network === null ? null : <Report report={report} network={network} />}
     </div>
