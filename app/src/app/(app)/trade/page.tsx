@@ -2,6 +2,7 @@ import {IntentsProvider} from "@/components/trade/IntentsProvider";
 import {TradeLayout} from "@/components/trade/TradeLayout";
 import {MyIntents} from "@/components/trade/MyIntents";
 import {TradeWidget, type TradeContext} from "@/components/trade/TradeWidget";
+import {openAuctionIds} from "@/lib/auctions";
 import {health, session as servedSession} from "@/lib/coordinator/client";
 import {deploymentFor} from "@/lib/deployments";
 import {servedConfig} from "@/lib/network";
@@ -38,8 +39,19 @@ async function loadServed(served: NonNullable<Awaited<ReturnType<typeof servedCo
     health(),
   ]);
 
+  const bases = served.tokens.filter((token) => token.allowed).map(named);
+  const auctions = session.ok
+    ? await openAuctionIds(
+        served.chainId,
+        served.contracts.auctionHouse,
+        bases.map((token) => token.address),
+        session.value.session as Session,
+        session.value.nextTransition,
+      )
+    : {};
+
   return {
-    bases: served.tokens.filter((token) => token.allowed).map(named),
+    bases,
     quote: named(served.quoteToken),
     context: {
       chainId: served.chainId,
@@ -50,6 +62,7 @@ async function loadServed(served: NonNullable<Awaited<ReturnType<typeof servedCo
       sessionName: session.ok ? SESSION_NAMES[session.value.session as Session] : null,
       batchDuration: session.ok ? session.value.batchDurationSeconds : null,
       maxDeviationBps: session.ok ? session.value.maxDeviationBps : null,
+      auctions,
       coordinatorDetail: coordinator.detail,
       coordinatorReachable: coordinator.reachable,
     },
@@ -74,6 +87,17 @@ async function loadOwn(): Promise<Loaded> {
     health(),
   ]);
 
+  const auctions =
+    session === null
+      ? {}
+      : await openAuctionIds(
+          CHAIN,
+          deployment.auctionHouse,
+          bases.map((token) => token.address),
+          session.session,
+          Number(session.nextTransition),
+        );
+
   return {
     bases,
     quote,
@@ -86,6 +110,7 @@ async function loadOwn(): Promise<Loaded> {
       sessionName: session === null ? null : SESSION_NAMES[session.session],
       batchDuration: session === null ? null : session.batchDuration,
       maxDeviationBps: session === null ? null : session.maxDeviationBps,
+      auctions,
       coordinatorDetail: coordinator.detail,
       coordinatorReachable: coordinator.reachable,
     },

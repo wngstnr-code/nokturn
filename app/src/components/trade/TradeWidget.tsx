@@ -28,6 +28,8 @@ export type TradeContext = {
   sessionName: string | null;
   batchDuration: number | null;
   maxDeviationBps: number | null;
+  /** Token address to the auction it has open in this session. Empty outside one. */
+  auctions: Record<string, string>;
   coordinatorDetail: string;
   coordinatorReachable: boolean;
 };
@@ -137,6 +139,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   const settling = !mounted || status === "reconnecting";
 
   const wrongChain = isConnected && chainId !== context.chainId;
+  const openAuction = sellToken === undefined ? undefined : context.auctions[sellToken.address];
   const canSign =
     isConnected && !wrongChain && context.signingOk && sellAmount !== null && sellToken !== undefined;
 
@@ -244,8 +247,8 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
                   so it offers the second and links to where the first is shown.
                 */}
                 <span className={`${styles.tab} ${styles.tabActive}`}>Spot</span>
-                <Link className={styles.tab} href="/auction">
-                  Auctions
+                <Link className={styles.tab} href={openAuction ? `/auction/${openAuction}` : "/auction"}>
+                  {openAuction ? `${sellToken?.symbol ?? ""} auction` : "Auctions"}
                 </Link>
               </div>
               <Link className={styles.headRight} href="/session">
