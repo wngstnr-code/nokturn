@@ -1,6 +1,7 @@
 "use client";
 
 import {createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode} from "react";
+import {coordinatorUrl} from "@/lib/coordinator/client";
 import type {Hex} from "@/lib/coordinator/types";
 
 /*
@@ -18,6 +19,9 @@ export type Sent = {
   /// What this tab sent, already formatted. For example "120.0000 tNVDA".
   sold: string;
   buySymbol: string;
+  /// The coordinator it was handed to. An intent sent to a fork is unknown to the
+  /// one serving mainnet, and listing it there reads as a loss that never happened.
+  via?: string | null;
 };
 
 const KEY = "nokturn.intents.v1";
@@ -94,7 +98,7 @@ export function IntentsProvider({children}: {children: ReactNode}) {
   const remember = useCallback((entry: Sent) => {
     setSent((current) => {
       if (current.some((held) => held.hash === entry.hash)) return current;
-      const next = prune([entry, ...current], Date.now());
+      const next = prune([{...entry, via: coordinatorUrl()}, ...current], Date.now());
       save(next);
       return next;
     });
@@ -108,7 +112,15 @@ export function IntentsProvider({children}: {children: ReactNode}) {
     });
   }, []);
 
-  const value = useMemo(() => ({sent, remember, forget}), [sent, remember, forget]);
+  // What is shown is what went to the coordinator this app is talking to now.
+  // The rest stays in storage and comes back when the app does. An entry from
+  // before this was recorded has no coordinator on it and is still shown.
+  const here = useMemo(() => {
+    const now = coordinatorUrl();
+    return sent.filter((entry) => entry.via === undefined || entry.via === now);
+  }, [sent]);
+
+  const value = useMemo(() => ({sent: here, remember, forget}), [here, remember, forget]);
 
   return <IntentsContext.Provider value={value}>{children}</IntentsContext.Provider>;
 }

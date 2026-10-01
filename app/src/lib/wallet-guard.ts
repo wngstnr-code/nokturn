@@ -15,14 +15,21 @@ const SLACK_BLOCKS = 600n;
 
 type Asks = {request: (args: {method: "eth_blockNumber"}) => Promise<unknown>};
 
-export type GuardAnswer = {ok: true} | {ok: false; reason: string};
+export type GuardAnswer =
+  | {ok: true}
+  | {ok: false; reason: string; walletHead: bigint | null; appHead: bigint};
 
 export async function walletSeesSameChain(wallet: Asks, appHead: bigint): Promise<GuardAnswer> {
   let walletHead: bigint;
   try {
     walletHead = BigInt((await wallet.request({method: "eth_blockNumber"})) as string);
   } catch {
-    return {ok: false, reason: "Your wallet did not say which block it is on, so nothing was sent"};
+    return {
+      ok: false,
+      reason: "Your wallet did not say which block it is on, so nothing was sent",
+      walletHead: null,
+      appHead,
+    };
   }
 
   const gap = walletHead > appHead ? walletHead - appHead : appHead - walletHead;
@@ -30,6 +37,8 @@ export async function walletSeesSameChain(wallet: Asks, appHead: bigint): Promis
 
   return {
     ok: false,
+    walletHead,
+    appHead,
     reason: `Nothing was sent. Your wallet is at block ${walletHead.toString()} and this app is reading block ${appHead.toString()}, so they are not on the same network. Point the wallet's RPC for this chain at the one the app uses, then try again`,
   };
 }
