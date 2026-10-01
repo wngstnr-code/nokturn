@@ -1,9 +1,9 @@
 .wrap {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  padding: 16px;
+  padding: 20px;
   background: var(--n-paper-darker);
   border-radius: 16px;
 }
@@ -22,17 +22,24 @@
   gap: 8px;
 }
 
-.swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
+/* A legend key drawn the way its series is drawn, a line for a line. */
+.stroke {
+  width: 20px;
+  height: 3px;
   flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.plot {
+  position: relative;
 }
 
 .svg {
+  display: block;
   width: 100%;
   height: auto;
   overflow: visible;
+  cursor: crosshair;
 }
 
 .grid {
@@ -41,14 +48,13 @@
 }
 
 .band {
-  fill: var(--n-text-o10);
+  fill: var(--n-primary-o10);
 }
 
 .bandText {
-  fill: var(--n-text-o50);
+  fill: var(--n-primary-lighter);
   font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .axisText {
@@ -64,51 +70,91 @@
 
 .line {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-/* A 2px ring in the surface colour keeps overlapping marks legible. */
-.dot {
-  stroke: var(--n-paper-darker);
-  stroke-width: 2;
-}
-
+/* Only the level being read is marked. A ring in the surface colour keeps the
+   mark clear of the line it sits on. */
 .hit {
   stroke: var(--n-paper-darker);
-  stroke-width: 2;
+  stroke-width: 3;
 }
 
 .crosshair {
   stroke: var(--n-text-o25);
   stroke-width: 1;
+  stroke-dasharray: 3 4;
 }
 
-.endLabel {
-  font-size: 12px;
-  font-weight: 600;
+.endValue {
+  font-size: 15px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.readout {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  min-height: 22px;
+.endName {
+  fill: var(--n-text-o50);
+  font-size: 10.5px;
+}
+
+.tip {
+  position: absolute;
+  top: 8%;
+  z-index: 2;
+  min-width: 220px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--n-blue-200);
+  color: var(--n-text);
   font-size: var(--n-font-small-plus);
   font-variant-numeric: tabular-nums;
+  box-shadow: var(--n-shadow-3);
+  pointer-events: none;
+  transform: translateX(14px);
+}
+
+.tipLeft {
+  transform: translateX(calc(-100% - 14px));
+}
+
+.tipHead {
+  margin: 0 0 8px;
+  font-weight: var(--n-weight-semibold);
+}
+
+.tipRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: var(--n-text-o70);
+}
+
+.tipRow strong {
+  margin: 0 0 0 auto;
+  padding: 0 0 0 16px;
+  color: var(--n-text);
+  font-weight: var(--n-weight-semibold);
+}
+
+.tipFoot {
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--n-text-o15);
+  color: var(--n-text-o60);
+  font-size: var(--n-font-small);
 }
 
 .readoutHint {
+  margin: 0;
   color: var(--n-text-o50);
+  font-size: var(--n-font-small);
 }
 
-.readoutShare {
-  color: var(--n-text);
-  font-weight: var(--n-weight-medium);
-}
-
-.readoutValue {
-  color: var(--n-text-o70);
+@media (max-width: 720px) {
+  .tip {
+    min-width: 180px;
+  }
 }
