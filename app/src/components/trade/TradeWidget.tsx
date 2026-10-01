@@ -78,7 +78,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
     closesIn: number;
     signature: `0x${string}`;
   } | null>(null);
-
+  const [submitting, setSubmitting] = useState(false);
   const [baseline, setBaseline] = useState<BaselineQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -266,7 +266,11 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
         primaryType: "PermitWitnessTransferFrom",
         message: permitWitnessMessage(intent, context.settlement),
       });
+      // The wallet has let go but the coordinator has not answered yet. Without
+      // a word for this the button reads as idle and gets pressed again.
+      setSubmitting(true);
       const result = await submitIntent({intent: serializeIntent(intent), signature: signed});
+      setSubmitting(false);
       if (result.ok) {
         remember({
           hash: result.value.intentHash,
@@ -316,7 +320,9 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
                 ? `Approve ${sellToken?.symbol ?? "token"} for Permit2`
                 : isPending
                   ? "Waiting for your wallet"
-                  : "Sign intent";
+                  : submitting
+                    ? "Sending to the coordinator"
+                    : "Sign intent";
 
   return (
     <div className={styles.container}>
@@ -509,7 +515,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
                 {action}
               </Button>
             ) : (
-              <Button disabled={!canSign || isPending} onClick={sign}>
+              <Button disabled={!canSign || isPending || submitting} onClick={sign}>
                 {action}
               </Button>
             )}
