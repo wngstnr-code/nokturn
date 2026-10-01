@@ -140,7 +140,7 @@ properti yang terbaca seperti terbukti padahal tidak.
 | Pemeriksaan limit | Terbukti, uint128 penuh |
 | Ekuivalensi perkalian silang | Terbukti, uint128 penuh |
 | Batas fee | Terbukti, uint128 penuh |
-| Pembulatan pro rata | **Sebagian, menyempit 29 September 2026.** Pembagian lewat `quoteOf` terbukti sebagai rantai lema di uint128. Pembagian lewat `tokenOf` masih fuzz saja, karena butuh lema lantai dengan pembagi simbolis |
+| Pembulatan pro rata | **Terbukti, 1 Oktober 2026.** Pembagian lewat `quoteOf` terbukti sebagai rantai lema di uint128. Pembagian lewat `tokenOf` terbukti langsung di uint128, dan lema lantai dengan pembagi simbolis terbukti di uint256 penuh |
 | Konservasi nilai | **Terbukti sebagai rantai lema, 29 September 2026.** Bentuk gabungan di uint128 disusun dari lema yang semuanya terbukti mesin. Satu langkah substitusi ditulis terbuka di bawah |
 | `sessionAt()` | **Sebagian.** Tiga properti parameter tuntas lewat enumerasi, tiga properti tanggal terbukti simbolis. Tabelnya tuntas lewat `CivilDate.t.sol` |
 | Kekuasaan guardian | **Terbukti, dua paruh.** Lima properti simbolis atas `Guarded`, plus gerbang sumber di CI |
@@ -185,6 +185,28 @@ Yang tetap tidak tertutup adalah lema lantai dengan **pembagi simbolis**. Ia tim
 di `cvc5-int`, yices, z3, dan bitwuzla, di uint256 maupun uint128. Karena itu
 pembagian quote lewat `tokenOf` tetap fuzz saja, dan baris pembulatan pro rata
 tetap sebagian.
+
+**Koreksi 1 Oktober 2026. Yang timeout adalah dua batas yang ditanyakan sebagai satu
+query, bukan lema pembagi simbolisnya.** Paragraf di atas dipertahankan sebagai
+catatan. Dipecah jadi dua query di `cvc5-int`, keduanya tertutup di bawah setengah
+detik.
+
+| Pernyataan | Lebar | Waktu |
+|---|---|---|
+| `x/d + y/d <= (x+y)/d` untuk pembagi simbolis | uint256 penuh | 0,14 dtk |
+| Selisih `(x+y)/d - (x/d + y/d)` paling banyak satu, pembagi simbolis | uint256 penuh | 0,14 dtk |
+| `tokenOf(a) + tokenOf(b) <= tokenOf(a + b)`, harga simbolis | uint128 | 0,27 dtk |
+
+Yang ketiga adalah properti protokolnya sendiri dan tertutup langsung, tanpa rantai.
+Sebelum hasil ini dipercaya, `cvc5-int` diberi lima pernyataan yang sengaja salah,
+tiga atas lema dan dua atas `tokenOf`. Kelimanya ditolak dengan counterexample yang
+valid. Salah satunya a 1, b 3, harga 1e18 + 1, di mana keseluruhannya membeli 3 token
+dan kedua bagiannya hanya 2. Satu pernyataan salah lagi, versi tanpa larangan luapan,
+berakhir timeout dan bukan lolos, jadi ia tidak membuktikan apa pun ke arah mana pun.
+
+Ketiganya ada di `test/halmos/RoundingProofs.t.sol` dan dijalankan gerbang malam.
+Bentuk gabungan di `AuctionMathProofs` tetap fuzz berbatas, karena sebagai satu query
+ia tetap timeout. Baris pembulatan pro rata naik jadi terbukti.
 
 Uraian 20 September di bawah dipertahankan apa adanya sebagai catatan pengukuran.
 Angkanya benar untuk keempat solver bitvector. Kesimpulannya, bahwa pembagian 256 bit
@@ -542,7 +564,7 @@ Semua harus hijau. Tanpa pengecualian, tanpa "nanti diperbaiki".
 
 - [x] 14 invarian hijau di Foundry **dan** Echidna · lima target Echidna, nol falsifikasi, 19 September 2026
 - [x] Differential ≥ 1 juta input, nol perbedaan · laporan `verifier/reports/differential-2026-09-18.md`
-- [ ] Semua properti Halmos terbukti · 5 dari 7 penuh sejak 29 September 2026, 2 sebagian. Konservasi nilai naik lewat rantai lema `cvc5-int`. Yang tersisa adalah pembagian quote lewat `tokenOf` dan `sessionAt`. Sebelumnya 4 dari 7 penuh, 3 sebagian, dan batas ketiganya sekarang terukur bukan ditebak. Tembok pembagian dipetakan tuntas 20 September 2026 lewat empat solver, tiga bentuk pernyataan, dan seluruh lebar yang dipunyai Solidity. Bentuk gabungan naik dari fuzz ke terbukti di uint32. Lihat §4.1
+- [ ] Semua properti Halmos terbukti · 6 dari 7 penuh sejak 1 Oktober 2026, 1 sebagian. Pembagian quote lewat `tokenOf` tertutup langsung di `cvc5-int` begitu dua batasnya ditanyakan terpisah. Yang tersisa hanya `sessionAt`, yang sengaja dibuktikan sebagian karena ia membaca dua tabel storage. Sebelumnya 5 dari 7 penuh sejak 29 September 2026, setelah konservasi nilai naik lewat rantai lema `cvc5-int`. Sebelumnya 4 dari 7 penuh, 3 sebagian, dan batas ketiganya sekarang terukur bukan ditebak. Tembok pembagian dipetakan tuntas 20 September 2026 lewat empat solver, tiga bentuk pernyataan, dan seluruh lebar yang dipunyai Solidity. Bentuk gabungan naik dari fuzz ke terbukti di uint32. Lihat §4.1
 - [x] Skor mutasi ≥ 90% pada kontrak inti · 100% atas 156 mutan yang dihitung di `Settlement` dan `SessionManager`, 19 September 2026. Seluruh kontrak lain juga sudah diukur dan berada di 100%
 - [x] Semua fork test lulus terhadap mainnet nyata · 18 hijau, 19 September 2026. Sebelum hari itu fork-nya membaca state 2 Agustus, lihat `pertanyaan-terbuka.md` pelajaran ketujuh
 - [x] 15 skenario adversarial lulus · enam belas hijau setelah A16 ditambahkan 20 September 2026, peta ke nama test di §7.1

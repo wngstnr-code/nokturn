@@ -177,11 +177,7 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
         </section>
       )}
 
-      {/*
-        On a fork the cross is run by a script over a book of exactly five intents,
-        so a commitment from here could only leave the auction stuck frozen. On
-        mainnet a keeper crosses whatever the book holds.
-      */}
+      {/* On a fork the book is the demo harness's five intents, and a sixth stops its cross. */}
       {now === null || now.network.kind === "fork" ? null : (
         <CommitCard
           chainId={now.network.chainId}

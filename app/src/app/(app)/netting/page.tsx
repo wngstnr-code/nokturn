@@ -7,24 +7,6 @@ export const metadata = {title: "Netting backtest"};
 
 export const dynamic = "force-dynamic";
 
-/*
- * The copy this build carries, from docs/parameter.md section 4. It is drawn only
- * when no coordinator answers, and the page says which of the two it is showing.
- * The coordinator serves the same rows from the Dune export, and they were checked
- * equal to these on 1 October 2026.
- */
-const CARRIED: Point[] = [
-  {share: 5, counterparty: 21.43, gross: 31.92, traders: 1.94},
-  {share: 10, counterparty: 27.19, gross: 37.99, traders: 2.47},
-  {share: 15, counterparty: 30.43, gross: 41.17, traders: 2.9},
-  {share: 20, counterparty: 33.39, gross: 44.41, traders: 3.29},
-  {share: 25, counterparty: 35.73, gross: 47.06, traders: 3.63},
-  {share: 30, counterparty: 38.06, gross: 49.51, traders: 3.95},
-  {share: 50, counterparty: 42.81, gross: 54.99, traders: 5.09},
-  {share: 75, counterparty: 46.65, gross: 59.79, traders: 6.35},
-  {share: 100, counterparty: 50.05, gross: 63.76, traders: 7.47},
-];
-
 const DUNE =
   "https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026";
 
@@ -33,13 +15,17 @@ const QUOTED_SESSION = "off_hours_weekday";
 
 type Loaded = {
   curve: Point[];
-  served: NettingCurveResponse["source"] | null;
-  statement: string | null;
+  served: NettingCurveResponse["source"];
+  statement: string;
 };
 
-async function load(): Promise<Loaded> {
+/*
+ * Only what the coordinator serves from the Dune export. No copy is kept in this
+ * build, because a number the page cannot point at a query for does not belong on it.
+ */
+async function load(): Promise<Loaded | null> {
   const answer = await nettingCurve();
-  if (!answer.ok) return {curve: CARRIED, served: null, statement: null};
+  if (!answer.ok) return null;
 
   const curve = answer.value.rows
     .filter((row) => row.session === QUOTED_SESSION)
@@ -51,8 +37,7 @@ async function load(): Promise<Loaded> {
       traders: row.avgTradersPerBatch,
     }));
 
-  // A served curve with no rows for this session is not a reason to draw nothing.
-  if (curve.length === 0) return {curve: CARRIED, served: null, statement: null};
+  if (curve.length === 0) return null;
   return {curve, served: answer.value.source, statement: answer.value.statement};
 }
 
@@ -67,7 +52,26 @@ function at(curve: Point[], share: number): Point | undefined {
 }
 
 export default async function NettingPage() {
-  const {curve, served, statement} = await load();
+  const loaded = await load();
+  if (loaded === null) {
+    return (
+      <div className={styles.page}>
+        <section className={styles.hero}>
+          <p className={styles.eyebrow}>Netting against share of flow</p>
+          <h1 className={styles.title}>No curve to draw right now</h1>
+          <p className={styles.lead}>
+            The coordinator did not answer, and this page draws nothing it cannot trace to a query.
+            The backtest itself is public on the{" "}
+            <a href={DUNE} target="_blank" rel="noreferrer">
+              Dune dashboard
+            </a>
+            .
+          </p>
+        </section>
+      </div>
+    );
+  }
+  const {curve, served, statement} = loaded;
   const [p5, p10, p20, p100] = [5, 10, 20, 100].map((share) => at(curve, share));
 
   return (
@@ -76,8 +80,7 @@ export default async function NettingPage() {
         <p className={styles.eyebrow}>Netting against share of flow</p>
         <h1 className={styles.title}>More flow is not a promise, it has a slope</h1>
         <p className={styles.lead}>
-          {statement ??
-            "Every line on this page is a counterfactual simulation over real trades. The inputs are August 2026 flow on Robinhood Chain, the mechanism is hypothetical because Nokturn did not exist then. This is a backtest, never a measurement."}{" "}
+          {statement}{" "}
           The word matters enough that it is printed on the chart rather than said once in a script.
         </p>
       </section>
@@ -159,24 +162,14 @@ export default async function NettingPage() {
       </div>
 
       <p className={styles.footnote}>
-        {served === null ? (
-          <>
-            Drawn from the copy this build carries, taken from the project parameters, because no
-            coordinator answered. The inputs are our own queries over August 2026 flow, off hours,
-            45 second batches, against the v1.0 allowlist.
-          </>
-        ) : (
-          <>
-            Served by the coordinator from the export of{" "}
-            <a href={served.duneQueryUrl} target="_blank" rel="noreferrer">
-              Dune query <span className="chainvalue">{served.duneQueryId}</span>
-            </a>
-            , exported <span className="chainvalue">{served.exportedAt}</span>, over{" "}
-            <span className="chainvalue">{served.window}</span> in{" "}
-            <span className="chainvalue">{served.batchSeconds}</span> second batches, off hours on
-            weekdays.
-          </>
-        )}{" "}
+        Served by the coordinator from the export of{" "}
+        <a href={served.duneQueryUrl} target="_blank" rel="noreferrer">
+          Dune query <span className="chainvalue">{served.duneQueryId}</span>
+        </a>
+        , exported <span className="chainvalue">{served.exportedAt}</span>, over{" "}
+        <span className="chainvalue">{served.window}</span> in{" "}
+        <span className="chainvalue">{served.batchSeconds}</span> second batches, off hours on
+        weekdays.{" "}
         The queries are permanent and public on the{" "}
         <a href={DUNE} target="_blank" rel="noreferrer">
           Dune dashboard

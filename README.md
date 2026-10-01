@@ -21,10 +21,12 @@ execution so anyone can recompute it from pool state at the same block.
 Implementation started on 14 September 2026, the first day the buildathon Code of
 Conduct allows code. The contracts were deployed to Robinhood Chain mainnet on
 29 September 2026 and verified on Sourcify. Settlement lives at
-`0x92075BaA431Cb3A4CeaD3F6E676d26F6c0bCb934`. Batches can settle on mainnet once the
-price feeds, scheduled through the 48 hour time-lock, go live on 1 October 2026.
-Until then every number the backend produces comes from a mainnet fork pinned at
-block 67,798,044, and each response says so.
+`0x92075BaA431Cb3A4CeaD3F6E676d26F6c0bCb934`. The price feeds went through the
+48 hour time-lock and were executed on 1 October 2026 at block 77,423,153, in
+transaction `0xfb8efc533e48e24768ea1f9762579a7360f2e006748d77768aa2475a58453d21`.
+From that block the oracle prices all five stock tokens and USDG, and batches can
+settle on mainnet. The backend and the app both read mainnet. Every response
+carries the chain and block it was read at.
 
 The design documents in `docs/` are the working record from the research phase
 that ran through August and early September 2026. They are published as written,
@@ -35,21 +37,23 @@ including the parts where earlier conclusions were measured and thrown away.
 All figures below come from our own Dune queries against indexed Robinhood Chain
 data, covering August 2026 unless noted.
 
-| | July 2026 | August 2026 |
-|---|---|---|
-| Stock token trades | 3.66M | 8.58M |
-| Stock token volume | $280.2M | $1,005.6M |
-| Active wallets | 59,785 | 139,093 |
-| Trades while NYSE closed | 65.6% | 74.1% |
-| Volume while NYSE closed | 56.4% | 65.2% |
-| Weekend trades | 12.9% | 33.2% |
+| | August 2026 |
+|---|---|
+| Stock token trades | 8.58M |
+| Stock token volume | $1,005.6M |
+| Active wallets | 139,093 |
+| Trades while NYSE closed | 74.1% |
+| Volume while NYSE closed | 65.2% |
+| Weekend trades | 33.2% |
 
-Execution quality did not get uniformly worse off-hours. It got worse in the tail.
-Between July and August the p90 gap between off-hours and open-session price
-movement nearly closed, falling from 2.47x to 1.27x. Over the same period the p99
-ratio moved the other way, from 1.22x to 8.50x. Off-hours flow is not generally
-badly priced. It is occasionally very badly priced, with no reference price
-available to tell the difference at the time.
+Execution quality is not uniformly worse off-hours. It is worse in the tail. At
+p90, price movement between trades on weekday off-hours was 1.27x the open
+session. At p99 it was 8.50x, 1,779 bps against 209 bps. Off-hours flow is not
+generally badly priced. It is occasionally very badly priced, with no reference
+price available to tell the difference at the time.
+
+July 2026 figures are left out on purpose. The queries behind them could not be
+recovered, so nobody, including us, can rerun them.
 
 ## What is verifiable today
 

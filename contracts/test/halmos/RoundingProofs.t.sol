@@ -20,8 +20,9 @@ import {ClearingMath} from "../../src/libraries/ClearingMath.sol";
 /// substituting a product for a variable, and that substitution is the one step
 /// no solver checks. rencana-uji.md section 4.1 writes the chains out.
 ///
-/// Splitting a quote through tokenOf is not closed. It needs the floor lemma with a
-/// symbolic divisor, which times out on every solver halmos offers.
+/// Splitting a quote through tokenOf closed on 1 October 2026, directly and without a
+/// chain. It had timed out because the two bounds were asked as one query. Asked
+/// apart, each closes in under a second.
 contract RoundingProofs is Test {
     uint256 internal constant WAD = 1e18;
 
@@ -37,6 +38,42 @@ contract RoundingProofs is Test {
 
         assertLe(split, whole, "two floored parts took more than the floored whole");
         assertLe(whole - split, 1, "the shortfall from two parts passed one unit");
+    }
+
+    /// The same lemma with the divisor symbolic rather than WAD, at full width. This
+    /// is the floor lemma rencana-uji.md section 4.1 once recorded as closing on no
+    /// solver.
+    function testFuzz_flooringASplitNeverGainsForAnyDivisor(uint256 x, uint256 y, uint256 d) public pure {
+        vm.assume(d > 0);
+        vm.assume(x <= type(uint256).max - y);
+
+        assertLe(x / d + y / d, (x + y) / d, "two floored parts took more than the floored whole");
+    }
+
+    /// Its other half, kept as a query of its own. Joined to the one above, the pair
+    /// times out.
+    function testFuzz_theShortfallFromASplitIsAtMostOneForAnyDivisor(uint256 x, uint256 y, uint256 d)
+        public
+        pure
+    {
+        vm.assume(d > 0);
+        vm.assume(x <= type(uint256).max - y);
+
+        assertLe((x + y) / d - (x / d + y / d), 1, "the shortfall from two parts passed one unit");
+    }
+
+    /// The pro rata split over tokenOf itself, at the width the protocol runs in.
+    function testFuzz_splittingAQuoteThroughTheTokenNeverGains(uint128 a, uint128 b, uint128 price)
+        public
+        pure
+    {
+        vm.assume(price > 0);
+
+        assertLe(
+            ClearingMath.tokenOf(a, price) + ClearingMath.tokenOf(b, price),
+            ClearingMath.tokenOf(uint256(a) + b, price),
+            "two token amounts took more than the token amount of their sum"
+        );
     }
 
     /// First step of the round trip through the price. Flooring and scaling back
