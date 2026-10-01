@@ -1,0 +1,18 @@
+.mark,
+.initials {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.mark svg {
+  display: block;
+}
+
+.initials {
+  background: var(--n-primary-o25);
+  color: var(--n-primary);
+  font-weight: var(--n-weight-bold);
+  letter-spacing: 0.02em;
+}
