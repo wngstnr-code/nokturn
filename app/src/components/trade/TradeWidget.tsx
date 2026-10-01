@@ -3,8 +3,16 @@
 import Link from "next/link";
 import {useEffect, useMemo, useState} from "react";
 import {erc20Abi, formatUnits, maxUint256, parseUnits, type Address} from "viem";
-import {useAccount, usePublicClient, useReadContract, useSignTypedData, useWriteContract} from "wagmi";
+import {
+  useAccount,
+  usePublicClient,
+  useReadContract,
+  useSignTypedData,
+  useWalletClient,
+  useWriteContract,
+} from "wagmi";
 import {ChevronIcon} from "@/components/Icons";
+import {walletSeesSameChain} from "@/lib/wallet-guard";
 import {Button} from "@/components/ui/Button";
 import {TokenSelect} from "./TokenSelect";
 import {useIntents} from "./IntentsProvider";
@@ -93,6 +101,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
     query: {enabled: Boolean(address && sellToken)},
   });
   const client = usePublicClient({chainId: context.chainId as 4663 | 46630});
+  const {data: wallet} = useWalletClient();
   const {writeContractAsync} = useWriteContract();
   const [approving, setApproving] = useState(false);
 
@@ -169,10 +178,22 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
     !unapproved;
 
   async function approve() {
-    if (sellToken === undefined) return;
+    if (sellToken === undefined || client === undefined || wallet === undefined) return;
     setNote(null);
     setApproving(true);
     try {
+      // An approval is a transaction, and the wallet sends it wherever its own
+      // endpoint points. Checked first, so a fork never spends on the real chain.
+      const guard = await walletSeesSameChain(
+        wallet as never,
+        await client.getBlockNumber({cacheTime: 0}),
+      );
+      if (!guard.ok) {
+        setNote(guard.reason);
+        setApproving(false);
+        return;
+      }
+
       const hash = await writeContractAsync({
         address: sellToken.address,
         abi: erc20Abi,
@@ -180,7 +201,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
         args: [context.permit2, maxUint256],
         chainId: context.chainId as 4663 | 46630,
       });
-      await client?.waitForTransactionReceipt({hash});
+      await client.waitForTransactionReceipt({hash});
       await recheckAllowance();
     } catch (error) {
       setNote(error instanceof Error ? (error.message.split("\n")[0] ?? "Approval failed") : "Approval failed");
