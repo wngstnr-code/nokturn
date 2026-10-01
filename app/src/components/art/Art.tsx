@@ -198,24 +198,6 @@ export function HeldArt({size = 40, className}: ArtProps) {
   );
 }
 
-/** The gate. A contract on one side and the seal it has to earn on the other. */
-export function GateArt({size = 40, className}: ArtProps) {
-  return (
-    <svg {...frame(size, className)}>
-      <path d="M9 6h20l8 8v26a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3Z" fill={WHITE} />
-      <path d="M29 6l8 8h-6a2 2 0 0 1-2-2Z" fill={PERI_PALE} />
-      <rect x="11" y="13" width="11" height="3.4" rx="1.7" fill={PERI} />
-      <rect x="11" y="20.5" width="18" height="2.6" rx="1.3" fill={PERI_PALE} />
-      <rect x="11" y="25.5" width="14" height="2.6" rx="1.3" fill={PERI_PALE} />
-      <rect x="11" y="30.5" width="16" height="2.6" rx="1.3" fill={PERI_PALE} />
-      <circle cx="35" cy="35" r="9.5" fill={MINT_DEEP} />
-      <circle cx="35" cy="35" r="6.6" fill={MINT} />
-      <path d="M31.4 35.2l2.6 2.6 4.8-5.2" stroke={WHITE} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-      <Sparkle x={5} y={41} r={2.6} fill={AMBER} />
-    </svg>
-  );
-}
-
 /** Two flows meeting head on, which is what netting is. */
 export function NettingArt({size = 40, className}: ArtProps) {
   return (
