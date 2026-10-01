@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  BatchArt,
+  BatchOwl,
   CoinsArt,
   ClockArt,
   MoonArt,
@@ -8,7 +8,6 @@ import {
   PeopleArt,
   Seal,
   SheetsArt,
-  Tile,
 } from "@/components/art/Art";
 import {ProvenanceStrip} from "@/components/Provenance";
 import {AddressChip} from "@/components/ui/AddressChip";
@@ -264,9 +263,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
   return (
     <div className={styles.page}>
       <header className={styles.head}>
-        <Tile tone="night" size={76}>
-          <BatchArt size={52} />
-        </Tile>
+        <BatchOwl seed={receipt.batchId} size={76} />
         <div className={styles.headName}>
           <p className={styles.eyebrow}>Batch receipt</p>
           <h1 className={styles.title}>
