@@ -1,6 +1,7 @@
 .card {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   gap: 16px;
   padding: 16px;
   background: var(--n-paper-darker);
