@@ -6,7 +6,8 @@
 //   node infra/scripts/demo-fail.mjs --case passthrough | expired | unwound
 //
 // passthrough  two intents on the same side, nothing to net, everything routed.
-//              It settles, saves nothing, and carries SavingsBelowThreshold.
+//              It fills at the venue price, saves nothing, and reads
+//              settled_at_venue with no failure.
 // expired      the solver is killed once its solution is on chain, and
 //              expireBatch is called from another account after the deadline.
 //              It slashes solverA's bond, so run it inside make snapshot.
@@ -37,7 +38,7 @@ const SOLVER_MINUTES = "3";
 const INDEXER_MINUTES = "15";
 
 const EXPECT = {
-  passthrough: {outcome: "settled", code: "SavingsBelowThreshold", reason: "savings below threshold"},
+  passthrough: {outcome: "settled_at_venue", code: null, reason: "savings below threshold"},
   expired: {outcome: "expired", code: "WinnerNeverFinalized", reason: "winner never finalized"},
   unwound: {outcome: "passthrough", code: "IntentCollectionFailed", reason: "intent could not be collected"},
 };
@@ -102,8 +103,14 @@ function verify(name, r) {
   const passthrough = r.closing.find((l) => l.eventName === "BatchPassthrough");
   check(`BatchPassthrough "${want.reason}" on chain`, passthrough && passthrough.args.reason === want.reason, passthrough ? `${passthrough.args.reason} in ${passthrough.transactionHash}` : "none");
   check(`receipt outcome ${want.outcome}`, r.receipt.outcome === want.outcome, r.receipt.outcome);
-  check(`failure code ${want.code}`, r.receipt.failure?.code === want.code, r.receipt.failure?.code ?? "no failure");
-  check("feeCharged is 0", r.receipt.failure?.feeCharged === "0", r.receipt.failure?.feeCharged);
+  if (want.code) {
+    check(`failure code ${want.code}`, r.receipt.failure?.code === want.code, r.receipt.failure?.code ?? "no failure");
+    check("feeCharged is 0", r.receipt.failure?.feeCharged === "0", r.receipt.failure?.feeCharged);
+  } else {
+    check("no failure on a batch that filled", r.receipt.failure === null, r.receipt.failure?.code ?? "no failure");
+    const fee = BigInt(r.receipt.totals.solverFeeUsd) + BigInt(r.receipt.totals.protocolFeeUsd);
+    check("no fee charged", fee === 0n, String(fee));
+  }
   if (name === "passthrough") {
     const settled = r.closing.find((l) => l.eventName === "BatchSettled");
     check("BatchSettled in the same finalize", settled && settled.transactionHash === passthrough?.transactionHash, settled?.transactionHash ?? "none");
