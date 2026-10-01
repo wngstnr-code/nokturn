@@ -10,6 +10,8 @@ import {baseTokens, quoteToken, type TokenInfo} from "@/lib/tokens";
 import {CHAIN_ID_TESTNET} from "@shared/addresses";
 import styles from "./page.module.css";
 
+export const metadata = {title: "Trade"};
+
 export const dynamic = "force-dynamic";
 
 const CHAIN = CHAIN_ID_TESTNET;

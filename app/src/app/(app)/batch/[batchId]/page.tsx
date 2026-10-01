@@ -8,6 +8,11 @@ import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({params}: {params: Promise<{batchId: string}>}) {
+  const {batchId} = await params;
+  return {title: `Batch #${batchId}`};
+}
+
 function amount(value: string, decimals: number, places: number): string {
   try {
     return units(BigInt(value), decimals, places);

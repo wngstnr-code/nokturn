@@ -3,6 +3,8 @@ import {runGate, type GateReport} from "@/lib/allowlist-gate";
 import {robinhoodMainnet} from "@/lib/chain";
 import styles from "./page.module.css";
 
+export const metadata = {title: "Allowlist"};
+
 export const dynamic = "force-dynamic";
 
 function Provenance({report}: {report: GateReport}) {

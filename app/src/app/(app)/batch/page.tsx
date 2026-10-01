@@ -9,6 +9,8 @@ import {CHAIN_ID_TESTNET} from "@shared/addresses";
 import type {Session} from "@shared/types";
 import styles from "./page.module.css";
 
+export const metadata = {title: "Batches"};
+
 export const dynamic = "force-dynamic";
 
 const CHAIN = CHAIN_ID_TESTNET;
