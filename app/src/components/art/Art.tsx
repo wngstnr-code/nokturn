@@ -61,19 +61,76 @@ export function Tile({
   );
 }
 
-/** Receipts fanned out, the newest in front with its check. */
-export function BatchArt({size = 40, className}: ArtProps) {
+/*
+ * A batch has a face. The owl is the logo's own head, and the sheet beside it is
+ * the receipt the batch leaves behind. The colours come from the batch number, so
+ * one batch looks the same on the list, on its receipt and after a reload, and
+ * two batches side by side can be told apart before their numbers are read.
+ */
+const BATCH_COATS = [
+  {tile: PERI_DEEP, owls: [AMBER, MINT, CREAM], sheet: CREAM, rule: PERI_PALE},
+  {tile: AMBER, owls: [PERI_DEEP, WHITE, PERI], sheet: WHITE, rule: AMBER_DEEP},
+  {tile: MINT, owls: [PERI_DEEP, WHITE, PERI], sheet: WHITE, rule: MINT_DEEP},
+  {tile: PERI, owls: [CREAM, AMBER, PERI_DEEP], sheet: WHITE, rule: PERI_PALE},
+  {tile: CREAM, owls: [PERI, AMBER_DEEP, PERI_DEEP], sheet: WHITE, rule: AMBER},
+  {tile: PERI_PALE, owls: [PERI_DEEP, WHITE, AMBER_DARK], sheet: WHITE, rule: PERI},
+  {tile: MINT_DEEP, owls: [CREAM, AMBER, PERI_DEEP], sheet: WHITE, rule: MINT},
+] as const;
+
+/// Where the owl is looking. A second way two batches differ when their coats match.
+const GAZES = [
+  [0, 0],
+  [-3.4, 0],
+  [3.4, 0],
+  [0, -3.4],
+  [0, 3.4],
+] as const;
+
+/*
+ * A batch is numbered by the second its collection closes, and windows are 10,
+ * 30 or 60 seconds long. Counting in tens of seconds and taking the remainder by
+ * seven, which shares no factor with one, three or six, walks neighbouring
+ * batches through the coats rather than landing them on the same one. The owl's
+ * own colour and where it looks turn once per lap of the coats, so two batches
+ * that do land on one tile still do not share a face.
+ */
+function faceFor(seed: string) {
+  const second = Number(seed);
+  let count: number;
+  if (Number.isFinite(second)) {
+    count = Math.floor(second / 10);
+  } else {
+    count = 0;
+    for (const char of seed) count = (count * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  const coat = BATCH_COATS[count % BATCH_COATS.length]!;
+  const turn = Math.floor(count / BATCH_COATS.length) % GAZES.length;
+  return {coat, owl: coat.owls[turn % coat.owls.length]!, gaze: GAZES[turn]!};
+}
+
+export function BatchOwl({seed, size = 44, className}: ArtProps & {seed: string}) {
+  const {coat, owl, gaze} = faceFor(seed);
+
   return (
     <svg {...frame(size, className)}>
-      <rect x="5" y="11" width="20" height="28" rx="4" fill={AMBER_DARK} />
-      <rect x="12" y="9" width="20" height="30" rx="4" fill={AMBER_PALE} />
-      <rect x="20" y="7" width="22" height="34" rx="4" fill={PERI} />
-      <rect x="24" y="13" width="10" height="3.4" rx="1.7" fill={CREAM} />
-      <rect x="24" y="19.5" width="14" height="2.6" rx="1.3" fill={PERI_PALE} />
-      <rect x="24" y="24.5" width="11" height="2.6" rx="1.3" fill={PERI_PALE} />
-      <circle cx="31" cy="33" r="5" fill={AMBER} />
-      <path d="M28.6 33.1l1.7 1.7 3.2-3.5" stroke={WHITE} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <Sparkle x={42} y={7} r={4} />
+      <rect width="48" height="48" rx="15" fill={coat.tile} />
+      <g transform="rotate(8 34 22)">
+        <rect x="25" y="8" width="17" height="24" rx="3.5" fill={coat.sheet} />
+        <rect x="28.5" y="13" width="7" height="2.6" rx="1.3" fill={coat.rule} />
+        <rect x="28.5" y="18.5" width="10" height="2.2" rx="1.1" fill={coat.rule} />
+        <rect x="28.5" y="23" width="8" height="2.2" rx="1.1" fill={coat.rule} />
+      </g>
+      <g transform="translate(4 14) scale(0.5)">
+        <path
+          d="M3 13L19 19.5Q32 16 45 19.5L61 13Q62.5 28 59 40Q53.5 58.5 32 60.5Q10.5 58.5 5 40Q1.5 28 3 13Z"
+          fill={owl}
+        />
+        <circle cx="21" cy="35" r="11.4" fill={coat.tile} />
+        <circle cx="43" cy="35" r="11.4" fill={coat.tile} />
+        <circle cx={21 + gaze[0]} cy={35 + gaze[1]} r="5.4" fill={owl} />
+        <circle cx={43 + gaze[0]} cy={35 + gaze[1]} r="5.4" fill={owl} />
+        <path d="M27.5 43.5H36.5L32 52Z" fill={coat.tile} />
+      </g>
     </svg>
   );
 }
