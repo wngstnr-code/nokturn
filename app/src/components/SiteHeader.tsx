@@ -3,6 +3,8 @@
 import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {ConnectWallet} from "./ConnectWallet";
+import {MaskIcon} from "./landing/MaskIcon";
+import {BRAND} from "./landing/content";
 import type {SessionSnapshot} from "./SessionClock";
 import styles from "./SiteHeader.module.css";
 
@@ -27,7 +29,7 @@ export function SiteHeader({snapshot}: {snapshot: SessionSnapshot}) {
     <header className={styles.shell}>
       <div className={styles.bar}>
         <Link href="/" className={styles.brand}>
-          <span className={styles.moon} aria-hidden="true" />
+          <MaskIcon src={BRAND.mark} className={styles.mark} />
           Nokturn
         </Link>
 
