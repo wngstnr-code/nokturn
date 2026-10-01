@@ -54,7 +54,13 @@ export async function activeNetwork(): Promise<Network> {
 
 export type Active = {
   network: Network;
-  contracts: {settlement: Address; sessions: Address; oracle: Address; permit2: Address};
+  contracts: {
+    settlement: Address;
+    sessions: Address;
+    oracle: Address;
+    permit2: Address;
+    auctionHouse: Address;
+  };
   bases: TokenInfo[];
   quote: TokenInfo;
 };
@@ -74,10 +80,10 @@ export async function active(): Promise<Active> {
       address: token.address,
       decimals: token.decimals,
     });
-    const {settlement, sessions, oracle, permit2} = served.contracts;
+    const {settlement, sessions, oracle, permit2, auctionHouse} = served.contracts;
     return {
       network: describe(served.chainId, served.source),
-      contracts: {settlement, sessions, oracle, permit2},
+      contracts: {settlement, sessions, oracle, permit2, auctionHouse},
       bases: served.tokens.filter((token) => token.allowed).map(named),
       quote: named(served.quoteToken),
     };
@@ -86,6 +92,11 @@ export async function active(): Promise<Active> {
   const own = deploymentFor(TESTNET.chainId);
   if (own === null) throw new Error(`Nokturn is not deployed on chain ${TESTNET.chainId}`);
   const [bases, quote] = await Promise.all([baseTokens(TESTNET.chainId), quoteToken(TESTNET.chainId)]);
-  const {settlement, sessions, oracle, permit2} = own;
-  return {network: TESTNET, contracts: {settlement, sessions, oracle, permit2}, bases, quote};
+  const {settlement, sessions, oracle, permit2, auctionHouse} = own;
+  return {
+    network: TESTNET,
+    contracts: {settlement, sessions, oracle, permit2, auctionHouse},
+    bases,
+    quote,
+  };
 }
