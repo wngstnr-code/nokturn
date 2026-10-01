@@ -5,6 +5,7 @@ import type {
   BaselineQuote,
   BatchListResponse,
   BatchReceipt,
+  ConfigResponse,
   CoordinatorHealth,
   CurrentBatchResponse,
   HealthResponse,
@@ -12,6 +13,7 @@ import type {
   IntentStatusResponse,
   NonceResponse,
   Outcome,
+  SessionResponse,
   SubmitIntentResponse,
 } from "./types";
 
@@ -101,6 +103,19 @@ export async function health(): Promise<CoordinatorHealth> {
     detail: result.value.ok ? "Reachable" : "The coordinator reports itself unhealthy",
     components: result.value.components,
   };
+}
+
+/*
+ * The chain, the contracts and the tokens the coordinator is actually serving. A
+ * fork carries its own Settlement address, so an app that keeps its own copy signs
+ * for a spender the coordinator has never heard of.
+ */
+export async function config(): Promise<Outcome<ConfigResponse>> {
+  return call<ConfigResponse>("/v1/config", {cache: "no-store"});
+}
+
+export async function session(): Promise<Outcome<SessionResponse>> {
+  return call<SessionResponse>("/v1/session", {cache: "no-store"});
 }
 
 /// Null during a guard band or an auction phase, both of which are normal.
