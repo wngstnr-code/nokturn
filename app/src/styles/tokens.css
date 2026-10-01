@@ -1,78 +1,79 @@
 /*
  * Design tokens.
  *
- * Values are taken one to one from CoW Swap's dark theme so the two surfaces
- * look the same. Source of the numbers: libs/ui/src/colors.ts,
- * libs/ui/src/consts.ts and libs/ui/src/theme/ThemeColorVars.tsx in the cowswap
- * repo, cross checked against the resolved values read back from the running
- * app at swap.cow.fi.
+ * The palette is Owl Amber, set down in brand.md at the repo root. Midnight
+ * indigo at hue 275, with an amber the colour of an owl's eye as the only loud
+ * thing on the page. Mint and periwinkle are the two supports, taken from the
+ * landing page so the app and the landing read as one product.
  *
- * Nothing here is copied code. CoW Swap is GPL-3.0 and this repo is MIT, so the
- * components are written from scratch against these numbers.
+ * The layering runs one way. The page is the darkest, the slab the screens sit on
+ * is a step up, a card is a step above that, and a well inside a card drops back
+ * down. A screen never needs a border to separate two things, only a step.
  *
- * When the time comes to stop looking like CoW, this file is the only place
- * that has to change.
+ * No gradients, by decision of the project owner on 1 October 2026. Every field
+ * of colour is solid.
  */
 
 :root {
-  --n-background: #000000;
-  --n-paper: #18193b;
-  --n-paper-darker: hsla(238, 42%, 9%, 1);
-  --n-paper-darkest: hsla(238, 42%, 6%, 1);
-  --n-paper-gradient: linear-gradient(90deg, rgba(222, 227, 230, 0.1) 0%, rgba(222, 227, 230, 0.2) 100%);
+  --n-background: #05071b;
+  --n-paper: #171b42;
+  --n-paper-darker: #0a0d26;
+  --n-paper-darkest: #05071b;
 
-  /* Owl amber. brand.md, primary and primary-soft of the dark seed. */
   --n-primary: #ffb825;
   --n-primary-lighter: #ffda94;
-  --n-primary-darker: hsla(40, 100%, 45%, 1);
-  --n-primary-darkest: hsla(40, 100%, 28%, 1);
+  --n-primary-darker: #e09600;
+  --n-primary-darkest: #945100;
   --n-primary-o80: rgba(255, 184, 37, 0.8);
   --n-primary-o50: rgba(255, 184, 37, 0.5);
   --n-primary-o25: rgba(255, 184, 37, 0.25);
   --n-primary-o10: rgba(255, 184, 37, 0.1);
 
-  --n-text: #dee3e6;
-  --n-text-o70: rgba(222, 227, 230, 0.7);
-  --n-text-o60: rgba(222, 227, 230, 0.6);
-  --n-text-o50: rgba(222, 227, 230, 0.5);
-  --n-text-o25: rgba(222, 227, 230, 0.25);
-  --n-text-o15: rgba(222, 227, 230, 0.15);
-  --n-text-o10: rgba(222, 227, 230, 0.1);
-  --n-secondary-text: rgba(222, 227, 230, 0.4);
-  --n-disabled-text: #86b2dc;
-  --n-button-text: #000000;
-  --n-button-text-disabled: #dee3e6;
+  --n-text: #f2f5fd;
+  --n-text-o70: rgba(242, 245, 253, 0.72);
+  --n-text-o60: rgba(242, 245, 253, 0.62);
+  --n-text-o50: rgba(242, 245, 253, 0.52);
+  --n-text-o25: rgba(242, 245, 253, 0.25);
+  --n-text-o15: rgba(242, 245, 253, 0.15);
+  --n-text-o10: rgba(242, 245, 253, 0.1);
+  --n-secondary-text: rgba(242, 245, 253, 0.4);
+  --n-disabled-text: #9a9db5;
+  --n-button-text: #0d102c;
+  --n-button-text-disabled: rgba(242, 245, 253, 0.52);
 
-  --n-success: #00d897;
-  --n-success-bg: rgba(0, 216, 151, 0.15);
-  --n-success-text: hsla(162, 100%, 46%, 1);
-  --n-danger: #f44336;
-  --n-danger-bg: rgba(244, 67, 54, 0.15);
-  --n-danger-text: hsla(4, 90%, 62%, 1);
-  --n-alert: #ffca4a;
-  --n-alert-bg: rgba(255, 202, 74, 0.15);
-  --n-alert-text: hsla(42, 100%, 71%, 1);
-  --n-warning: #ed6237;
-  --n-warning-bg: rgba(237, 98, 55, 0.15);
-  --n-warning-text: hsla(14, 83%, 61%, 1);
-  --n-info: #428dff;
-  --n-info-bg: rgba(66, 141, 255, 0.15);
-  --n-info-text: hsla(216, 100%, 67%, 1);
+  /* Mint says a check passed. Periwinkle says here is something to know. */
+  --n-success: #5fe6c1;
+  --n-success-bg: rgba(95, 230, 193, 0.14);
+  --n-success-text: #5fe6c1;
+  --n-info: #a2bcff;
+  --n-info-bg: rgba(162, 188, 255, 0.14);
+  --n-info-text: #a2bcff;
 
-  --n-border: var(--n-paper-darker);
-  --n-blue-100: #021e34;
-  --n-blue-200: #1c416e;
-  --n-blue-400: #3f77ff;
-  --n-blue-900: #cae9ff;
+  /* A caution is amber on a tinted field, never the solid fill a button wears. */
+  --n-alert: #ffb825;
+  --n-alert-bg: rgba(255, 184, 37, 0.12);
+  --n-alert-text: #ffda94;
+  --n-warning: #e09600;
+  --n-warning-bg: rgba(224, 150, 0, 0.14);
+  --n-warning-text: #ffda94;
+  --n-danger: #ff6b5e;
+  --n-danger-bg: rgba(255, 107, 94, 0.14);
+  --n-danger-text: #ff8a7f;
+
+  --n-border: #30365c;
+  --n-blue-100: #1c2369;
+  --n-blue-200: #232857;
+  --n-blue-400: #5f80e0;
+  --n-blue-900: #e4e9fd;
 
   --n-radius-normal: 24px;
   --n-radius-large: 32px;
   --n-padding-normal: 24px;
   --n-clickable-size: 44px;
 
-  --n-shadow: 0 12px 12px rgba(101, 217, 255, 0.06);
-  --n-shadow-2: 0px 4px 8px rgba(101, 217, 255, 0.06);
-  --n-shadow-3: 0px 6px 12px -6px hsla(238, 42%, 12%, 1), 0px 8px 24px -4px hsla(238, 42%, 8%, 1);
+  --n-shadow: 0 12px 12px rgba(5, 7, 27, 0.4);
+  --n-shadow-2: 0 4px 8px rgba(5, 7, 27, 0.4);
+  --n-shadow-3: 0 6px 12px -6px rgba(5, 7, 27, 0.8), 0 8px 24px -4px rgba(5, 7, 27, 0.9);
 
   --n-font-smaller: 10px;
   --n-font-small: 12px;
@@ -105,19 +106,17 @@
   --n-duration-slow: 0.2s;
   --n-easing: ease-in-out;
 
-  /* App shell. The slab the widget sits on is a hard coded colour in the
-     reference, not a themed token. */
-  --n-slab: #0e0f2d;
+  --n-slab: #0d102c;
   --n-slab-radius: 65px;
-  --n-menu-bg: rgb(222 227 230 / 7%);
-  --n-menu-active: #282854;
-  --n-menu-hover: #18193b;
-  --n-menu-fill: rgba(222, 227, 230, 0.4);
+  --n-menu-bg: rgba(242, 245, 253, 0.06);
+  --n-menu-active: #232857;
+  --n-menu-hover: #171b42;
+  --n-menu-fill: rgba(242, 245, 253, 0.45);
   --n-menu-radius: 28px;
   --n-menu-height: 56px;
-  --n-footer-bg: #000000;
-  --n-footer-text: #827474;
-  --n-footer-title: #f0dede;
+  --n-footer-bg: #05071b;
+  --n-footer-text: #9a9db5;
+  --n-footer-title: #f2f5fd;
 
   --n-widget-width: 470px;
   --n-intents-width: calc(var(--n-widget-width) * 1.25);
