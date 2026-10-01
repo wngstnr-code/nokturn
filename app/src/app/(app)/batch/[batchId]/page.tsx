@@ -74,6 +74,10 @@ function nettedShare(netted: string, routed: string): number | null {
  * docs/demo.md section 2. So the two figures stand side by side at the same size
  * with the difference between them, and only the explanation of a label is
  * folded away.
+ *
+ * The baseline of one fill is its share of the direction's baseline, not a quote
+ * for that fill alone, and the label says so. Calling it what the sale would have
+ * fetched alone was untrue on a routed batch. packages/shared/api-types.ts.
  */
 function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
   const moved = Number(fill.improvementBps);
@@ -109,10 +113,11 @@ function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
         </span>
         <div className={styles.side}>
           <span className={styles.sideLabel}>
-            Alone on the venue
-            <Hint label="What alone on the venue means">
-              What the same sale would have received from the venue by itself, read from pool state
-              at the same block. The command below recomputes it.
+            Its share of the venue baseline
+            <Hint label="What the venue baseline is">
+              The venue is asked once for everything sold in this direction, and that quote is
+              split across the fills by size. So this is a share, not what this fill alone would
+              have fetched. The call that checks the whole direction is further down.
             </Hint>
           </span>
           <span className={`${styles.sideValue} chainvalue`}>
