@@ -10,7 +10,7 @@ import {isAddress} from "viem";
 import type {WebSocket} from "ws";
 import type {ApiError, StreamEvent, StreamFrame, StreamSubscribe} from "../../../packages/shared/api-types.ts";
 import {subscribe as onEvent, type EventMeta} from "../events.ts";
-import {stamp} from "../provenance.ts";
+import {recentStamp} from "../provenance.ts";
 import {buildCurrentBatch} from "./session.ts";
 
 // parameter.md, batas operasional coordinator.
@@ -135,7 +135,7 @@ export function streamRoutes(app: FastifyInstance) {
         // the next one. Read from the chain now, not remembered.
         if (topics.has("batch.opened")) {
           void (async () => {
-            const at = await stamp();
+            const at = await recentStamp();
             send({type: "batch.opened", at: Number(at.timestamp), data: await buildCurrentBatch(at)});
           })().catch((error) => app.log.error({err: error}, "stream snapshot failed"));
         }

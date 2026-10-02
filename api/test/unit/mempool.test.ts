@@ -3,7 +3,7 @@ import {describe, test} from "node:test";
 import {setFlagsFromString} from "node:v8";
 import {runInNewContext} from "node:vm";
 import type {SignedIntent} from "../../../packages/shared/api-types.ts";
-import {FINALIZE_DEADLINE, STATUS_RETENTION, admit, getByHash, heldNonces, remembered, sweep} from "../../src/mempool.ts";
+import {FINALIZE_DEADLINE, STATUS_RETENTION, admit, getByHash, heldNonces, remembered, rememberTransitions, sweep} from "../../src/mempool.ts";
 
 const OWNER = "0xc3e87ba4132708838243a717c4b90112271ceee3";
 
@@ -78,5 +78,44 @@ describe("mempool retention, D6", () => {
     const perIntent = (heap() - warm) / 10_000;
     assert.ok(most <= retained, `${most} intents remembered at once, the retention allows ${retained}`);
     assert.ok(perIntent < 64, `the heap grew ${perIntent.toFixed(1)} bytes per intent across the second hundred batches`);
+  });
+});
+
+describe("calendar reader memory", () => {
+  // A stand in for SessionManager with transitions at 100 and 200, counting how
+  // often it is asked.
+  function calendar() {
+    let asked = 0;
+    return {
+      get asked() {
+        return asked;
+      },
+      async nextTransition(from: bigint) {
+        asked += 1;
+        return from < 100n ? 100n : from < 200n ? 200n : 300n;
+      },
+    };
+  }
+
+  test("one answer covers every second up to the transition, and no further", async () => {
+    const base = calendar();
+    const r = rememberTransitions(base);
+    assert.equal(await r.nextTransition(10n), 100n);
+    assert.equal(await r.nextTransition(50n), 100n);
+    assert.equal(await r.nextTransition(99n), 100n);
+    assert.equal(base.asked, 1);
+    // At the transition itself the next one is asked for, never the old answer.
+    assert.equal(await r.nextTransition(100n), 200n);
+    assert.equal(base.asked, 2);
+    assert.equal(await r.nextTransition(150n), 200n);
+    assert.equal(base.asked, 2);
+  });
+
+  test("a time before every remembered span is asked again, as after an evm_revert", async () => {
+    const base = calendar();
+    const r = rememberTransitions(base);
+    await r.nextTransition(150n);
+    assert.equal(await r.nextTransition(20n), 100n);
+    assert.equal(base.asked, 2);
   });
 });
