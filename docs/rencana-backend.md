@@ -1369,6 +1369,17 @@ anvil lokal menjawab dalam milidetik. Angka rinci ada di `runbook-backend.md` §
   yang lambat. Kini pembukaan menunggu penutupan sedetik kemudian, dan `at` di frame
   pembukaan tidak pernah lebih awal dari frame penutupan sebelumnya. Diperiksa di
   mainnet, sepuluh pasangan berurutan, nol terbalik.
+- **N33, diperbaiki. `solvableBatchId` kehilangan detik terakhir jendela solusi pada
+  batch 10 detik.** `check-batch` terhadap mainnet, dijalankan dari dalam container
+  Railway 3 Oktober 2026, berakhir 39 lolos dan 2 gagal di sesi OPEN. Helper
+  membulatkan `now` ke batas, sehingga di detik yang tepat sama dengan batas ia
+  menjawab tutup, padahal kontrak masih menerima solusi batch sebelumnya. Dan rumus
+  harapan di skrip uji hanya benar kalau batch lebih panjang dari jendela. Kini helper
+  memakai batas terakhir sebelum `now`, dan skrip uji membandingkannya dengan
+  `batchWindow` kontrak. Diperiksa di mainnet setiap detik sepanjang dua batch, 21
+  dari 21 cocok, sementara helper lama berbeda tepat di ketiga batasnya. Solver tidak
+  memakai helper ini. Fork berdiri di akhir pekan dengan batch 45 detik, jadi tidak
+  pernah menjangkau kasus ini.
 - **Job fork malam di CI hijau sekali, 2 Oktober 2026**, setelah memakai blok patokan
   tim alih-alih blok baru tiap malam. Blok baru menaruh fork di sesi yang ditentukan
   jam, dan generator koleksi resilience berputar tanpa akhir di sesi 30 detik,
