@@ -14,9 +14,9 @@ import {createAnnouncer} from "./announce.ts";
 import {chain, oracleAbi, read, revertReason, rpcRequestCount, sessionAbi} from "./chain.ts";
 import {publish} from "./events.ts";
 import {FINALIZE_DEADLINE, counts} from "./mempool.ts";
-import type {BlockStamp} from "./provenance.ts";
+import {sawHead, type BlockStamp} from "./provenance.ts";
 import {isCollectClosed} from "./routes/intents.ts";
-import {FROZEN_SESSIONS, WEEKEND_DRIFT_CAP_BPS, buildCurrentBatch, buildSession} from "./routes/session.ts";
+import {FROZEN_SESSIONS, WEEKEND_DRIFT_CAP_BPS, buildCurrentBatch, buildSession, rememberCurrent} from "./routes/session.ts";
 
 const POLLING_INTERVAL_MS = 500;
 const MAX_TRACKED = 8;
@@ -154,6 +154,7 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
       ),
     ]);
     const current = await buildCurrentBatch(at);
+    rememberCurrent(current);
 
     if (current.batchId !== null) {
       const id = BigInt(current.batchId);
@@ -272,6 +273,7 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
         }
       } else {
         const head = await chain().client.getBlock();
+        sawHead({number: head.number, timestamp: head.timestamp});
         if (head.timestamp !== lastTime) {
           lastTime = head.timestamp;
           void drive({number: head.number, timestamp: head.timestamp});

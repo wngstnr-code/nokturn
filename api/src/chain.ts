@@ -134,6 +134,43 @@ function answeredBy(index: number): void {
   else rpcLog.warn({...note, from: redactUrl(env.rpcs[from]!)}, index === 0 ? "rpc back on the primary endpoint" : "rpc failed over to a fallback endpoint");
 }
 
+// How long each request to the node took, summarised once a minute. On
+// 2 October 2026 every route that touched the node took 3 to 11 seconds on
+// Railway while the same calls took about 300 ms from a laptop, and nothing in
+// the logs said whether the node was slow or the API was queueing on it.
+let timings: {ms: number; method: string}[] = [];
+let timingsSince = Date.now();
+
+function recordTiming(ms: number, method: string): void {
+  timings.push({ms, method});
+  const now = Date.now();
+  if (now - timingsSince < 60_000) return;
+  const sorted = timings.map((t) => t.ms).sort((a, b) => a - b);
+  const at = (p: number) => Math.round(sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0);
+  const methods: Record<string, number> = {};
+  for (const t of timings) methods[t.method] = (methods[t.method] ?? 0) + 1;
+  rpcLog.info({requests: timings.length, p50: at(0.5), p95: at(0.95), max: at(1), methods}, "rpc latency over the last minute");
+  timings = [];
+  timingsSince = now;
+}
+
+function timed(inner: Transport): Transport {
+  return (options) => {
+    const t = inner(options);
+    return {
+      ...t,
+      request: (async (args: {method: string}) => {
+        const start = performance.now();
+        try {
+          return await t.request(args as never);
+        } finally {
+          recordTiming(performance.now() - start, args.method);
+        }
+      }) as typeof t.request,
+    };
+  };
+}
+
 /** One http transport per endpoint. More than one becomes a fallback, tried in the listed order. */
 function transport(): Transport {
   const each = env.rpcs.map((url, i) =>
@@ -146,7 +183,7 @@ function transport(): Transport {
       },
     }),
   );
-  return each.length === 1 ? each[0]! : fallback(each, {rank: false, retryCount: env.rpcRetryCount});
+  return timed(each.length === 1 ? each[0]! : fallback(each, {rank: false, retryCount: env.rpcRetryCount}));
 }
 
 /**

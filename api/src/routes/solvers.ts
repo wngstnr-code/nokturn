@@ -15,7 +15,7 @@ import type {SolverBoardResponse, SolverRow} from "../../../packages/shared/api-
 import {db} from "../../../indexer/src/db.ts";
 import {chain, read, registryAbi} from "../chain.ts";
 import {fail} from "../errors.ts";
-import {provenance, stamp} from "../provenance.ts";
+import {provenance, recentStamp} from "../provenance.ts";
 import {loadKnownSolvers} from "../config.ts";
 
 async function indexedSolvers(chainId: number, settlement: string): Promise<Address[] | null> {
@@ -30,7 +30,7 @@ async function indexedSolvers(chainId: number, settlement: string): Promise<Addr
 export function solverRoutes(app: FastifyInstance) {
   app.get("/v1/solvers", async (): Promise<SolverBoardResponse> => {
     const c = chain();
-    const at = await stamp();
+    const at = await recentStamp();
     const known = loadKnownSolvers(c.isFork);
     const indexed = await indexedSolvers(c.chainId, c.deployment.settlement);
     // On a fork the two demo solvers are known without the indexer. Anywhere

@@ -26,36 +26,41 @@ import {
 } from "../chain.ts";
 import {source} from "../provenance.ts";
 
+// Every value here is a constant of the deployment or a parameter that only
+// moves through the 48 hour timelock, so a minute old answer is never wrong for
+// long. Read in one round trip rather than four, which on the official RPC on
+// 2 October 2026 was the difference between about two seconds and six.
+const CONFIG_TTL_MS = 60_000;
+let cachedConfig: {body: ConfigResponse; at: number; settlement: string} | null = null;
+
 export function configRoutes(app: FastifyInstance) {
   app.get("/v1/config", async (): Promise<ConfigResponse> => {
     const c = chain();
     const d = c.deployment;
+    if (cachedConfig && cachedConfig.settlement === d.settlement && Date.now() - cachedConfig.at <= CONFIG_TTL_MS) return cachedConfig.body;
 
-    const [witnessTypeString, permit2DomainSeparator, solutionWindow, finalizeDeadline] = await Promise.all([
+    const [witnessTypeString, permit2DomainSeparator, solutionWindow, finalizeDeadline, capPerBatchUsd, capPerTokenDailyUsd, capGlobalDailyUsd, quoteAllowed, allowed] = await Promise.all([
       read<string>(d.settlement, settlementAbi, "WITNESS_TYPE_STRING"),
       read<`0x${string}`>(c.permit2, permit2Abi, "DOMAIN_SEPARATOR"),
       read<number>(d.settlement, settlementAbi, "SOLUTION_WINDOW"),
       read<number>(d.settlement, settlementAbi, "FINALIZE_DEADLINE"),
-    ]);
-
-    const [capPerBatchUsd, capPerTokenDailyUsd, capGlobalDailyUsd] = await Promise.all([
       read<bigint>(d.settlement, settlementAbi, "capPerBatchUsd"),
       read<bigint>(d.settlement, settlementAbi, "capPerTokenDailyUsd"),
       read<bigint>(d.settlement, settlementAbi, "capGlobalDailyUsd"),
+      read<boolean>(d.settlement, settlementAbi, "tokenAllowed", [c.quote.address]),
+      Promise.all(c.tokens.map((t) => read<boolean>(d.settlement, settlementAbi, "tokenAllowed", [t.token]))),
     ]);
 
-    const tokens: TokenInfo[] = await Promise.all(
-      c.tokens.map(async (t) => ({
-        symbol: t.symbol,
-        address: t.token,
-        decimals: t.decimals,
-        pool: t.pool,
-        feed: t.feed,
-        allowed: await read<boolean>(d.settlement, settlementAbi, "tokenAllowed", [t.token]),
-      })),
-    );
+    const tokens: TokenInfo[] = c.tokens.map((t, i) => ({
+      symbol: t.symbol,
+      address: t.token,
+      decimals: t.decimals,
+      pool: t.pool,
+      feed: t.feed,
+      allowed: allowed[i]!,
+    }));
 
-    return {
+    const body: ConfigResponse = {
       apiVersion: "v1",
       chainId: c.chainId,
       source: source(),
@@ -75,7 +80,7 @@ export function configRoutes(app: FastifyInstance) {
         symbol: "USDG",
         address: c.quote.address,
         decimals: c.quote.decimals,
-        allowed: await read<boolean>(d.settlement, settlementAbi, "tokenAllowed", [c.quote.address]),
+        allowed: quoteAllowed,
       },
       tokens,
       eip712: {
@@ -96,21 +101,16 @@ export function configRoutes(app: FastifyInstance) {
         finalizeDeadline: Number(finalizeDeadline),
       },
     };
+    cachedConfig = {body, at: Date.now(), settlement: d.settlement};
+    return body;
   });
 
   app.get("/v1/health", async (): Promise<HealthResponse & {blockNumber: string; explorer: string}> => {
     const c = chain();
-    let rpcUp = true;
-    let blockNumber = 0n;
-    let headTime = 0n;
-    try {
-      const head = await c.client.getBlock();
-      blockNumber = head.number;
-      headTime = head.timestamp;
-    } catch {
-      rpcUp = false;
-    }
 
+    // The checkpoint first, which is local and fast, so the head and the
+    // checkpoint's timestamp can then go to the node together, one round trip
+    // where there were two.
     let databaseUp = true;
     let indexedTo: bigint | null = null;
     try {
@@ -119,12 +119,27 @@ export function configRoutes(app: FastifyInstance) {
       databaseUp = false;
     }
 
+    const [head, indexedAt] = await Promise.all([
+      c.client.getBlock().then(
+        (b) => b,
+        () => null,
+      ),
+      indexedTo === null
+        ? Promise.resolve(null)
+        : c.client.getBlock({blockNumber: indexedTo}).then(
+            (b) => b.timestamp,
+            () => null,
+          ),
+    ]);
+    const rpcUp = head !== null;
+    const blockNumber = head?.number ?? 0n;
+    const headTime = head?.timestamp ?? 0n;
+
     // With no checkpoint or no database the lag cannot be measured, so it reads
     // zero and the indexer component says down rather than implying it is current.
     const lag = rpcUp && indexedTo !== null && blockNumber > indexedTo ? blockNumber - indexedTo : 0n;
     let lagSeconds = 0n;
     if (lag > 0n) {
-      const indexedAt = await c.client.getBlock({blockNumber: indexedTo!}).then((b) => b.timestamp, () => null);
       lagSeconds = indexedAt === null ? INDEXER_DEGRADED_LAG_SECONDS + 1n : headTime - indexedAt;
     }
     const indexer = !databaseUp || indexedTo === null ? "down" : lagSeconds <= INDEXER_UP_LAG_SECONDS ? "up" : lagSeconds <= INDEXER_DEGRADED_LAG_SECONDS ? "degraded" : "down";

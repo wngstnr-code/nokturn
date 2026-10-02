@@ -20,7 +20,7 @@ import {chain, permit2Abi, read} from "../chain.ts";
 import {badRequest} from "../errors.ts";
 import {env} from "../config.ts";
 import {heldNonces, sweep} from "../mempool.ts";
-import {provenance, stamp} from "../provenance.ts";
+import {provenance, recentStamp} from "../provenance.ts";
 
 /**
  * How many 256 bit words to scan before giving up. Four covers a thousand
@@ -49,7 +49,7 @@ export function nonceRoutes(app: FastifyInstance) {
       }
 
       const c = chain();
-      const at = await stamp();
+      const at = await recentStamp();
       const address = getAddress(owner);
       sweep(at.timestamp);
       const held = heldNonces(address);

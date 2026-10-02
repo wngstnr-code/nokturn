@@ -8,14 +8,13 @@ import type {FastifyInstance, FastifyReply} from "fastify";
 import type {Address} from "viem";
 import type {ApiError, BatchListResponse, BatchReceipt, BatchSummary, FillReceipt} from "../../../packages/shared/api-types.ts";
 import {isValidBatchId} from "../../../packages/shared/batch.ts";
-import {createChainReader} from "../../../packages/shared/batch-viem.ts";
 import {db} from "../../../indexer/src/db.ts";
 import {buildReceipt, loadFacts, nettingRatioBps, publicOutcome, type ReceiptContext, type TokenMeta} from "../../../indexer/src/receipt.ts";
 import {adapterAbi, chain, read, revertReason, sessionAbi, settlementAbi} from "../chain.ts";
 import {env} from "../config.ts";
 import {badRequest, notFound} from "../errors.ts";
-import {counts} from "../mempool.ts";
-import {provenance, source, stamp} from "../provenance.ts";
+import {calendarReader, counts} from "../mempool.ts";
+import {provenance, source, recentStamp} from "../provenance.ts";
 import {SESSION_NAMES} from "./session.ts";
 
 const PAGE = 50;
@@ -93,10 +92,10 @@ export async function receiptFor(batchId: bigint) {
 /** A batch still collecting or waiting on its finalize is real, and it is answered as it is. */
 async function running(batchId: bigint): Promise<BatchReceipt | null> {
   const c = chain();
-  const at = await stamp();
+  const at = await recentStamp();
   let valid: boolean;
   try {
-    valid = await isValidBatchId(createChainReader(c.client, c.deployment.sessions), batchId);
+    valid = await isValidBatchId(calendarReader(), batchId);
   } catch (error) {
     if (revertReason(error) === null) throw error;
     valid = false;

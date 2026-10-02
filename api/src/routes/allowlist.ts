@@ -24,7 +24,7 @@ import {
   read,
 } from "../chain.ts";
 import {badRequest} from "../errors.ts";
-import {provenance, stamp} from "../provenance.ts";
+import {provenance, recentStamp} from "../provenance.ts";
 
 const WAD = 10n ** 18n;
 
@@ -82,7 +82,7 @@ async function inspect(address: Address, symbol: string, blockNumber: bigint): P
 
 export function allowlistRoutes(app: FastifyInstance) {
   app.get<{Querystring: {token?: string}}>("/v1/allowlist", async (request): Promise<AllowlistResponse> => {
-    const at = await stamp();
+    const at = await recentStamp();
     const c = chain();
 
     const extra = request.query.token;

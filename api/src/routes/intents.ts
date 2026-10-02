@@ -21,7 +21,6 @@ import type {
   SubmitIntentResponse,
 } from "../../../packages/shared/api-types.ts";
 import {isBatch, isValidBatchId, type BatchWindow} from "../../../packages/shared/batch.ts";
-import {createChainReader} from "../../../packages/shared/batch-viem.ts";
 import {
   chain,
   erc20Abi,
@@ -36,9 +35,9 @@ import {
 import {badRequest, fail, notFound} from "../errors.ts";
 import {canonicalPayload, escapeHatchFor, permit2EoaSignature, validateIntentPayload, witnessDigestNow} from "../intent.ts";
 import {publish} from "../events.ts";
-import {admit, committed, counts, frozenFeed, getByBatch, getByHash, openWindow, sweep, withdraw, withdrawnFrom} from "../mempool.ts";
+import {admit, calendarReader, maxDeviationBps as deviationFor, committed, counts, frozenFeed, getByBatch, getByHash, openWindow, sweep, withdraw, withdrawnFrom} from "../mempool.ts";
 import {intentHash} from "../permit2.ts";
-import {provenance, stamp, type BlockStamp} from "../provenance.ts";
+import {provenance, recentStamp, stamp, type BlockStamp} from "../provenance.ts";
 import {readFacts, screen} from "../revalidate.ts";
 import {fillFor} from "./batches.ts";
 import {SESSION_NAMES} from "./session.ts";
@@ -376,16 +375,31 @@ export function intentRoutes(app: FastifyInstance) {
       }
       const batchId = BigInt(raw);
 
+      // This is the feed a solver reads the moment collection closes, inside a ten
+      // second window. It took five round trips one after another, eight to ten
+      // seconds on the official RPC on 2 October 2026, so a solver could not
+      // have submitted in time. The calendar answers now come from the reader
+      // the batch check fills, and the screening and the prices run together.
+      //
+      // frozen comes from the head, and a solver refuses a feed that is not
+      // frozen, so a head that is not yet past collectEnd is read again fresh.
+      // One the lifecycle read a moment ago that is already past it can be used
+      // as it is, because chain time only moves forward off a fork and a fresh
+      // head could only say frozen too. That saves the solver's first request a
+      // round trip. On a fork recentStamp always reads fresh.
       const c = chain();
-      const at = await stamp();
-      const reader = createChainReader(c.client, c.deployment.sessions);
-      let valid: boolean;
-      try {
-        valid = await isValidBatchId(reader, batchId);
-      } catch (error) {
-        if (revertReason(error) === null) throw error;
-        valid = false;
-      }
+      const reader = calendarReader();
+      const head = async () => {
+        const recent = await recentStamp();
+        return isCollectClosed(batchId, recent.timestamp) ? recent : stamp();
+      };
+      const [at, valid] = await Promise.all([
+        head(),
+        isValidBatchId(reader, batchId).catch((error: unknown) => {
+          if (revertReason(error) === null) throw error;
+          return false;
+        }),
+      ]);
       if (!valid) {
         throw badRequest(
           "COORDINATOR_INVALID_REQUEST",
@@ -394,11 +408,8 @@ export function intentRoutes(app: FastifyInstance) {
         );
       }
 
-      const session = await read<number>(c.deployment.sessions, sessionAbi, "sessionAt", [batchId], at.number);
-      const [duration, maxDeviationBps] = await Promise.all([
-        read<number>(c.deployment.sessions, sessionAbi, "batchDuration", [session], at.number),
-        read<number>(c.deployment.sessions, sessionAbi, "maxDeviationBps", [session], at.number),
-      ]);
+      const session = await reader.sessionAt(batchId);
+      const [duration, maxDeviationBps] = await Promise.all([reader.batchDuration(session), deviationFor(session)]);
 
       const collectEnd = batchId;
       const collectStart = batchId - BigInt(duration);
@@ -409,16 +420,18 @@ export function intentRoutes(app: FastifyInstance) {
       // that only arrives after solveEnd is not screened at all, because by then
       // finalize may have pulled the funds and every intent would look spent.
       const frozen = isCollectClosed(batchId, at.timestamp);
-      let intents: SignedIntent[];
-      if (!frozen) {
-        await screenBatch(batchId, at);
-        intents = getByBatch(batchId);
-      } else {
-        intents = await frozenFeed(batchId, async () => {
+      // The screening and the oracle reads below only share the block, so they
+      // run together.
+      const screened = (async (): Promise<SignedIntent[]> => {
+        if (!frozen) {
+          await screenBatch(batchId, at);
+          return getByBatch(batchId);
+        }
+        return frozenFeed(batchId, async () => {
           if (at.timestamp <= solveEnd) await screenBatch(batchId, at);
           return [...getByBatch(batchId)];
         });
-      }
+      })();
 
       // One token whose refPrice reverts, FeedNotSet or TwapSourceNotSet, used to
       // take the whole feed down with a 502. It is reported by name instead and
@@ -430,7 +443,7 @@ export function intentRoutes(app: FastifyInstance) {
       // figure the contract settles against. N8.
       const oracleUnavailable: BatchIntentsResponse["oracleUnavailable"] = [];
       const rows = [{token: c.quote.address, symbol: "USDG", decimals: c.quote.decimals}, ...c.tokens];
-      const priced = await Promise.all(
+      const pricing = Promise.all(
         rows.map(async (t): Promise<OraclePriceRow | null> => {
           let answer: [bigint, bigint, boolean];
           try {
@@ -454,6 +467,7 @@ export function intentRoutes(app: FastifyInstance) {
           };
         }),
       );
+      const [intents, priced] = await Promise.all([screened, pricing]);
       const oraclePrices = priced.filter((row): row is OraclePriceRow => row !== null);
 
       // A depeg is real data and is served as it is. It is only logged, so an

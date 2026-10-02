@@ -15,7 +15,7 @@ import {isAddress, getAddress, type Address} from "viem";
 import type {ApiErrorCode, BaselineQuote} from "../../../packages/shared/api-types.ts";
 import {adapterAbi, chain, read} from "../chain.ts";
 import {badRequest} from "../errors.ts";
-import {provenance, stamp, verifiable} from "../provenance.ts";
+import {provenance, recentStamp, verifiable} from "../provenance.ts";
 
 /** Adapter revert names, docs/interfaces.md section 8B. */
 const ADAPTER_REVERTS: Record<string, string> = {
@@ -66,7 +66,7 @@ export function quoteRoutes(app: FastifyInstance) {
       }
 
       const c = chain();
-      const at = await stamp();
+      const at = await recentStamp();
       const sell = getAddress(sellToken);
       const buy = getAddress(buyToken);
       const pool = poolFor(sell, buy);
