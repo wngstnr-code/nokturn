@@ -28,28 +28,30 @@ import {provenance, stamp} from "../provenance.ts";
 
 const WAD = 10n ** 18n;
 
-async function inspect(address: Address, symbol: string): Promise<AllowlistEntry> {
+// The three reads are independent, and so are the tokens, so they run together.
+// One after another they took 17 seconds on Railway on 2 October 2026, about a
+// second per call to the official RPC. All of them read the block the
+// provenance names, rather than whatever latest is by the time each one lands.
+async function inspect(address: Address, symbol: string, blockNumber: bigint): Promise<AllowlistEntry> {
   const c = chain();
 
-  const slot = await c.client
-    .getStorageAt({address, slot: BEACON_SLOT})
-    .catch(() => "0x0000000000000000000000000000000000000000000000000000000000000000" as const);
+  const [slot, multiplier, code] = await Promise.all([
+    c.client
+      .getStorageAt({address, slot: BEACON_SLOT, blockNumber})
+      .catch(() => "0x0000000000000000000000000000000000000000000000000000000000000000" as const),
+    // Absent rather than zero. A contract without the function is the signature
+    // of an impostor, and that difference has to survive into the response.
+    read<bigint>(address, multiplierAbi, "uiMultiplier", [], blockNumber).catch(() => null),
+    c.client.getCode({address, blockNumber}).catch(() => undefined),
+  ]);
+
   const actualBeacon = slot && slot.length === 66 ? `0x${slot.slice(26)}` : "0x";
   const beaconPass = actualBeacon.toLowerCase() === STOCK_TOKEN_BEACON.toLowerCase();
 
-  let multiplier: bigint | null = null;
-  try {
-    multiplier = await read<bigint>(address, multiplierAbi, "uiMultiplier");
-  } catch {
-    // Absent rather than zero. A contract without the function is the signature
-    // of an impostor, and that difference has to survive into the response.
-    multiplier = null;
-  }
   // parameter.md section 10.1. Four tokens have already moved above 1e18, so the
   // gate is "present and at least one", never "equal to one".
   const multiplierPass = multiplier !== null && multiplier >= WAD;
 
-  const code = await c.client.getCode({address}).catch(() => undefined);
   const codeSize = code ? (code.length - 2) / 2 : 0;
   // A real Stock Token is a beacon proxy, which is a few hundred bytes. The
   // memecoin measured in CLAUDE.md section 5 is 44.
@@ -88,24 +90,16 @@ export function allowlistRoutes(app: FastifyInstance) {
       throw badRequest("COORDINATOR_INVALID_REQUEST", `not an address: ${extra}`, {token: extra});
     }
 
-    const entries: AllowlistEntry[] = [];
-    for (const t of c.tokens) {
-      entries.push(await inspect(t.token, t.symbol));
-    }
+    const block = BigInt(at.number);
+    const listed = c.tokens.map((t) => inspect(t.token, t.symbol, block));
 
-    if (extra) {
-      const address = getAddress(extra);
-      const already = entries.some((e) => e.address.toLowerCase() === address.toLowerCase());
-      if (!already) {
-        let symbol = "unknown";
-        try {
-          symbol = await read<string>(address, erc20Abi, "symbol");
-        } catch {
-          // A contract that cannot name itself is still worth reporting on.
-        }
-        entries.push(await inspect(address, symbol));
-      }
-    }
+    const address = extra ? getAddress(extra) : null;
+    const checkExtra = address !== null && !c.tokens.some((t) => t.token.toLowerCase() === address.toLowerCase());
+    // A contract that cannot name itself is still worth reporting on.
+    const extraEntry = checkExtra ? read<string>(address, erc20Abi, "symbol", [], block).catch(() => "unknown").then((symbol) => inspect(address, symbol, block)) : null;
+
+    const entries: AllowlistEntry[] = await Promise.all(listed);
+    if (extraEntry) entries.push(await extraEntry);
 
     return {entries, provenance: provenance(at)};
   });

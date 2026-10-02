@@ -114,9 +114,25 @@ export function heldNonces(owner: string): Set<bigint> {
  * yet, while the route that reports the current batch said a different thing.
  * So an auction phase, or a batch that only starts after one, is no batch. N4.
  */
-export async function openWindow(at: BlockStamp): Promise<BatchLookup> {
+// One reader kept across calls, so its cache of calendar answers survives from
+// one tick to the next. A fresh reader per call threw that cache away every
+// second, and each call walked the calendar again in round trips that took
+// about a second each from Railway, 2 October 2026. The calendar only moves
+// through the 48 hour timelock, so a minute old answer is never wrong for long.
+const READER_TTL_MS = 60_000;
+let cached: {reader: ReturnType<typeof createChainReader>; sessions: string; at: number} | null = null;
+
+function calendarReader() {
   const c = chain();
-  const reader = createChainReader(c.client, c.deployment.sessions);
+  const now = Date.now();
+  if (!cached || cached.sessions !== c.deployment.sessions || now - cached.at > READER_TTL_MS) {
+    cached = {reader: createChainReader(c.client, c.deployment.sessions), sessions: c.deployment.sessions, at: now};
+  }
+  return cached.reader;
+}
+
+export async function openWindow(at: BlockStamp): Promise<BatchLookup> {
+  const reader = calendarReader();
   sweep(at.timestamp);
 
   const auction: BatchLookup = {batchId: null, reason: "auction_phase", retryAt: null};
