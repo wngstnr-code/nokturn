@@ -8,7 +8,8 @@
 //
 // Steps are driven by new blocks, never by a timer. A failed step backs off from
 // one second, doubling, to at most thirty, and a refused getLogs range stops the
-// process instead of retrying something that cannot succeed.
+// process instead of retrying something that cannot succeed. A rate limit is not
+// a refusal, it backs off like any other failed step.
 
 import {readFileSync} from "node:fs";
 import {join} from "node:path";
@@ -38,8 +39,13 @@ export function client(rpc = RPC): PublicClient {
  * crashes a one-shot boot read before the indexer processes a single block.
  * I5 found this at 30 percent injected errors. solver/src/chain.ts carries
  * the same fix under the same name, for the same reason.
+ *
+ * About a minute in all before it gives up. Eight seconds was not enough for
+ * the official RPC's rate limit on Railway, 2 October 2026, and every boot
+ * that gave up counted toward the restarts Railway allows before it marks the
+ * service crashed.
  */
-async function withRetry<T>(fn: () => Promise<T>, attempts = 5, baseDelayMs = 250): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, attempts = 8, baseDelayMs = 500): Promise<T> {
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await fn();
