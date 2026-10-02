@@ -90,6 +90,9 @@ jobs:
 
   fork:
     runs-on: ubuntu-latest
+    # A full run takes under 30 minutes. Without this a hang held the runner
+    # for six hours on 1 October 2026 before GitHub cancelled it.
+    timeout-minutes: 90
     # Nightly only. These need archive state of mainnet 4663. The public drpc
     # endpoint stopped serving anything but latest on 26 September 2026 (N13),
     # so the fork reads an archive RPC from the repository secret. GitHub masks
@@ -137,23 +140,33 @@ jobs:
       - run: pnpm install --dir api
       - run: pnpm install --dir indexer
 
-      # Re-pinned rather than reusing the committed block, because the endpoint
-      # keeps a finite window and a nightly job outlives it. The committed pin is
-      # the team's shared block, this one only has to be recent.
-      - name: pin a fresh block and start the fork
+      # The committed pin, the block every laptop forks. A fresh pin each night
+      # put the fork in whatever session the clock happened to show, and the
+      # resilience collection and the session checks are written for the team's
+      # block. The archive RPC still serves it, which D1 measures every run.
+      #
+      # One retry on a fresh anvil, because an upstream read can time out mid
+      # deploy, as on 1 October 2026. Deploying again on the same anvil would
+      # move the nonces and with them every contract address.
+      - name: start the fork, deploy and fund
         run: |
-          ./infra/scripts/pin-block.sh
-          ./infra/scripts/fork.sh > /tmp/anvil.log 2>&1 &
-          for _ in $(seq 1 60); do
-            cast chain-id --rpc-url http://127.0.0.1:8545 >/dev/null 2>&1 && break
-            sleep 1
-          done
-          cast chain-id --rpc-url http://127.0.0.1:8545
-
-      - name: deploy and fund
-        run: |
-          ./infra/scripts/deploy.sh
-          ./infra/scripts/fund.sh
+          start_and_deploy() {
+            ./infra/scripts/fork.sh > /tmp/anvil.log 2>&1 &
+            echo $! > /tmp/anvil.pid
+            for _ in $(seq 1 60); do
+              cast chain-id --rpc-url http://127.0.0.1:8545 >/dev/null 2>&1 && break
+              sleep 1
+            done
+            cast chain-id --rpc-url http://127.0.0.1:8545 && ./infra/scripts/deploy.sh && ./infra/scripts/fund.sh
+          }
+          if ! start_and_deploy; then
+            echo "::warning::fork or deploy failed once, retrying on a fresh anvil"
+            tail -20 /tmp/anvil.log || true
+            kill "$(cat /tmp/anvil.pid)" 2>/dev/null || true
+            pkill -x anvil 2>/dev/null || true
+            sleep 3
+            start_and_deploy
+          fi
 
       - name: the batchId helper agrees with the contract, both directions
         run: ./infra/scripts/check-batch.sh

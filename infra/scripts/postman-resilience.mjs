@@ -72,6 +72,19 @@ const durationAfter = await client.readContract({
   args: [sessionAfter],
 });
 
+// The scenarios below need the next session to have its own batch duration,
+// one that 60 is not a multiple of. A duration of zero is an auction session,
+// and one that divides 60 leaves no stale batchId to find, so the loop for it
+// would never end. That held a CI runner for six hours on 1 October 2026, on a
+// block whose next session ran 30 second batches.
+if (durationAfter === 0 || 60 % durationAfter === 0) {
+  console.error(
+    `the next transition at ${transition} leads to session ${sessionAfter} with ${durationAfter}s batches, and these scenarios need one that does not divide 60. ` +
+      "fork the committed pin in infra/pinned-block.json, where the next session runs 45 second batches",
+  );
+  process.exit(1);
+}
+
 const bothValid = (60 * durationAfter) / gcd(60, durationAfter);
 
 const hex = (n) => `0x${n.toString(16)}`;
