@@ -146,7 +146,9 @@ Struk yang dihasilkan tersimpan di `infra/.torture/receipt-<kasus>.json`.
 | `BlockOutOfRangeError` setelah revert | Proses lama memegang head sebelum revert | Nyalakan ulang proses itu. Cache nomor blok sudah dimatikan di API, indexer, dan solver |
 | `BaselineBelowVenue` di simulasi solver | Jumlah baseline per arah di bawah lantai kontrak | Seharusnya tidak terjadi lagi sejak perbaikan N20. Kalau muncul, catat batch dan pasangannya |
 | `NonceAlreadyUsed` atau `COORDINATOR_DUPLICATE_INTENT` di replay | Nonce dipakai tes yang di-revert, atau dipegang intent yang masih menunggu | Replay menanyakan nonce ke API untuk setiap intent sejak 28 September 2026 |
-| Replay atau test berhenti tanpa error | Sistem menghentikannya karena RAM hampir habis | Bebaskan RAM (§1), lalu ulangi |
+| Replay atau test berhenti tanpa error | Sistem menghentikannya karena RAM hampir habis | Bebaskan RAM (§1), lalu ulangi. Batasi VM Docker lewat `%USERPROFILE%\.wslconfig` (`memory=6GB`, `swap=8GB`, lalu `wsl --shutdown`) supaya Windows tetap punya ruang saat browser berat |
+| `C:\Users\<nama>\.foundry\anvil\tmp` membengkak sampai belasan GB | Anvil menulis state blok lama ke folder per sesi, dan sesi yang dimatikan atau tertidur tidak pernah menghapusnya. 17 GB dari delapan sesi, 2 Oktober 2026 | Sejak 2 Oktober 2026 `fork.sh` menyapu folder `anvil-state-*` lama saat tidak ada anvil yang hidup, dan membatasi state di disk dengan `--max-persisted-states 3600` (satu jam). Ubah lewat `NOKTURN_FORK_PERSISTED_STATES`, tapi jangan di bawah 800, jendela uji I8 |
+| `fund.sh` atau skrip `.sh` lain gagal di container dengan `$'\r': command not found` | Salinan di laptop ber-line-ending CRLF meski `.gitattributes` mematok LF | Hapus file itu lalu `git checkout -- <file>`. Cek semuanya dengan `git ls-files --eol \| grep w/crlf` |
 | API gagal start `EADDRINUSE` | API lama masih memegang port 3000 | Hentikan proses lama itu dulu |
 | API gagal start karena `NOKTURN_API_RPC looks like a paid endpoint` | URL baca membawa key, dan URL publik belum diset | Isi `NOKTURN_API_PUBLIC_RPC` dengan URL yang boleh dilihat juri |
 
