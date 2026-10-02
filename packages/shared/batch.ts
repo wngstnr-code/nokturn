@@ -178,10 +178,16 @@ export async function solvableBatchId(
     return {batchId: null, reason: "auction_phase", retryAt: null};
   }
 
+  // The last boundary strictly before now, because the contract takes a batch
+  // as solvable while collectEnd < now <= solveEnd. Rounding now itself down
+  // made the candidate now whenever now sat on a boundary, which threw away
+  // the last second of the previous batch's window. Invisible at forty five
+  // second batches, it showed on mainnet's ten second OPEN batches, where one
+  // window ends exactly where the next batch's collection does. 3 October 2026.
   const d = BigInt(durationNow);
-  const candidate = (now / d) * d;
+  const candidate = ((now - 1n) / d) * d;
 
-  if (candidate >= now || now > candidate + solutionWindow) {
+  if (now > candidate + solutionWindow) {
     // Shut rather than absent. The next opening is one second after the next
     // boundary, and saying so is what lets a solver sleep instead of spin.
     const next = await nextValidBatchId(reader, now, solutionWindow);
