@@ -1362,11 +1362,13 @@ anvil lokal menjawab dalam milidetik. Angka rinci ada di `runbook-backend.md` §
 - **N31, terbuka. Perintah `cast --block` di mainnet hanya bisa dicek sekitar sepuluh
   menit.** RPC publik bukan archive. Keputusannya di tim, `audit-provenansi-backend.md`
   §5c.
-- **N32, dicatat. Di detik yang tepat sama dengan `collectEnd`, `batch.opened` untuk
+- **N32, diperbaiki. Di detik yang tepat sama dengan `collectEnd`, `batch.opened` untuk
   batch berikutnya bisa terbit sebelum `batch.collect_closed` batch itu.** Kontrak
   masih menganggap batch itu collecting di detik tersebut, sementara `openWindow`
   sudah menunjuk batch berikutnya. Sudah ada sejak sebelum N29 dan tersamar oleh tick
-  yang lambat. Tidak mengubah batch atau intent, hanya urutan frame.
+  yang lambat. Kini pembukaan menunggu penutupan sedetik kemudian, dan `at` di frame
+  pembukaan tidak pernah lebih awal dari frame penutupan sebelumnya. Diperiksa di
+  mainnet, sepuluh pasangan berurutan, nol terbalik.
 - **Job fork malam di CI hijau sekali, 2 Oktober 2026**, setelah memakai blok patokan
   tim alih-alih blok baru tiap malam. Blok baru menaruh fork di sesi yang ditentukan
   jam, dan generator koleksi resilience berputar tanpa akhir di sesi 30 detik,
