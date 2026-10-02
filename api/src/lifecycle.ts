@@ -58,6 +58,8 @@ const fresh = (): State => ({
 
 export function startLifecycle(log: FastifyBaseLogger): () => void {
   let state = fresh();
+  /** The latest chain second a close was published at, so an open never goes out stamped earlier. */
+  let closedAt: bigint | null = null;
   const announcer = createAnnouncer(log);
   let running = false;
   let queued: Head | null = null;
@@ -75,6 +77,7 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
     for (const [id, t] of state.tracked) {
       if (!t.closed && isCollectClosed(id, T)) {
         t.closed = true;
+        if (closedAt === null || T > closedAt) closedAt = T;
         publish({
           type: "batch.collect_closed",
           at: Number(T),
@@ -108,6 +111,7 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
     if (state.lastTime !== null && T < state.lastTime) {
       log.warn({block: String(blockNumber), from: String(state.lastTime), to: String(T)}, "chain time went backwards, lifecycle state cleared");
       state = fresh();
+      closedAt = null;
       announcer.reset();
     }
     state.lastTime = T;
@@ -156,12 +160,21 @@ export function startLifecycle(log: FastifyBaseLogger): () => void {
     const current = await buildCurrentBatch(at);
     rememberCurrent(current);
 
-    if (current.batchId !== null) {
+    // In the very second a batch's collectEnd is reached, the contract still
+    // takes it as collecting while openWindow already names its successor. The
+    // open waits for the close a second later, so a listener always hears a
+    // batch end before the next begins. Seen on mainnet once ticks got fast
+    // enough to land on that second, 2 October 2026 (N32).
+    const older = (id: bigint) => [...state.tracked].some(([tracked, t]) => !t.closed && tracked < id);
+    if (current.batchId !== null && !older(BigInt(current.batchId))) {
       const id = BigInt(current.batchId);
       if (id !== state.current) {
         state.current = id;
         state.tracked.set(id, {collectEnd: BigInt(current.collectEndsAt), solveEnd: BigInt(current.solveEndsAt), closed: false});
-        publish({type: "batch.opened", at: Number(T), data: current});
+        // A poll may have closed the batch before at a later second than this
+        // tick's own, and a frame never carries an earlier time than one sent
+        // before it.
+        publish({type: "batch.opened", at: Number(closedAt !== null && closedAt > T ? closedAt : T), data: current});
       }
     }
 
