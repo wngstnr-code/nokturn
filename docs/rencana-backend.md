@@ -1342,6 +1342,39 @@ digantikan tidak punya event penolakan di kontrak, jadi ia hanya muncul sebagai
 ketika pool bergeser sedikit antara submit dan finalize, tetap temuan untuk kontrak
 sampai Wangsit memutuskan. Satu run yang lulus tidak membuktikan risikonya hilang.
 
+**1 dan 2 Oktober 2026, setelah backend mainnet berjalan.** Temuan di bawah semuanya
+muncul begitu backend diukur di mainnet, tidak satu pun terlihat di fork, karena
+anvil lokal menjawab dalam milidetik. Angka rinci ada di `runbook-backend.md` §7.
+
+- **N28, diperbaiki. Indexer Railway crash berulang.** RPC resmi menjawab `getLogs`
+  empat sampai delapan puluh blok dengan "Too Many Requests", dan pola penolakan
+  rentang di `ingest.ts` cocok dengan "too many", sehingga indexer berhenti seolah
+  tidak ada percobaan ulang yang bisa lolos. Rate limit kini dikenali lebih dulu.
+- **N29, diperbaiki. Tidak ada solver yang bisa submit di mainnet.**
+  `batch.collect_closed` tiba 16 sampai 43 detik sesudah collect tutup, selalu lewat
+  jendela solusi sepuluh detik. Penutupan menunggu di belakang semua bacaan tick.
+  Kini diputuskan lebih dulu, dan tiba 2,5 sampai 3,1 detik sesudahnya.
+- **N30, diperbaiki. Setiap route yang membaca chain butuh 3 sampai 11 detik.**
+  Bacaan berurutan, fallback ke Alchemy yang sudah kena batas bulanan, dan rentang
+  log 10 blok. Kini 0,2 sampai 0,6 detik. Perkiraan awal bahwa RPC resmi lambat dari
+  Railway ternyata salah. Diukur langsung, p50-nya 76 ms dari Railway, dan yang
+  lambat adalah jalur dari laptop di Indonesia.
+- **N31, terbuka. Perintah `cast --block` di mainnet hanya bisa dicek sekitar sepuluh
+  menit.** RPC publik bukan archive. Keputusannya di tim, `audit-provenansi-backend.md`
+  §5c.
+- **N32, dicatat. Di detik yang tepat sama dengan `collectEnd`, `batch.opened` untuk
+  batch berikutnya bisa terbit sebelum `batch.collect_closed` batch itu.** Kontrak
+  masih menganggap batch itu collecting di detik tersebut, sementara `openWindow`
+  sudah menunjuk batch berikutnya. Sudah ada sejak sebelum N29 dan tersamar oleh tick
+  yang lambat. Tidak mengubah batch atau intent, hanya urutan frame.
+- **Job fork malam di CI hijau sekali, 2 Oktober 2026**, setelah memakai blok patokan
+  tim alih-alih blok baru tiap malam. Blok baru menaruh fork di sesi yang ditentukan
+  jam, dan generator koleksi resilience berputar tanpa akhir di sesi 30 detik,
+  sehingga runner menggantung enam jam. Malam berikutnya merah lagi karena batas
+  bulanan Alchemy.
+- **Belum teruji di fork.** Torture F9, F10, C2, dan C3 untuk perubahan lifecycle dan
+  feed di atas, karena fork butuh RPC archive. Dijalankan begitu archive pulih.
+
 ---
 
 ## 6. Gerbang yang mengikat backend
