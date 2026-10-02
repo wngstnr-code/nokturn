@@ -1331,7 +1331,9 @@ Settlement dan struk indexer. Dibuktikan di fork, dari chain.
 | `failed` | `demo-fail CASE=expired`, outcome `expired`, kode `WinnerNeverFinalized` |
 
 Batch di bawah ambang savings memancarkan `BatchPassthrough` dan `BatchSettled` di
-finalize yang sama, dan struknya `settled` dengan kode kegagalan. Jenis frame karena itu
+finalize yang sama. Sejak 1 Oktober 2026 struknya `settled_at_venue` dengan `failure`
+null, dan frame-nya `batch.settled`, karena tradenya memang terjadi. Sebelumnya struk itu
+`settled` dengan kode kegagalan. Jenis frame karena itu
 mengikuti `outcome` struk, bukan event mana yang terakhir dibaca. Solusi terbaik yang
 digantikan tidak punya event penolakan di kontrak, jadi ia hanya muncul sebagai
 `solution_submitted` dengan `accepted` false, sama seperti di struk.
