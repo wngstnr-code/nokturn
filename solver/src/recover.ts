@@ -8,7 +8,7 @@
 
 import type {PublicClient} from "viem";
 import type {LocalAccount} from "viem/accounts";
-import type {Contracts} from "./chain.ts";
+import {withRetry, type Contracts} from "./chain.ts";
 import {finalizeWon, type FinalizeOutcome} from "./finalize.ts";
 import {FINALIZE_DEADLINE, SOLUTION_WINDOW} from "./send.ts";
 import type {Store} from "./store.ts";
@@ -21,7 +21,7 @@ export interface Recovered {
 }
 
 export async function recover(c: PublicClient, account: LocalAccount, k: Contracts, store: Store, log: (line: string) => void): Promise<Recovered[]> {
-  const head = (await c.getBlock()).timestamp;
+  const head = (await withRetry(() => c.getBlock())).timestamp;
   const out: Recovered[] = [];
   for (const id of store.batchIds()) {
     const batchId = BigInt(id);

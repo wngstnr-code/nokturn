@@ -40,7 +40,7 @@ export async function isFork(c: PublicClient): Promise<boolean> {
 export async function deploymentRecord(c: PublicClient): Promise<{path: string; record: Record<string, Address>}> {
   const path =
     process.env.NOKTURN_SOLVER_DEPLOYMENT ??
-    ((await isFork(c)) ? join(REPO_ROOT, "infra", "fork-deployment.json") : join(REPO_ROOT, "contracts", "deployments", `${await c.getChainId()}.json`));
+    ((await isFork(c)) ? join(REPO_ROOT, "infra", "fork-deployment.json") : join(REPO_ROOT, "contracts", "deployments", `${await withRetry(() => c.getChainId())}.json`));
   const record = JSON.parse(readFileSync(path, "utf8")) as Record<string, Address>;
   if (!record.settlement) throw new Error(`${path} names no settlement`);
   return {path, record};

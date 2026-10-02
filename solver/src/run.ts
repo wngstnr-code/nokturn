@@ -11,7 +11,7 @@ import type {LocalAccount} from "viem/accounts";
 import type {StreamEvent} from "../../packages/shared/api-types.ts";
 import {settlementAbi} from "./abi.ts";
 import {signer, type Profile} from "./account.ts";
-import {API, client, contracts, deploymentRecord, type Contracts} from "./chain.ts";
+import {API, client, contracts, deploymentRecord, withRetry, type Contracts} from "./chain.ts";
 import {feed, solveAt} from "./feed.ts";
 import {finalizeWon, untilBlock} from "./finalize.ts";
 import {assertReady} from "./preflight.ts";
@@ -162,7 +162,7 @@ export async function run(opts: {durationMinutes?: number; profile?: Profile; lo
   const settlement = (await deploymentRecord(c)).record.settlement!;
   const k = await contracts(c, settlement);
   const ready = await assertReady(c, k, account.address);
-  const chainId = await c.getChainId();
+  const chainId = await withRetry(() => c.getChainId());
   // Two profiles never share a store, or one would finalize the other's solution.
   const store = new Store(storeDir(chainId, settlement) + (profile === "a" ? "" : `-${profile}`));
   log(`solver ${account.address}, profile ${profile}, bond ${ready.bonded}, settlement ${settlement}, store ${store.dir}`);
@@ -194,7 +194,7 @@ export async function run(opts: {durationMinutes?: number; profile?: Profile; lo
     );
   }
 
-  const start = (await c.getBlock()).timestamp;
+  const start = (await withRetry(() => c.getBlock())).timestamp;
   const endAt = opts.durationMinutes === undefined ? null : start + BigInt(Math.round(opts.durationMinutes * 60));
   if (endAt !== null) log(`running until chain time ${endAt}, ${opts.durationMinutes} minutes from ${start}`);
 
