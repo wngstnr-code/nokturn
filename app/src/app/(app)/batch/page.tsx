@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 const OUTCOME_LABEL: Record<string, string> = {
   settled: "Settled",
+  settled_at_venue: "Filled at venue",
   passthrough: "Passed through",
   expired: "Expired",
   collecting: "Collecting",
@@ -30,7 +31,9 @@ function ratio(value: string): string {
 
 /// Served by the indexer, so this reaches back further than one scan window.
 function IndexedRow({batch}: {batch: BatchSummary}) {
-  const settled = batch.outcome === "settled";
+  // A batch filled at the venue traded, so it shows its savings like any other
+  // fill, and those savings are zero.
+  const settled = batch.outcome === "settled" || batch.outcome === "settled_at_venue";
 
   return (
     <Link className={styles.row} href={`/batch/${batch.batchId}`}>
