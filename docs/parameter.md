@@ -1935,8 +1935,35 @@ dipertaruhkan berbeda.
 likuiditas, dan arus trade-nya. Hanya harganya yang berasal dari pasar. Angka netting,
 savings, atau volume dari testnet tidak boleh dikutip di mana pun.
 
-Alamat angkatan ketiga dicatat di sini setelah dibaca ulang dari chain, lalu baru
-masuk `Addresses`.
+**Alamat angkatan ketiga, dipasang 3 Oktober 2026** di blok 127.994.465 sampai
+127.994.757, 27 transaksi, 19.957.678 gas, 0,00019958 ETH. Operator feed cermin
+`0xcF9D130498657617b26e119d27Cdc469F7D6b8c4`, yaitu kunci `nokturn-testnet`.
+
+| Peran | Simbol | Alamat |
+|---|---|---|
+| Token kuota, 6 desimal | `tQUOTE` | `0x1C169f5e8A14e87748B2e9E4106d269558b989A4` |
+| Feed cermin USDG / USD | | `0x8D4B80775A28FCc0bDA902E39C58185Ac7d5f1B7` |
+| Stand in stock token | `tNVDA` | `0xe31B7cd77Fe9fFc9829f3B77F7F7ff97ccA8702b` |
+| Stand in stock token | `tAAPL` | `0x93a09e967Ad75E4725048F6bD76DAE11152C3274` |
+| Stand in stock token | `tTSLA` | `0xD1E63D6ba57055E4304056d7F7BA2717127Ebe3C` |
+| Stand in stock token | `tGOOGL` | `0xb238c0EcF5B312B31481337a3B9b291cA394f195` |
+| Stand in stock token | `tGME` | `0x1353f399d33989a2073D9e975236602DCba934DD` |
+| Feed cermin `tNVDA` | | `0x28077862cC52438007517C406ce88E93E91b322d` |
+| Feed cermin `tAAPL` | | `0xB02C8d7C1FDcB03482BFCC8D8fe0e7C037E2De5C` |
+| Feed cermin `tTSLA` | | `0x7031F277F80185fE30C05dFe1B96557E206f6322` |
+| Feed cermin `tGOOGL` | | `0x91EF120848D2Dd97DB66804AEff6d4fc988d38a9` |
+| Feed cermin `tGME` | | `0x41B895C2300A3Ab61929401efD00d43CBEe6cC7f` |
+| Pool `tNVDA` | | `0xf9885CD0ebAcb46eBbA46c3D4A4D8D0Fe2e171A1` |
+| Pool `tAAPL` | | `0x64a61b53265C021400Bf6812bcC8F10c075e9786` |
+| Pool `tTSLA` | | `0xA819c5993fcb1939F1B1bcFa8D2C7C1d5dAA977d` |
+| Pool `tGOOGL` | | `0xfa037A6aea7951Ce99870C9aed76AB3fFa8873ED` |
+| Pool `tGME` | | `0x0f469e2b4922EBe09A5D77Bf0A9CC9EA6ad9637f` |
+
+Dibaca ulang dari chain setelah deploy. Setiap feed cermin menunjuk ke proxy mainnet
+yang benar lewat `source()` dan menjawab 8 desimal. Fee, tick spacing, likuiditas,
+dan multiplier sama dengan tabel di atas. Setiap pool memegang 1e27 unit mentah
+stock token. Empat pool terurut dengan token kuota sebagai `token0`, hanya `tGME`
+yang sebaliknya.
 
 ### Endpoint RPC testnet berubah, 19 September 2026
 
