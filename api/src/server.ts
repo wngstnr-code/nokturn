@@ -20,6 +20,7 @@ import {backtestRoutes} from "./routes/backtest.ts";
 import {batchRoutes} from "./routes/batches.ts";
 import {configRoutes} from "./routes/config.ts";
 import {escapeRoutes} from "./routes/escape.ts";
+import {faucetRoutes} from "./routes/faucet.ts";
 import {intentRoutes} from "./routes/intents.ts";
 import {nonceRoutes} from "./routes/nonces.ts";
 import {quoteRoutes} from "./routes/quote.ts";
@@ -139,6 +140,7 @@ export function buildServer(): FastifyInstance {
   batchRoutes(app);
   backtestRoutes(app);
   auctionRoutes(app);
+  faucetRoutes(app);
 
   // An oversized frame is closed with 1009 by ws itself, before any handler
   // allocates for it. The stream routes sit in their own scope so they are
