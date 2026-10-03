@@ -41,9 +41,13 @@
 # where dividing by a constant is linear, and it closes the floor lemma at full
 # width where all four bitvector solvers time out. Measured 29 September 2026, after
 # it refuted three deliberately false statements. halmos downloads the pinned cvc5
-# itself on first use. The other contracts stay on yices so their measured times
-# still mean what rencana-uji.md says they mean.
+# itself on first use, but only with HALMOS_ALLOW_DOWNLOAD set. Without it every
+# nightly run since 30 September stopped on RoundingProofs with "Download not
+# allowed", which is an error and not a proof. The other contracts stay on yices so
+# their measured times still mean what rencana-uji.md says they mean.
 set -euo pipefail
+
+export HALMOS_ALLOW_DOWNLOAD=1
 
 cd "$(dirname "$0")/.."
 
