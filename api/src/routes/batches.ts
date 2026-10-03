@@ -58,7 +58,7 @@ async function receiptContext(batchId: bigint): Promise<ReceiptContext> {
     read<Address>(c.deployment.settlement, settlementAbi, "baselineAdapter"),
   ]);
   const tokens = new Map<string, TokenMeta>(c.tokens.map((t) => [t.token.toLowerCase(), {symbol: t.symbol, decimals: t.decimals, pool: t.pool}]));
-  tokens.set(c.quote.address.toLowerCase(), {symbol: "USDG", decimals: c.quote.decimals});
+  tokens.set(c.quote.address.toLowerCase(), {symbol: c.quote.symbol, decimals: c.quote.decimals});
   return {
     chainId: c.chainId,
     source: source(),

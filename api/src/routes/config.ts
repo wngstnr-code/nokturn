@@ -77,7 +77,7 @@ export function configRoutes(app: FastifyInstance) {
         timelock: d.timelock,
       },
       quoteToken: {
-        symbol: "USDG",
+        symbol: c.quote.symbol,
         address: c.quote.address,
         decimals: c.quote.decimals,
         allowed: quoteAllowed,

@@ -17,6 +17,8 @@ export const REPO_ROOT = join(HERE, "..", "..");
 
 export const CHAIN_ID_MAINNET = 4663;
 export const CHAIN_ID_TESTNET = 46_630;
+/** What the 46630 quote fixture answers from symbol(). It is not USDG. */
+export const TESTNET_QUOTE_SYMBOL = "tQUOTE";
 
 export interface TokenEntry {
   symbol: string;

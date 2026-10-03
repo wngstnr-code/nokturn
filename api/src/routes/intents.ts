@@ -442,7 +442,7 @@ export function intentRoutes(app: FastifyInstance) {
       // quote leg from refPrice(USDG) and the row a judge sees has to be the
       // figure the contract settles against. N8.
       const oracleUnavailable: BatchIntentsResponse["oracleUnavailable"] = [];
-      const rows = [{token: c.quote.address, symbol: "USDG", decimals: c.quote.decimals}, ...c.tokens];
+      const rows = [{token: c.quote.address, symbol: c.quote.symbol, decimals: c.quote.decimals}, ...c.tokens];
       const pricing = Promise.all(
         rows.map(async (t): Promise<OraclePriceRow | null> => {
           let answer: [bigint, bigint, boolean];
