@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {useRef, useState} from "react";
 import {ArrowCircleIcon, GithubIcon} from "./Icons";
+import {Icon3DCopy} from "./landing/Icon3D";
 import {MaskIcon} from "./landing/MaskIcon";
 import {BRAND, FOOTER} from "./landing/content";
 import {chainFor} from "@/lib/chain";
@@ -13,6 +14,9 @@ const REPO = "https://github.com/wngstnr-code/nokturn";
 const DUNE =
   "https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026";
 const CHAIN_DOCS = "https://docs.chain.robinhood.com";
+
+// The two wing colours in flying-owl.svg, the same pair the landing footer flies.
+const OWL_WINGS = ["#a2bcff", "#f8faff"];
 
 /* The explorer follows the chain the app is reading, so it is filled in per render. */
 const groups = (explorer: string, testnet: boolean) => [
@@ -106,13 +110,12 @@ export function SiteFooter({network}: {network: Network}) {
             </div>
           </div>
 
-          <div className={styles.marquee} aria-hidden="true">
+          <div className={styles.marquee} aria-hidden="true" data-icon3d-watch>
             <div className={styles.marqueeTrack}>
               {[0, 1, 2, 3].map((index) => (
                 <div key={index} className={styles.marqueeSegment}>
                   <b>{FOOTER.marquee.text}</b>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={FOOTER.marquee.image} alt="" />
+                  <Icon3DCopy src={FOOTER.marquee.image} wings={OWL_WINGS} className={styles.owl} />
                 </div>
               ))}
             </div>

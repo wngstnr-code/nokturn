@@ -147,11 +147,16 @@
   line-height: 1;
 }
 
-.marqueeSegment > img {
+.owl {
   height: 112px;
-  width: auto;
-  padding: 0 0 20px;
+  aspect-ratio: 192 / 110;
   border-bottom: 4px solid var(--n-footer-text);
+}
+
+.owl > img {
+  display: block;
+  height: calc(100% - 20px);
+  width: auto;
 }
 
 @keyframes run {
