@@ -464,6 +464,35 @@ export interface NonceResponse {
 }
 
 // ---------------------------------------------------------------------------
+// POST /v1/faucet, testnet 46630 only
+// ---------------------------------------------------------------------------
+
+export interface FaucetRequest {
+  address: Address;
+}
+
+/**
+ * Tops an address up to the faucet amounts, gas ETH, the quote fixture and each
+ * test stock token. What the address already holds counts, so a second call
+ * soon after the first sends nothing. The tokens are the rehearsal fixtures,
+ * worth nothing anywhere, and every mint is a call anyone could make.
+ *
+ * On any chain but 46630, or with no faucet key configured, the route answers
+ * 404 COORDINATOR_NOT_IMPLEMENTED. Too many requests answer 429
+ * COORDINATOR_RATE_LIMITED with detail.retryAfterSeconds.
+ */
+export interface FaucetResponse {
+  address: Address;
+  /** One per asset, in the order sent. amount is in the asset's own units. */
+  sent: {symbol: string; token: Address | null; amount: Uint; tx: Hex}[];
+  /** Assets the address already held enough of. */
+  skipped: {symbol: string; token: Address | null; held: Uint; target: Uint}[];
+  /** The faucet's own address, so anyone can read what it has given away. */
+  faucet: Address;
+  provenance: Provenance;
+}
+
+// ---------------------------------------------------------------------------
 // POST /v1/intents/escape
 // ---------------------------------------------------------------------------
 
@@ -837,6 +866,7 @@ export const ROUTES = {
   solvers: "GET /v1/solvers",
   auction: "GET /v1/auctions/:auctionId",
   stream: "WS /v1/stream",
+  faucet: "POST /v1/faucet",
 } as const;
 
 // ---------------------------------------------------------------------------
