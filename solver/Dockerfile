@@ -2,8 +2,8 @@
 # One image for the solver and the auction keeper on any chain. Which chain is
 # whatever NOKTURN_SOLVER_RPC answers as, and the record for it is baked in.
 #
-#   solver   node solver/src/index.ts --run          (the default)
-#   keeper   node solver/src/keeper.ts --profile b   (Railway start command)
+# NOKTURN_ROLE picks solver (the default), keeper, or both in one container.
+# solver/entrypoint.sh has the details.
 #
 # Keys come from NOKTURN_SOLVER_PRIVATE_KEY and NOKTURN_SOLVER_B_PRIVATE_KEY,
 # set per Railway environment, so a testnet service never sees a mainnet key.
@@ -29,6 +29,7 @@ ENV NODE_ENV=production
 COPY --from=deps /app /app
 COPY packages/shared packages/shared
 COPY solver/src solver/src
+COPY solver/entrypoint.sh solver/entrypoint.sh
 COPY contracts/deployments/4663.json contracts/deployments/4663.json
 COPY contracts/deployments/46630.json contracts/deployments/46630.json
 COPY contracts/deployments/46630-fixtures.json contracts/deployments/46630-fixtures.json
@@ -41,4 +42,4 @@ RUN node /tmp/extract-addresses.mjs /tmp/Addresses.sol infra/chain.json && rm /t
 # The store of submitted solutions, so a restart finalizes what it submitted.
 RUN mkdir -p solver/.state && chown node solver/.state
 USER node
-CMD ["node", "solver/src/index.ts", "--run"]
+CMD ["sh", "solver/entrypoint.sh"]
