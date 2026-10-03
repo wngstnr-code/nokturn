@@ -1,6 +1,12 @@
 # Built from the repo root, docker build -f solver/Dockerfile .
-# The profile, a or b, comes from the compose command. Chain records and the
-# account list are read from infra/, which docker-compose.yml mounts read only.
+# One image for the solver and the auction keeper on any chain. Which chain is
+# whatever NOKTURN_SOLVER_RPC answers as, and the record for it is baked in.
+#
+#   solver   node solver/src/index.ts --run          (the default)
+#   keeper   node solver/src/keeper.ts --profile b   (Railway start command)
+#
+# Keys come from NOKTURN_SOLVER_PRIVATE_KEY and NOKTURN_SOLVER_B_PRIVATE_KEY,
+# set per Railway environment, so a testnet service never sees a mainnet key.
 
 FROM node:24-alpine AS deps
 WORKDIR /app
@@ -19,17 +25,20 @@ RUN rm -rf node_modules/.pnpm/typescript@*
 
 FROM node:24-alpine
 WORKDIR /app
-# Profile b appends its own suffix to the store path, so the setting names a file
-# inside /state rather than /state itself. Otherwise profile b writes /state-b,
-# which is the image root and is not writable by node.
-ENV NODE_ENV=production NOKTURN_SOLVER_STATE=/state/solver NOKTURN_SOLVER_HEARTBEAT=/tmp/solver-heartbeat
+ENV NODE_ENV=production
 COPY --from=deps /app /app
 COPY packages/shared packages/shared
 COPY solver/src solver/src
-RUN mkdir -p /state && chown node:node /state
+COPY contracts/deployments/4663.json contracts/deployments/4663.json
+COPY contracts/deployments/46630.json contracts/deployments/46630.json
+COPY contracts/deployments/46630-fixtures.json contracts/deployments/46630-fixtures.json
+# account.ts refuses any key of the public repo mnemonic, and reads the list here.
+COPY infra/accounts.json infra/accounts.json
+# The keeper's mainnet token list, generated the way the api image does it.
+COPY contracts/script/Addresses.sol /tmp/Addresses.sol
+COPY infra/scripts/extract-addresses.mjs /tmp/extract-addresses.mjs
+RUN node /tmp/extract-addresses.mjs /tmp/Addresses.sol infra/chain.json && rm /tmp/Addresses.sol /tmp/extract-addresses.mjs
+# The store of submitted solutions, so a restart finalizes what it submitted.
+RUN mkdir -p solver/.state && chown node solver/.state
 USER node
-# The heartbeat is rewritten on every batch the stream opens. The longest batch
-# any session runs is 180 seconds, PROTECTIVE, so older than that is a stall.
-HEALTHCHECK --interval=10s --timeout=3s --start-period=120s --retries=3 \
-  CMD node -e "process.exit(Date.now() - require('fs').statSync(process.env.NOKTURN_SOLVER_HEARTBEAT).mtimeMs < 180000 ? 0 : 1)"
-ENTRYPOINT ["node", "solver/src/index.ts", "--run"]
+CMD ["node", "solver/src/index.ts", "--run"]
