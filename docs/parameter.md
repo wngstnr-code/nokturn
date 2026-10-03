@@ -1874,6 +1874,70 @@ melatih `setPool` dan tidak melatih kuotasi terhadap likuiditas nyata.
 Alamat di atas tidak pernah terbaca di mainnet. `Addresses` memilih berdasarkan
 `block.chainid`, dan 4663 tidak punya cabang ke sini.
 
+### Angkatan ketiga, harga dicermin dari mainnet, 3 Oktober 2026
+
+Angkatan kedua punya dua kekurangan yang membuat testnet tidak layak dibuka untuk
+orang luar. Harganya angka bulat yang kami pilih sendiri, dan pool-nya tidak bisa
+swap, jadi tidak ada batch yang bisa selesai di 46630. Testnet akan tampil di
+`testnet.nokturn.xyz` sebagai jalur mencoba alur tanpa dana, jadi kedua hal itu
+diganti. Angkatan kedua di atas tetap tercatat sebagai riwayat dan tidak dipakai lagi
+setelah angkatan ketiga terpasang.
+
+**Harga tidak lagi dipilih siapa pun.** Setiap feed di 46630 sekarang `MirrorFeed`,
+yang hanya menerima round salinan dari proxy Chainlink mainnet yang namanya tersimpan
+di kontrak itu sendiri (`source()`). Nomor round mainnet disimpan di samping setiap
+round (`sourceRoundOf`), jadi siapa pun bisa mencocokkan satu round testnet dengan
+round mainnet yang sama. `updatedAt` adalah waktu mainnet, bukan waktu salinan
+mendarat. Feed yang beku di akhir pekan di mainnet ikut beku di sini, dan batas
+staleness §7.1 berarti hal yang sama di kedua chain.
+
+Pool mengambil harganya dari rasio dua feed itu lewat `sync()`, yang terbuka untuk
+siapa saja. Selain swap, tidak ada jalan lain untuk menggeser harga pool. Kunci
+operator hanya bisa menyalin round yang lebih baru dari yang sudah ada, dengan
+waktu yang tidak mendahului jam 46630.
+
+**Pool sekarang bisa swap, dan hasilnya sama persis dengan kuotasi adapter.** Swap
+berjalan per batas word dengan `SwapMath` yang sama dengan yang dipakai
+`UniswapV3Adapter.quoteFromState`. Fuzz 512 kali di kedua arah dan kedua urutan
+token memberi selisih nol wei (`test/TestnetFixtures.t.sol`). TWAP-nya juga
+sungguhan, diakumulasi dari setiap perubahan tick, bukan riwayat datar.
+
+**Fee, tick spacing, dan likuiditas meniru pool mainnet.** Dibaca dari kelima pool
+mainnet di `Addresses` pada blok 78.833.447, 3 Oktober 2026. Angkatan kedua memakai
+fee 3000 di kelima pool, padahal di mainnet cuma TSLA yang begitu. Desimal kedua sisi
+sama di kedua chain, jadi likuiditas mentah terbawa sebagai kedalaman.
+
+| Pool | Fee | Tick spacing | Likuiditas dalam range |
+|---|---|---|---|
+| `tNVDA` | 500 | 10 | 19.531.557.485.415.257.411 |
+| `tAAPL` | 500 | 10 | 520.436.072.689.231.175 |
+| `tTSLA` | 3000 | 60 | 352.474.549.280.711.413 |
+| `tGOOGL` | 500 | 10 | 1.931.105.946.085.635.895 |
+| `tGME` | 500 | 10 | 788.065.785.292.685.059 |
+
+Likuiditasnya satu range rata, sedangkan pool mainnet punya banyak range. Untuk
+ukuran trade biasa hasilnya dekat, tapi untuk trade besar yang di mainnet akan
+menyeberangi tick, kedalaman testnet berbeda. Ini yang harus disebut kalau ada yang
+bertanya, bukan disamarkan.
+
+Setiap pool diisi 1e27 unit mentah stock token dan 1e18 unit mentah token kuota,
+cukup untuk membayar pergerakan harga setengah ke arah mana pun di pool terdalam.
+
+**Urutan pemasangan.** Pool lahir tanpa harga, dan `UniswapV3Adapter.setPool` menolak
+pool yang belum punya harga. Jadi urutannya fixture, lalu `tools/mirror.py --once`
+yang menyalin round pertama dan memanggil `sync`, baru `Deploy` dan `Bootstrap`.
+Feed oracle dipasang lewat `SetFeeds` sebelum `Lock`, selagi delay timelock masih nol.
+Di mainnet itu sengaja tidak boleh, karena harga yang dipakai seluruh protokol tidak
+pantas disetel dalam satu blok. Di testnet harganya cermin dari mainnet, jadi yang
+dipertaruhkan berbeda.
+
+**Yang tetap sintetis, dan harus selalu tertulis di layar testnet.** Token, saldo,
+likuiditas, dan arus trade-nya. Hanya harganya yang berasal dari pasar. Angka netting,
+savings, atau volume dari testnet tidak boleh dikutip di mana pun.
+
+Alamat angkatan ketiga dicatat di sini setelah dibaca ulang dari chain, lalu baru
+masuk `Addresses`.
+
 ### Endpoint RPC testnet berubah, 19 September 2026
 
 `rpc.testnet.chain.robinhood.com` sekarang ikut dicegat DNS ISP Indonesia, resolve ke
