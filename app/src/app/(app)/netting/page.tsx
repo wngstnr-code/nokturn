@@ -1,6 +1,8 @@
 import {NettingChart, type Point} from "./NettingChart";
 import {nettingCurve} from "@/lib/coordinator/client";
 import type {NettingCurveResponse} from "@/lib/coordinator/types";
+import {OwlState} from "@/components/ui/OwlState";
+import {activeNetwork} from "@/lib/network";
 import styles from "./page.module.css";
 
 export const metadata = {title: "Netting backtest"};
@@ -52,6 +54,23 @@ function at(curve: Point[], share: number): Point | undefined {
 }
 
 export default async function NettingPage() {
+  // The testnet leaves every flow figure off, and this page goes with them. The
+  // backtest itself is real August flow, so the way to it is still given.
+  if ((await activeNetwork()).kind === "testnet") {
+    return (
+      <div className={styles.page}>
+        <OwlState mood="waiting" title="The netting backtest lives on mainnet">
+          This is the testnet, where flow figures are not shown. The backtest replays real August
+          2026 trades and is on the{" "}
+          <a href="https://app.nokturn.xyz/netting" target="_blank" rel="noreferrer">
+            mainnet app
+          </a>
+          .
+        </OwlState>
+      </div>
+    );
+  }
+
   const loaded = await load();
   if (loaded === null) {
     return (

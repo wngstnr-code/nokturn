@@ -40,7 +40,7 @@ export function SiteHeader({snapshot, network}: {snapshot: SessionSnapshot; netw
         </Link>
 
         <nav className={styles.nav} aria-label="Primary">
-          {NAV.map((item) => {
+          {NAV.filter((item) => network.kind !== "testnet" || item.href !== "/netting").map((item) => {
             const active = pathname.startsWith(item.href);
             return (
               <Link

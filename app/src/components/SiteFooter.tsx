@@ -6,6 +6,7 @@ import {ArrowCircleIcon, GithubIcon} from "./Icons";
 import {MaskIcon} from "./landing/MaskIcon";
 import {BRAND, FOOTER} from "./landing/content";
 import {chainFor} from "@/lib/chain";
+import type {Network} from "@/lib/network";
 import styles from "./SiteFooter.module.css";
 
 const REPO = "https://github.com/wngstnr-code/nokturn";
@@ -14,7 +15,7 @@ const DUNE =
 const CHAIN_DOCS = "https://docs.chain.robinhood.com";
 
 /* The explorer follows the chain the app is reading, so it is filled in per render. */
-const groups = (explorer: string) => [
+const groups = (explorer: string, testnet: boolean) => [
   {
     title: "Protocol",
     links: [
@@ -23,7 +24,7 @@ const groups = (explorer: string) => [
       {href: "/auction", label: "Auctions"},
       {href: "/session", label: "Session"},
       {href: "/allowlist", label: "Allowlist"},
-      {href: "/netting", label: "Netting"},
+      ...(testnet ? [] : [{href: "/netting", label: "Netting"}]),
     ],
   },
   {
@@ -42,8 +43,8 @@ const groups = (explorer: string) => [
   },
 ];
 
-export function SiteFooter({chainId}: {chainId: number}) {
-  const linkGroups = groups(chainFor(chainId).blockExplorers.default.url);
+export function SiteFooter({network}: {network: Network}) {
+  const linkGroups = groups(chainFor(network.chainId).blockExplorers.default.url, network.kind === "testnet");
   const [expanded, setExpanded] = useState(false);
   const root = useRef<HTMLElement>(null);
 

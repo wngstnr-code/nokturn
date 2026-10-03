@@ -79,7 +79,7 @@ function nettedShare(netted: string, routed: string): number | null {
  * for that fill alone, and the label says so. Calling it what the sale would have
  * fetched alone was untrue on a routed batch. packages/shared/api-types.ts.
  */
-function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
+function Fill({fill, chainId, stats}: {fill: FillReceipt; chainId: number; stats: boolean}) {
   const moved = Number(fill.improvementBps);
   const better = Number.isFinite(moved) && moved >= 0;
   const gap = difference(fill.executedBuy, fill.baselineBuy, fill.buyToken.decimals);
@@ -99,7 +99,7 @@ function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
         {fill.partial ? <span className={styles.partial}>Partial fill</span> : null}
       </div>
 
-      <div className={styles.versus}>
+      <div className={`${styles.versus} ${stats ? "" : styles.versusPair}`}>
         <div className={styles.side}>
           <span className={styles.sideLabel}>In this batch</span>
           <span className={`${styles.sideValue} chainvalue`}>
@@ -107,10 +107,12 @@ function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
           </span>
           <span className={styles.sideUnit}>{fill.buyToken.symbol}</span>
         </div>
-        <span className={`${styles.delta} ${better ? styles.better : styles.worse} chainvalue`}>
-          {gap === null ? "" : `${gap} `}
-          {improvement(fill.improvementBps)}
-        </span>
+        {stats ? (
+          <span className={`${styles.delta} ${better ? styles.better : styles.worse} chainvalue`}>
+            {gap === null ? "" : `${gap} `}
+            {improvement(fill.improvementBps)}
+          </span>
+        ) : null}
         <div className={styles.side}>
           <span className={styles.sideLabel}>
             Its share of the venue baseline
@@ -127,37 +129,38 @@ function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
         </div>
       </div>
 
-      <div className={styles.attribution}>
-        <span className={styles.attributionLabel}>
-          Where the difference came from
-          <Hint label="How the two parts differ">
-            The part that met another intent inside the batch never paid a spread. The rest was
-            routed to the venue in one order.
-          </Hint>
-        </span>
-        {share === null ? null : (
-          <div className={styles.split} aria-hidden="true">
-            <span className={styles.splitNetted} style={{width: `${share}%`}} />
+      {stats ? (
+        <div className={styles.attribution}>
+          <span className={styles.attributionLabel}>
+            Where the difference came from
+            <Hint label="How the two parts differ">
+              The part that met another intent inside the batch never paid a spread. The rest was
+              routed to the venue in one order.
+            </Hint>
+          </span>
+          {share === null ? null : (
+            <div className={styles.split} aria-hidden="true">
+              <span className={styles.splitNetted} style={{width: `${share}%`}} />
+            </div>
+          )}
+          <div className={styles.splitLegend}>
+            <span>
+              <i className={styles.dotNetted} />
+              Met another intent{" "}
+              <strong className="chainvalue">
+                {amount(fill.attribution.nettedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
+              </strong>
+            </span>
+            <span>
+              <i className={styles.dotRouted} />
+              Routed to the venue{" "}
+              <strong className="chainvalue">
+                {amount(fill.attribution.routedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
+              </strong>
+            </span>
           </div>
-        )}
-        <div className={styles.splitLegend}>
-          <span>
-            <i className={styles.dotNetted} />
-            Met another intent{" "}
-            <strong className="chainvalue">
-              {amount(fill.attribution.nettedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
-            </strong>
-          </span>
-          <span>
-            <i className={styles.dotRouted} />
-            Routed to the venue{" "}
-            <strong className="chainvalue">
-              {amount(fill.attribution.routedSell, fill.sellToken.decimals, 4)} {fill.sellToken.symbol}
-            </strong>
-          </span>
         </div>
-      </div>
-
+      ) : null}
     </article>
   );
 }
@@ -337,6 +340,9 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
   const receipt = result.value;
   const settled = receipt.outcome === "settled";
   const atVenue = receipt.outcome === "settled_at_venue";
+  // Test tokens in test pools say nothing about netting or savings, so on the
+  // testnet those figures are left off rather than shown with a caveat.
+  const stats = receipt.provenance.source.kind !== "testnet";
 
   return (
     <div className={styles.page}>
@@ -382,24 +388,28 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
       {receipt.failure === null ? null : <Failure failure={receipt.failure} receipt={receipt} />}
 
       <div className={styles.totals}>
-        <div className={styles.total}>
-          <p className={styles.totalLabel}>
-            Netting
-            <Hint label="What netting is">
-              The share of the batch that met another intent instead of going to a venue.
-            </Hint>
-          </p>
-          <p className={`${styles.totalValue} chainvalue`}>{ratio(receipt.totals.nettingRatioBps)}</p>
-        </div>
-        <div className={styles.total}>
-          <p className={styles.totalLabel}>
-            Total savings
-            <Hint label="Savings against what">Against the venue baseline at this block.</Hint>
-          </p>
-          <p className={`${styles.totalValue} chainvalue`}>
-            {amount(receipt.totals.totalSavingsUsd, 18, 2)} USD
-          </p>
-        </div>
+        {stats ? (
+          <>
+            <div className={styles.total}>
+              <p className={styles.totalLabel}>
+                Netting
+                <Hint label="What netting is">
+                  The share of the batch that met another intent instead of going to a venue.
+                </Hint>
+              </p>
+              <p className={`${styles.totalValue} chainvalue`}>{ratio(receipt.totals.nettingRatioBps)}</p>
+            </div>
+            <div className={styles.total}>
+              <p className={styles.totalLabel}>
+                Total savings
+                <Hint label="Savings against what">Against the venue baseline at this block.</Hint>
+              </p>
+              <p className={`${styles.totalValue} chainvalue`}>
+                {amount(receipt.totals.totalSavingsUsd, 18, 2)} USD
+              </p>
+            </div>
+          </>
+        ) : null}
         <div className={styles.total}>
           <p className={styles.totalLabel}>
             Participants
@@ -423,7 +433,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
           <p className={styles.sectionLabel}>Fills</p>
           <div className={styles.fills}>
             {receipt.fills.map((fill) => (
-              <Fill key={fill.intentHash} fill={fill} chainId={receipt.provenance.chainId} />
+              <Fill key={fill.intentHash} fill={fill} chainId={receipt.provenance.chainId} stats={stats} />
             ))}
           </div>
         </>
