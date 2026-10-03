@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {describe, test} from "node:test";
 import type {Address} from "viem";
 import {computeMetrics} from "../../src/metrics.ts";
-import {attribute, buildReceipt, type BatchFacts, type ReceiptContext} from "../../src/receipt.ts";
+import {attribute, buildReceipt, publicOutcome, type BatchFacts, type ReceiptContext} from "../../src/receipt.ts";
 
 const USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
 const NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
@@ -45,6 +45,7 @@ function nettedFacts(): BatchFacts {
     solutions: [{solver: "0xsolver", solution_hash: "0xhash", claimed_savings: "9", accepted: true, rejection_reason: null, ...prov(12, 0)}],
     venueRoutes: [{adapter: ADAPTER, token_in: USDG, token_out: NVDA, amount_in: "150", amount_out: "78", ...prov(20, 2)}],
     collectionFailures: [],
+    quotes: [],
     winning: {
       solution_hash: "0xhash",
       solution: {
@@ -112,6 +113,35 @@ describe("receipt", () => {
     assert.deepEqual(built.receipt.fills.map((x) => x.verifyBaseline.expected), ["50", "150"]);
   });
 
+  test("a stored answer is used without asking the chain, and a dropped state reads unavailable", async () => {
+    const f = nettedFacts();
+    const row = (sell: string, buy: string, amount: string, out: string | null, adapter = ADAPTER) => ({deployment: "0xs", batch_id: "1789893780", adapter, sell_token: sell, buy_token: buy, amount, quote_block: "11", amount_out: out, chain_id: 4663, block_number: "20"});
+    // The NVDA direction's answer was stored under an adapter since replaced, so it is not trusted.
+    f.quotes = [row(USDG, NVDA, "400", "200"), row(NVDA, USDG, "100", "251", "0x0000000000000000000000000000000000000001")];
+    const asked: string[] = [];
+    const c = {
+      ...ctx(),
+      quote: async (sell: Address, _buy: Address, amount: bigint) => {
+        asked.push(`${sell}:${amount}`);
+        throw new Error("Invalid parameters were provided to the RPC method.");
+      },
+    };
+    const built = (await buildReceipt(1_789_893_780n, f, c))!;
+    assert.deepEqual(asked, [`${NVDA}:100`, `${NVDA}:100`]);
+    assert.deepEqual(built.receipt.fills.map((x) => x.verifyBaseline.expected), ["200", "unavailable"]);
+    assert.deepEqual(built.receipt.baselineFloors.map((d) => [d.verifyFloor.expected, d.holds]), [["200", true], ["unavailable", null]]);
+    assert.deepEqual(built.baselineMismatches, []);
+  });
+
+  test("a stored revert stays a revert", async () => {
+    const f = nettedFacts();
+    f.fills = [f.fills[0]!];
+    f.quotes = [{deployment: "0xs", batch_id: "1789893780", adapter: ADAPTER, sell_token: USDG, buy_token: NVDA, amount: "400", quote_block: "11", amount_out: null, chain_id: 4663, block_number: "20"}];
+    const built = (await buildReceipt(1_789_893_780n, f, ctx({[`${USDG}:400`]: 200n})))!;
+    assert.equal(built.receipt.baselineFloors[0]!.verifyFloor.expected, "reverts");
+    assert.equal(built.baselineMismatches.length, 1);
+  });
+
   test("a passthrough names the owner that could not be collected, and carries no invented figures", async () => {
     const f = nettedFacts();
     f.batch = {...f.batch!, outcome: "passthrough", reason: "intent could not be collected", netted_usd: null, routed_usd: null, savings_usd: null, solver: null};
@@ -141,15 +171,21 @@ describe("receipt", () => {
     assert.equal(r.failure!.code, "WinnerNeverFinalized");
   });
 
-  test("a routed batch that saved nothing stays settled and carries SavingsBelowThreshold", async () => {
+  test("a routed batch that saved nothing reads settled_at_venue with its fills and no failure", async () => {
     const f = nettedFacts();
     f.batch = {...f.batch!, reason: "savings below threshold", netted_usd: "0", routed_usd: "400", savings_usd: "0"};
     const r = (await buildReceipt(1789893780n, f, ctx()))!.receipt;
-    assert.equal(r.outcome, "settled");
+    assert.equal(r.outcome, "settled_at_venue");
     assert.equal(r.fills.length, f.fills.length);
     assert.equal(r.totals.totalSavingsUsd, "0");
-    assert.equal(r.failure!.code, "SavingsBelowThreshold");
-    assert.equal(r.failure!.feeCharged, "0");
+    assert.equal(r.failure, null);
+  });
+
+  test("publicOutcome renames only a settled batch below the savings threshold", () => {
+    assert.equal(publicOutcome("settled", "savings below threshold"), "settled_at_venue");
+    assert.equal(publicOutcome("settled", null), "settled");
+    assert.equal(publicOutcome("passthrough", "intent could not be collected"), "passthrough");
+    assert.equal(publicOutcome("expired", "winner never finalized"), "expired");
   });
 
   test("only the winning hash is accepted, and a loser replaced without an event says so", async () => {

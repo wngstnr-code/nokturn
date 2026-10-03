@@ -203,19 +203,28 @@ async function main() {
     const resumeDuration = BigInt(await reader.batchDuration(resumeSession));
     const base = (resume / resumeDuration + 2n) * resumeDuration;
 
+    // The answer to hold the helper to comes from Settlement.batchWindow for the
+    // last boundary before t, not from a formula here. A formula of offsets 1 to
+    // 10 only holds when batches outlast the window. At ten second OPEN batches
+    // one window ends where the next opens, which failed this on mainnet on
+    // 3 October 2026 while the contract and the corrected helper agreed.
     for (const offset of [0n, 1n, 5n, 10n, 11n, resumeDuration - 1n]) {
-      await jumpTo(base + offset);
-      const r = await solvableBatchId(reader, base + offset);
-      const expected = offset >= 1n && offset <= 10n;
-      if (isBatch(r) === expected) {
+      const t = base + offset;
+      await jumpTo(t);
+      const r = await solvableBatchId(reader, t);
+      const last = ((t - 1n) / resumeDuration) * resumeDuration;
+      const w = await chainWindow(last);
+      const expected = !w.error && w.collectEnd < t && t <= w.solveEnd ? last : null;
+      const got = isBatch(r) ? r.batchId : null;
+      if (got === expected) {
         ok(
           `offset ${String(offset).padStart(2)} of ${resumeDuration}s`,
-          expected ? `open, batch ${r.batchId}` : `closed, ${r.reason}`,
+          expected !== null ? `open, batch ${expected}, as batchWindow says` : `closed, ${r.reason}, as batchWindow says`,
         );
       } else {
         bad(
           `offset ${offset}`,
-          `expected ${expected ? "open" : "closed"}, got ${isBatch(r) ? "open" : r.reason}`,
+          `batchWindow says ${expected !== null ? `batch ${expected} is solvable` : "nothing is solvable"}, the helper says ${got !== null ? `batch ${got}` : r.reason}`,
         );
       }
     }

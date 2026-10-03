@@ -72,8 +72,13 @@ export interface VerifiableCall {
   blockNumber: Uint;
   /** Ready to paste, including the rpc url and the block. */
   castCommand: string;
-  /** What the call returns when it is run, so a mismatch is visible. */
-  expected: Uint;
+  /**
+   * What the call returns when it is run, so a mismatch is visible. "reverts"
+   * when the call reverts at that block. "unavailable" when the state is gone
+   * from every node the coordinator can reach and the indexer did not read it
+   * in time. The call is still correct, it needs an archive node to run.
+   */
+  expected: Uint | "reverts" | "unavailable";
   /** Human readable, for example "UniswapV3Adapter.quoteFromState". */
   describes: string;
 }
@@ -537,7 +542,13 @@ export interface CurrentBatchResponse {
   provenance: Provenance;
 }
 
-export type BatchOutcome = "settled" | "passthrough" | "expired" | "collecting" | "solving";
+/**
+ * settled_at_venue is a routed batch that saved nothing. Its trades executed at
+ * the venue's own price and no fee was taken, so it is a fill, not a failure,
+ * and it carries failure null. On chain it is BatchPassthrough "savings below
+ * threshold" and BatchSettled in one finalize.
+ */
+export type BatchOutcome = "settled" | "settled_at_venue" | "passthrough" | "expired" | "collecting" | "solving";
 
 /**
  * The receipt. This is the product, docs/demo.md section 2, and the failure
@@ -582,9 +593,8 @@ export interface BatchReceipt {
   };
 
   /**
-   * Set when the batch did not settle, and on a settled batch that saved
-   * nothing, code SavingsBelowThreshold, whose trades did execute. Carries the
-   * baseline anyway, which is the whole point of the failure screen. A protocol
+   * Set exactly when the batch did not settle, outcome passthrough or expired.
+   * Null on settled and settled_at_venue. Carries the baseline anyway, which is the whole point of the failure screen. A protocol
    * that publishes nothing on failure is asking to be trusted that the failure
    * was honest.
    */
@@ -654,7 +664,7 @@ export interface BaselineFloor {
   baselineBuy: Uint;
   /** quoteFromState on executedSell at the block the verifier read. baselineBuy must be at or above it. */
   verifyFloor: VerifiableCall;
-  /** baselineBuy >= verifyFloor.expected. Null when the quote could not be read. */
+  /** baselineBuy >= verifyFloor.expected. Null when expected is "reverts" or "unavailable". */
   holds: boolean | null;
 }
 

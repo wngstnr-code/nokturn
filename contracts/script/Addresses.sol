@@ -34,14 +34,6 @@ library Addresses {
     address internal constant POOL_GOOGL = 0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7;
     address internal constant POOL_GME = 0xE2b46c905E12Ab8E2f864e4821a4325884C1B126;
 
-    /// The 46630 rehearsal fixtures, parameter.md section 10.6. Chain 46630 carries
-    /// none of the four things above, so they are put there by
-    /// script/testnet/DeployTestnetFixtures.s.sol before the deploy runs. They are
-    /// constants here for the same reason the mainnet ones are, which is that an
-    /// address read from a dotenv file differs between three laptops.
-    ///
-    /// Replaced wholesale on 20 September 2026 when GME joined the allowlist. The
-    /// first batch of four is dead and none of its addresses appear here.
     /// The Chainlink proxies, parameter.md section 7.1. Proxies rather than the
     /// aggregators behind them, so an aggregator swap does not cut the consumer off.
     /// Verified against the chain on 19 September 2026, all four eight decimals and
@@ -91,19 +83,35 @@ library Addresses {
     /// parameter.md section 7.1.
     uint32 internal constant TWAP_WINDOW = 1800;
 
-    address internal constant TESTNET_QUOTE = 0x4559EF47891FD74571c76852De21E0966409Edce;
+    /// The 46630 rehearsal fixtures, parameter.md section 10.6. Chain 46630 carries
+    /// none of the things above, so they are put there by
+    /// script/testnet/DeployTestnetFixtures.s.sol before the deploy runs. They are
+    /// constants here for the same reason the mainnet ones are, which is that an
+    /// address read from a dotenv file differs between three laptops.
+    ///
+    /// The third set, 3 October 2026. Every feed mirrors the mainnet proxy above it
+    /// and every pool prices from those feeds, so no number here was chosen by us.
+    /// The two earlier sets are dead and none of their addresses appear here.
+    address internal constant TESTNET_QUOTE = 0x1C169f5e8A14e87748B2e9E4106d269558b989A4;
+    address internal constant TESTNET_FEED_QUOTE = 0x8D4B80775A28FCc0bDA902E39C58185Ac7d5f1B7;
 
-    address internal constant TESTNET_NVDA = 0x43945b9Cd5E5ea57470961D28476aB9749fD6835;
-    address internal constant TESTNET_AAPL = 0xc471d303fb69F8D710c31Bd3667145646f3d093D;
-    address internal constant TESTNET_TSLA = 0x67157B1ee27c3Bd5f2Cf76f0847A8df98D2FC246;
-    address internal constant TESTNET_GOOGL = 0x357F431e365f1A6c65304A4aC7002345D8B60481;
-    address internal constant TESTNET_GME = 0xb3953D77e5dDb251B3F9C9C38a49B4cB28cbe92d;
+    address internal constant TESTNET_NVDA = 0xe31B7cd77Fe9fFc9829f3B77F7F7ff97ccA8702b;
+    address internal constant TESTNET_AAPL = 0x93a09e967Ad75E4725048F6bD76DAE11152C3274;
+    address internal constant TESTNET_TSLA = 0xD1E63D6ba57055E4304056d7F7BA2717127Ebe3C;
+    address internal constant TESTNET_GOOGL = 0xb238c0EcF5B312B31481337a3B9b291cA394f195;
+    address internal constant TESTNET_GME = 0x1353f399d33989a2073D9e975236602DCba934DD;
 
-    address internal constant TESTNET_POOL_NVDA = 0x1B72BEddb369A5A2F69c66F262aBF49D048fa093;
-    address internal constant TESTNET_POOL_AAPL = 0x6c28c436BB2743482Bfd59E8d5A1aC95c41d6e79;
-    address internal constant TESTNET_POOL_TSLA = 0xEd7Bbc056fb1bE91f692dbDb289BEbA1e83dB2DC;
-    address internal constant TESTNET_POOL_GOOGL = 0x2Cd4A3d3d3dF3Cdc72655Fd6E28Ab0B3395FE2d1;
-    address internal constant TESTNET_POOL_GME = 0x0C36D92bd5Ac4564C1010937B191dE21B7c2C302;
+    address internal constant TESTNET_FEED_NVDA = 0x28077862cC52438007517C406ce88E93E91b322d;
+    address internal constant TESTNET_FEED_AAPL = 0xB02C8d7C1FDcB03482BFCC8D8fe0e7C037E2De5C;
+    address internal constant TESTNET_FEED_TSLA = 0x7031F277F80185fE30C05dFe1B96557E206f6322;
+    address internal constant TESTNET_FEED_GOOGL = 0x91EF120848D2Dd97DB66804AEff6d4fc988d38a9;
+    address internal constant TESTNET_FEED_GME = 0x41B895C2300A3Ab61929401efD00d43CBEe6cC7f;
+
+    address internal constant TESTNET_POOL_NVDA = 0xf9885CD0ebAcb46eBbA46c3D4A4D8D0Fe2e171A1;
+    address internal constant TESTNET_POOL_AAPL = 0x64a61b53265C021400Bf6812bcC8F10c075e9786;
+    address internal constant TESTNET_POOL_TSLA = 0xA819c5993fcb1939F1B1bcFa8D2C7C1d5dAA977d;
+    address internal constant TESTNET_POOL_GOOGL = 0xfa037A6aea7951Ce99870C9aed76AB3fFa8873ED;
+    address internal constant TESTNET_POOL_GME = 0x0f469e2b4922EBe09A5D77Bf0A9CC9EA6ad9637f;
 
     /// @dev The quote side of every pair. Reading chain id rather than taking a
     /// parameter, because a deploy that can be pointed at the wrong quote token by
@@ -132,15 +140,27 @@ library Addresses {
 
     /// @dev Same order as allowlist, because a feed table that drifts out of step
     /// with the token table configures the wrong token against the wrong price and
-    /// nothing reverts. Chain 46630 carries no Chainlink feed at all, so this
-    /// answers only for mainnet and the rehearsal sets its own.
-    function feeds() internal pure returns (address[] memory addrs) {
+    /// nothing reverts. On 46630 these are the mirrors of the mainnet proxies, which
+    /// keep mainnet timestamps, so the staleness limits below hold on both chains.
+    function feeds() internal view returns (address[] memory addrs) {
         addrs = new address[](5);
+        if (block.chainid == TESTNET) {
+            addrs[0] = TESTNET_FEED_NVDA;
+            addrs[1] = TESTNET_FEED_AAPL;
+            addrs[2] = TESTNET_FEED_TSLA;
+            addrs[3] = TESTNET_FEED_GOOGL;
+            addrs[4] = TESTNET_FEED_GME;
+            return addrs;
+        }
         addrs[0] = FEED_NVDA;
         addrs[1] = FEED_AAPL;
         addrs[2] = FEED_TSLA;
         addrs[3] = FEED_GOOGL;
         addrs[4] = FEED_GME;
+    }
+
+    function quoteFeed() internal view returns (address) {
+        return block.chainid == TESTNET ? TESTNET_FEED_QUOTE : FEED_USDG;
     }
 
     function stalenessOpen() internal pure returns (uint32[] memory limits) {

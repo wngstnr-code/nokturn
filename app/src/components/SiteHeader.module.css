@@ -123,6 +123,10 @@
     margin: 0;
     overflow-x: auto;
     scrollbar-width: none;
+    /* With the scrollbar hidden, the fade is what says there is more to the right.
+       The padding lets the last link scroll clear of it. */
+    padding-right: 40px;
+    mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
   }
 
   .nav::-webkit-scrollbar {

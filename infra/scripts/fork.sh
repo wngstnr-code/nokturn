@@ -53,6 +53,33 @@ ARGS=(
   --auto-impersonate
 )
 
+# Anvil moves block states it no longer holds in memory to a folder per run
+# under ~/.foundry/anvil/tmp, and a run that is killed or put to sleep never
+# removes its own. Eight runs left 17 GB there by 2 October 2026. Nothing reads
+# a dead run's folder. An anvil on another port is still alive, though, so the
+# sweep is skipped whenever any anvil process is running.
+anvil_running() {
+  if command -v tasklist >/dev/null 2>&1; then
+    tasklist //FI "IMAGENAME eq anvil.exe" 2>/dev/null | grep -qi anvil.exe
+  else
+    pgrep -x anvil >/dev/null 2>&1
+  fi
+}
+ANVIL_TMP="${HOME}/.foundry/anvil/tmp"
+if [ -d "$ANVIL_TMP" ] && ! anvil_running; then
+  stale="$(find "$ANVIL_TMP" -mindepth 1 -maxdepth 1 -name 'anvil-state-*' | wc -l)"
+  if [ "$stale" -gt 0 ]; then
+    log "removing $stale state folders left by earlier anvil runs in $ANVIL_TMP"
+    find "$ANVIL_TMP" -mindepth 1 -maxdepth 1 -name 'anvil-state-*' -exec rm -rf {} +
+  fi
+fi
+
+# Caps the states kept on disk, so a fork left running for hours stops growing.
+# 3600 blocks is an hour at one block a second. It has to stay above the 800
+# block window the indexer's I8 test recomputes baselines in, and above the age
+# of any receipt a cast command is shown for during a demo.
+ARGS+=(--max-persisted-states "${NOKTURN_FORK_PERSISTED_STATES:-3600}")
+
 BLOCK="$(pinned_block)"
 SHOWN="$(redact_url "$NOKTURN_RPC_MAINNET")"
 log "forking $SHOWN at block $BLOCK"

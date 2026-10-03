@@ -5,7 +5,7 @@
 import type {ApiError, IntentStatus, SignedIntent} from "../../packages/shared/api-types.ts";
 import {NO_ORDINARY_BATCH, isBatch, nextValidBatchId, type BatchLookup} from "../../packages/shared/batch.ts";
 import {createChainReader} from "../../packages/shared/batch-viem.ts";
-import {chain} from "./chain.ts";
+import {chain, sessionAbi} from "./chain.ts";
 import {fail} from "./errors.ts";
 import type {BlockStamp} from "./provenance.ts";
 import type {Withdrawal} from "./revalidate.ts";
@@ -114,9 +114,63 @@ export function heldNonces(owner: string): Set<bigint> {
  * yet, while the route that reports the current batch said a different thing.
  * So an auction phase, or a batch that only starts after one, is no batch. N4.
  */
-export async function openWindow(at: BlockStamp): Promise<BatchLookup> {
+// One reader kept across calls, so its cache of calendar answers survives from
+// one tick to the next. A fresh reader per call threw that cache away every
+// second, and each call walked the calendar again in round trips that took
+// about a second each from Railway, 2 October 2026. The calendar only moves
+// through the 48 hour timelock, so a minute old answer is never wrong for long.
+const READER_TTL_MS = 60_000;
+type Reader = ReturnType<typeof createChainReader>;
+let cached: {reader: Reader; sessions: string; at: number; deviation: Map<number, number>} | null = null;
+
+export function calendarReader(): Reader {
+  return calendar().reader;
+}
+
+function calendar() {
   const c = chain();
-  const reader = createChainReader(c.client, c.deployment.sessions);
+  const now = Date.now();
+  if (!cached || cached.sessions !== c.deployment.sessions || now - cached.at > READER_TTL_MS) {
+    cached = {reader: rememberTransitions(createChainReader(c.client, c.deployment.sessions)), sessions: c.deployment.sessions, at: now, deviation: new Map()};
+  }
+  return cached;
+}
+
+/**
+ * nextTransition(t) answers the same r for every t from the one asked up to r
+ * itself, since no transition lies between them. So one answer covers every
+ * second until the transition, where the shared reader asked again each time.
+ */
+export function rememberTransitions<R extends {nextTransition(from: bigint): Promise<bigint>}>(base: R): R {
+  const spans: {from: bigint; to: bigint}[] = [];
+  return {
+    ...base,
+    async nextTransition(from: bigint) {
+      const hit = spans.find((s) => from >= s.from && from < s.to);
+      if (hit) return hit.to;
+      const to = await base.nextTransition(from);
+      if (to > from) {
+        if (spans.length >= 64) spans.shift();
+        spans.push({from, to});
+      }
+      return to;
+    },
+  };
+}
+
+/** SessionManager.maxDeviationBps, a timelocked parameter, kept for as long as the reader. */
+export async function maxDeviationBps(session: number): Promise<number> {
+  const cal = calendar();
+  const hit = cal.deviation.get(session);
+  if (hit !== undefined) return hit;
+  const c = chain();
+  const value = Number(await c.client.readContract({address: c.deployment.sessions, abi: sessionAbi, functionName: "maxDeviationBps", args: [session]}));
+  cal.deviation.set(session, value);
+  return value;
+}
+
+export async function openWindow(at: BlockStamp): Promise<BatchLookup> {
+  const reader = calendarReader();
   sweep(at.timestamp);
 
   const auction: BatchLookup = {batchId: null, reason: "auction_phase", retryAt: null};

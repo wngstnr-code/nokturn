@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {describe, test} from "node:test";
 import {stringToHex} from "viem";
 import {confirmationsFor, UnsafeConfirmations} from "../../src/index.ts";
-import {Ingest} from "../../src/ingest.ts";
+import {Ingest, RangeRefused, rangeRefused} from "../../src/ingest.ts";
 import {MemoryStore} from "../../src/store.ts";
 import {ADDR, DEPLOYMENT, FakeChain} from "./fakechain.ts";
 
@@ -177,5 +177,43 @@ describe("ingest", () => {
     assert.equal(await confirmationsFor(node(false), 3n), 3n);
     assert.equal(await confirmationsFor(node(true), undefined), 0n);
     assert.equal(await confirmationsFor(node(true), 2n), 2n);
+  });
+
+  // Messages as the nodes sent them. The first is the one that stopped the
+  // Railway indexer on 2 October 2026.
+  test("a rate limit is not a range refusal, a range refusal still is", () => {
+    const rateLimited = [
+      "HTTP request failed.\n\nStatus: 429\nURL: https://rpc.mainnet.chain.robinhood.com\nDetails: Too Many Requests",
+      "Your app has exceeded its compute units per second capacity. If you have retries enabled, you can safely ignore this message.",
+      "rate limit reached, slow down",
+    ];
+    const refused = [
+      "ranges over 10000 blocks are not supported on free plan",
+      "Under the Free tier plan, you can make eth_getLogs requests with up to a 10 block range.",
+      "query exceeds max block range 100000",
+      "query returned more than 10000 results, too many logs",
+    ];
+    for (const m of rateLimited) assert.equal(rangeRefused(m), false, m);
+    for (const m of refused) assert.equal(rangeRefused(m), true, m);
+  });
+
+  test("a rate limited getLogs backs off and the next step indexes the same range", async () => {
+    const chain = new FakeChain();
+    chain.emit(settledBatch(7n));
+    const store = new MemoryStore();
+    const c = chain.client();
+    const real = c.getLogs.bind(c);
+    let calls = 0;
+    // Four failures exhaust the step's own read retries, so the step throws.
+    c.getLogs = (async (args: Parameters<typeof real>[0]) => {
+      calls += 1;
+      if (calls <= 4) throw new Error("HTTP request failed.\n\nStatus: 429\nDetails: Too Many Requests");
+      return real(args);
+    }) as typeof c.getLogs;
+    const ingest = new Ingest(c, store, DEPLOYMENT);
+    await assert.rejects(ingest.step(), (e: Error) => !(e instanceof RangeRefused) && /Too Many Requests/.test(e.message));
+    const r = await ingest.step();
+    assert.ok(r.logs > 0);
+    assert.equal(store.rows("fills").length, 1);
   });
 });

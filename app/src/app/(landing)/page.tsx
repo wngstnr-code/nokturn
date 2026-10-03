@@ -1,6 +1,10 @@
 import {GOVERNANCE, GRANTS, HERO, INNOVATION, PRODUCTS} from "@/components/landing/content";
 import {HeroRain} from "@/components/landing/HeroRain";
-import {MaskIcon} from "@/components/landing/MaskIcon";
+import {Icon3D} from "@/components/landing/Icon3D";
+
+// Pixels per SVG unit for the three section icons. They all draw the same owl head,
+// so one scale keeps the owl the same size from section to section.
+const ICON_UNIT = 0.8;
 import styles from "./landing.module.css";
 
 const TAG = {mint: styles.tagMint, night: styles.tagNight, amber: styles.tagAmber};
@@ -70,7 +74,7 @@ export default function LandingPage() {
       <section className={`${styles.card} ${styles.cardTransparent}`}>
         <div className={styles.cardSection}>
           <div className={`${styles.titleWrapper} ${styles.narrow}`}>
-            <MaskIcon src={INNOVATION.icon} className={styles.titleIcon} style={{height: 126}} />
+            <Icon3D src={INNOVATION.icon} unit={ICON_UNIT} className={styles.titleIcon} style={{height: INNOVATION.iconHeight * ICON_UNIT}} />
             <h2 className={styles.titleText}>{INNOVATION.title}</h2>
             <p className={`${styles.titleDescription} ${styles.muted30}`}>
               {INNOVATION.body[0]} <br />
@@ -86,7 +90,7 @@ export default function LandingPage() {
       <section className={`${styles.card} ${styles.cardDark}`}>
         <div className={styles.cardSection}>
           <div className={`${styles.titleWrapper} ${styles.narrow} ${styles.governanceTitle}`}>
-            <MaskIcon src={GOVERNANCE.icon} className={styles.titleIcon} style={{height: 90}} />
+            <Icon3D src={GOVERNANCE.icon} unit={ICON_UNIT} className={styles.titleIcon} style={{height: GOVERNANCE.iconHeight * ICON_UNIT}} />
             <h2 className={styles.titleText}>{GOVERNANCE.title}</h2>
             <p className={`${styles.titleDescription} ${styles.muted60} ${styles.normal}`}>
               {GOVERNANCE.before}
@@ -105,8 +109,7 @@ export default function LandingPage() {
                 className={`${styles.topicCard} ${styles.channelCard}`}
                 style={{background: channel.bg, color: channel.fg}}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className={styles.channelImage} src={channel.image} alt={channel.title} />
+                <Icon3D src={channel.image} colored className={styles.channelImage} />
                 <span className={styles.channelTitle}>{channel.title}</span>
               </External>
             ))}
@@ -117,7 +120,7 @@ export default function LandingPage() {
       <section className={`${styles.card} ${styles.cardLight} ${styles.touchFooter}`}>
         <div className={styles.cardSection}>
           <div className={`${styles.titleWrapper} ${styles.narrow}`}>
-            <MaskIcon src={GRANTS.icon} className={styles.titleIcon} style={{height: 90}} />
+            <Icon3D src={GRANTS.icon} unit={ICON_UNIT} className={styles.titleIcon} style={{height: GRANTS.iconHeight * ICON_UNIT}} />
             <h2 className={styles.titleText}>{GRANTS.title}</h2>
             <p className={`${styles.titleDescription} ${styles.muted30} ${styles.normal}`}>{GRANTS.body}</p>
             <External href={GRANTS.cta.href} className={styles.sectionButton}>

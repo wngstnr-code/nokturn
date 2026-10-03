@@ -8,14 +8,13 @@ import type {FastifyInstance, FastifyReply} from "fastify";
 import type {Address} from "viem";
 import type {ApiError, BatchListResponse, BatchReceipt, BatchSummary, FillReceipt} from "../../../packages/shared/api-types.ts";
 import {isValidBatchId} from "../../../packages/shared/batch.ts";
-import {createChainReader} from "../../../packages/shared/batch-viem.ts";
 import {db} from "../../../indexer/src/db.ts";
-import {buildReceipt, loadFacts, nettingRatioBps, type ReceiptContext, type TokenMeta} from "../../../indexer/src/receipt.ts";
+import {buildReceipt, loadFacts, nettingRatioBps, publicOutcome, type ReceiptContext, type TokenMeta} from "../../../indexer/src/receipt.ts";
 import {adapterAbi, chain, read, revertReason, sessionAbi, settlementAbi} from "../chain.ts";
 import {env} from "../config.ts";
 import {badRequest, notFound} from "../errors.ts";
-import {counts} from "../mempool.ts";
-import {provenance, source, stamp} from "../provenance.ts";
+import {calendarReader, counts} from "../mempool.ts";
+import {provenance, source, recentStamp} from "../provenance.ts";
 import {SESSION_NAMES} from "./session.ts";
 
 const PAGE = 50;
@@ -93,10 +92,10 @@ export async function receiptFor(batchId: bigint) {
 /** A batch still collecting or waiting on its finalize is real, and it is answered as it is. */
 async function running(batchId: bigint): Promise<BatchReceipt | null> {
   const c = chain();
-  const at = await stamp();
+  const at = await recentStamp();
   let valid: boolean;
   try {
-    valid = await isValidBatchId(createChainReader(c.client, c.deployment.sessions), batchId);
+    valid = await isValidBatchId(calendarReader(), batchId);
   } catch (error) {
     if (revertReason(error) === null) throw error;
     valid = false;
@@ -148,7 +147,7 @@ export function batchRoutes(app: FastifyInstance) {
       const rows = await query(async () =>
         (
           await db({readOnly: true}).query(
-            `SELECT b.batch_id, b.outcome, b.session, b.intent_count, b.netted_usd, b.routed_usd, b.savings_usd, b.block_timestamp,
+            `SELECT b.batch_id, b.outcome, b.reason, b.session, b.intent_count, b.netted_usd, b.routed_usd, b.savings_usd, b.block_timestamp,
                     (SELECT count(DISTINCT f.owner)::int FROM fills f WHERE f.deployment = b.deployment AND f.batch_id = b.batch_id) AS participants
                FROM batches b
               WHERE b.deployment = $1 AND ($2::numeric IS NULL OR b.batch_id < $2::numeric)
@@ -164,7 +163,7 @@ export function batchRoutes(app: FastifyInstance) {
       const sessions = await Promise.all(page.map((r) => (r.session === null ? read<number>(c.deployment.sessions, sessionAbi, "sessionAt", [BigInt(r.batch_id)]) : Promise.resolve(Number(r.session)))));
       const batches: BatchSummary[] = page.map((r, n) => ({
         batchId: String(r.batch_id),
-        outcome: r.outcome,
+        outcome: publicOutcome(r.outcome, r.reason),
         sessionName: SESSION_NAMES[sessions[n]!]!,
         intentCount: Number(r.intent_count),
         participantCount: Number(r.participants),
@@ -184,7 +183,7 @@ export function batchRoutes(app: FastifyInstance) {
     try {
       const built = await receiptFor(batchId);
       if (built) {
-        if (built.baselineMismatches.length) request.log.warn({batchId: String(batchId), mismatches: built.baselineMismatches}, "a direction's baseline sits under the venue floor, or its quote could not be read");
+        if (built.baselineMismatches.length) request.log.warn({batchId: String(batchId), mismatches: built.baselineMismatches}, "a direction's baseline sits under the venue floor, or its quote reverts");
         return built.receipt;
       }
     } catch (error) {

@@ -961,6 +961,14 @@ menghemat nol menerbitkan `BatchPassthrough("savings below threshold")` dan
 supaya layar gagal Nabil bisa memicu dari bentuk yang sama. Diputuskan Dharu
 26 September 2026.
 
+**Diganti 1 Oktober 2026.** Audit frontend Nabil membaca bentuk itu sebagai
+"nothing settled" di atas fill yang jelas terjadi. Batch ini sekarang ber-outcome
+`settled_at_venue` dengan `failure` null, di struk, di daftar batch, dan di frame
+`batch.settled` pada stream. Tabel `batches` tetap menyimpan `settled` beserta
+reason-nya, dan nama publiknya dipetakan saat dibaca oleh `publicOutcome` di
+`indexer/src/receipt.ts`. Karena itu tidak ada migrasi, dan metrik uptime serta
+netting tetap menghitungnya sebagai batch yang settle.
+
 **Catatan G1, aturan `AuctionHouse` yang dibaca dari kontraknya.**
 
 - `openAuction` boleh dipanggil siapa saja, hanya saat `sessionAt(now)` sama dengan
@@ -1323,7 +1331,9 @@ Settlement dan struk indexer. Dibuktikan di fork, dari chain.
 | `failed` | `demo-fail CASE=expired`, outcome `expired`, kode `WinnerNeverFinalized` |
 
 Batch di bawah ambang savings memancarkan `BatchPassthrough` dan `BatchSettled` di
-finalize yang sama, dan struknya `settled` dengan kode kegagalan. Jenis frame karena itu
+finalize yang sama. Sejak 1 Oktober 2026 struknya `settled_at_venue` dengan `failure`
+null, dan frame-nya `batch.settled`, karena tradenya memang terjadi. Sebelumnya struk itu
+`settled` dengan kode kegagalan. Jenis frame karena itu
 mengikuti `outcome` struk, bukan event mana yang terakhir dibaca. Solusi terbaik yang
 digantikan tidak punya event penolakan di kontrak, jadi ia hanya muncul sebagai
 `solution_submitted` dengan `accepted` false, sama seperti di struk.
@@ -1331,6 +1341,52 @@ digantikan tidak punya event penolakan di kontrak, jadi ia hanya muncul sebagai
 **Catatan.** E5 lulus di run ini. Temuan W5, `finalize` yang revert `LiquidityExhausted`
 ketika pool bergeser sedikit antara submit dan finalize, tetap temuan untuk kontrak
 sampai Wangsit memutuskan. Satu run yang lulus tidak membuktikan risikonya hilang.
+
+**1 dan 2 Oktober 2026, setelah backend mainnet berjalan.** Temuan di bawah semuanya
+muncul begitu backend diukur di mainnet, tidak satu pun terlihat di fork, karena
+anvil lokal menjawab dalam milidetik. Angka rinci ada di `runbook-backend.md` §7.
+
+- **N28, diperbaiki. Indexer Railway crash berulang.** RPC resmi menjawab `getLogs`
+  empat sampai delapan puluh blok dengan "Too Many Requests", dan pola penolakan
+  rentang di `ingest.ts` cocok dengan "too many", sehingga indexer berhenti seolah
+  tidak ada percobaan ulang yang bisa lolos. Rate limit kini dikenali lebih dulu.
+- **N29, diperbaiki. Tidak ada solver yang bisa submit di mainnet.**
+  `batch.collect_closed` tiba 16 sampai 43 detik sesudah collect tutup, selalu lewat
+  jendela solusi sepuluh detik. Penutupan menunggu di belakang semua bacaan tick.
+  Kini diputuskan lebih dulu, dan tiba 2,5 sampai 3,1 detik sesudahnya.
+- **N30, diperbaiki. Setiap route yang membaca chain butuh 3 sampai 11 detik.**
+  Bacaan berurutan, fallback ke Alchemy yang sudah kena batas bulanan, dan rentang
+  log 10 blok. Kini 0,2 sampai 0,6 detik. Perkiraan awal bahwa RPC resmi lambat dari
+  Railway ternyata salah. Diukur langsung, p50-nya 76 ms dari Railway, dan yang
+  lambat adalah jalur dari laptop di Indonesia.
+- **N31, terbuka. Perintah `cast --block` di mainnet hanya bisa dicek sekitar sepuluh
+  menit.** RPC publik bukan archive. Keputusannya di tim, `audit-provenansi-backend.md`
+  §5c.
+- **N32, diperbaiki. Di detik yang tepat sama dengan `collectEnd`, `batch.opened` untuk
+  batch berikutnya bisa terbit sebelum `batch.collect_closed` batch itu.** Kontrak
+  masih menganggap batch itu collecting di detik tersebut, sementara `openWindow`
+  sudah menunjuk batch berikutnya. Sudah ada sejak sebelum N29 dan tersamar oleh tick
+  yang lambat. Kini pembukaan menunggu penutupan sedetik kemudian, dan `at` di frame
+  pembukaan tidak pernah lebih awal dari frame penutupan sebelumnya. Diperiksa di
+  mainnet, sepuluh pasangan berurutan, nol terbalik.
+- **N33, diperbaiki. `solvableBatchId` kehilangan detik terakhir jendela solusi pada
+  batch 10 detik.** `check-batch` terhadap mainnet, dijalankan dari dalam container
+  Railway 3 Oktober 2026, berakhir 39 lolos dan 2 gagal di sesi OPEN. Helper
+  membulatkan `now` ke batas, sehingga di detik yang tepat sama dengan batas ia
+  menjawab tutup, padahal kontrak masih menerima solusi batch sebelumnya. Dan rumus
+  harapan di skrip uji hanya benar kalau batch lebih panjang dari jendela. Kini helper
+  memakai batas terakhir sebelum `now`, dan skrip uji membandingkannya dengan
+  `batchWindow` kontrak. Diperiksa di mainnet setiap detik sepanjang dua batch, 21
+  dari 21 cocok, sementara helper lama berbeda tepat di ketiga batasnya. Solver tidak
+  memakai helper ini. Fork berdiri di akhir pekan dengan batch 45 detik, jadi tidak
+  pernah menjangkau kasus ini.
+- **Job fork malam di CI hijau sekali, 2 Oktober 2026**, setelah memakai blok patokan
+  tim alih-alih blok baru tiap malam. Blok baru menaruh fork di sesi yang ditentukan
+  jam, dan generator koleksi resilience berputar tanpa akhir di sesi 30 detik,
+  sehingga runner menggantung enam jam. Malam berikutnya merah lagi karena batas
+  bulanan Alchemy.
+- **Belum teruji di fork.** Torture F9, F10, C2, dan C3 untuk perubahan lifecycle dan
+  feed di atas, karena fork butuh RPC archive. Dijalankan begitu archive pulih.
 
 ---
 

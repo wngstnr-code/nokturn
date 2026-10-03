@@ -109,6 +109,7 @@ export const PRODUCTS = {
 
 export const INNOVATION = {
   icon: ASSET("icon-verify.svg"),
+  iconHeight: 126,
   title: "Don't trust, verify",
   body: [
     "Every number Nokturn puts on screen carries the block it was read at, so nothing has to be taken on faith.",
@@ -119,6 +120,7 @@ export const INNOVATION = {
 
 export const GOVERNANCE = {
   icon: ASSET("icon-open.svg"),
+  iconHeight: 112,
   title: "Built in the open",
   before:
     "Nokturn's contracts are immutable, with no proxy and no key that can move user funds. Any parameter change waits 48 hours in a ",
@@ -151,6 +153,7 @@ export const GOVERNANCE = {
 
 export const GRANTS = {
   icon: ASSET("icon-risk.svg"),
+  iconHeight: 116,
   title: "Risks, listed openly",
   body: "Nokturn's code has not been audited by a third party yet, and the intent coordinator is still a single point of trust. Our threat model lists every risk that remains, with what limits it, so you can judge them yourself.",
   cta: {text: "Read the threat model", href: `${REPO}/blob/main/docs/threat-model.md`},

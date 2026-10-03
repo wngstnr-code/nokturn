@@ -3,8 +3,12 @@
 import Link from "next/link";
 import {useRef, useState} from "react";
 import {BRAND, FOOTER} from "./content";
+import {Icon3DCopy} from "./Icon3D";
 import {MaskIcon} from "./MaskIcon";
 import styles from "./LandingFooter.module.css";
+
+// The two wing colours in flying-owl.svg, back and front.
+const OWL_WINGS = ["#a2bcff", "#f8faff"];
 
 export function LandingFooter() {
   const [expanded, setExpanded] = useState(true);
@@ -66,13 +70,12 @@ export function LandingFooter() {
             </div>
           </div>
 
-          <div className={styles.marquee} aria-hidden="true">
+          <div className={styles.marquee} aria-hidden="true" data-icon3d-watch>
             <div className={styles.track}>
               {[0, 1, 2, 3].map((index) => (
                 <div key={index} className={styles.segment}>
                   <b>{FOOTER.marquee.text}</b>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={FOOTER.marquee.image} alt="" />
+                  <Icon3DCopy src={FOOTER.marquee.image} wings={OWL_WINGS} className={styles.owl} />
                 </div>
               ))}
             </div>

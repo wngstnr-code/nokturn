@@ -477,6 +477,82 @@ Dibaca lewat `refPrice` tepat setelahnya, keenam aset menjawab `healthy`, yaitu 
 AAPL, TSLA, GOOGL, GME, dan USDG. Layar sesi di `app.nokturn.xyz` berhenti menampilkan
 `FeedNotSet` tanpa deploy ulang.
 
+## Gladi resik testnet 46630, ketujuh, 3 Oktober 2026
+
+Digelar ulang karena fixture-nya diganti, bukan karena kontrak protokol berubah.
+Angkatan ketiga fixture mencermin harga Chainlink mainnet dan pool-nya bisa swap,
+jadi untuk pertama kalinya batch di 46630 bisa benar-benar settle. Desainnya ada di
+`parameter.md` §10.6.
+
+Urutannya berbeda dari gladi sebelumnya di dua tempat.
+
+```bash
+cd contracts
+set -a; source ../.env; set +a
+export RPC=$NOKTURN_RPC_TESTNET
+export NOKTURN_TIMELOCK_PROPOSERS=0xF7354707BC51d1299B19c43B8B3cc79420Bc9c7B
+export NOKTURN_TIMELOCK_EXECUTORS=0xF7354707BC51d1299B19c43B8B3cc79420Bc9c7B
+
+forge script script/testnet/DeployTestnetFixtures.s.sol:DeployTestnetFixtures --rpc-url $RPC --account nokturn-testnet --broadcast
+python3 tools/mirror.py --once --account nokturn-testnet --mainnet-rpc https://robinhood.drpc.org
+forge script script/Deploy.s.sol:Deploy --rpc-url $RPC --account nokturn-testnet --broadcast
+forge script script/Bootstrap.s.sol:Bootstrap --rpc-url $RPC --account nokturn-gov --broadcast
+forge script script/SetFeeds.s.sol:SetFeeds --rpc-url $RPC --account nokturn-gov --broadcast
+forge script script/SetFeeds.s.sol:SetFeeds --rpc-url $RPC --account nokturn-gov --broadcast
+forge script script/Lock.s.sol:Lock --rpc-url $RPC --account nokturn-gov --broadcast
+forge script script/VerifyDeployment.s.sol:VerifyDeployment --rpc-url $RPC
+```
+
+**Relayer sebelum Deploy.** Pool lahir tanpa harga dan `setPool` di Bootstrap menolak
+pool seperti itu. **SetFeeds sebelum Lock.** Di 46630 ia dijalankan selagi delay masih
+nol, dua kali, yang pertama menjadwalkan dan yang kedua mengeksekusi. Di mainnet
+tetap sesudah Lock dengan tunggu 48 jam.
+
+**Proposer di `.env` adalah milik mainnet** sejak deploy 29 September. Untuk testnet
+ditimpa di shell dengan `nokturn-gov`, sesuai aturan dua kunci. Kalau lupa, timelock
+testnet akan dikuasai kunci proposer mainnet.
+
+| Kontrak | Alamat |
+|---|---|
+| `TimelockController` | `0x92e2B25f0A3312057DF8bBFa057d53038a2dB2e2` |
+| `SessionManager` | `0x7296184054EE9006B5Bd522f2083F8B1a160ecd5` |
+| `ClearingVerifier` | `0xa5441737ed1143D912F73B0c6E23883449668873` |
+| `PriceOracle` | `0x43AD895316451aFb5599e5bfB61285736972d01E` |
+| `SolverRegistry` | `0x7592a1662Cff2d5cfB4Da83e17CcB4183749601A` |
+| `Settlement` | `0xe1FF85BCBaf11C2540a623BE3Ee2846f0a60e607` |
+| `AuctionHouse` | `0x407187Ff24beD680E1829a60d06f2f1799301B2a` |
+| `AgentMandate` | `0x15075df1AE677bf7044DAb5cB261ca018e18DE04` |
+| `UniswapV3Adapter` | `0x5BE628516dBd5b244ccbcbFC592Fe702a3BA99a6` |
+
+| Langkah | Gas | Biaya |
+|---|---|---|
+| Fixture, 27 transaksi | 19.957.678 | 0,00019958 ETH |
+| `Deploy`, 9 kontrak | 20.835.107 | 0,00020835 ETH |
+| `Bootstrap`, 22 panggilan | 4.250.471 | 0,00004250 ETH |
+| `SetFeeds`, jadwal lalu eksekusi | 709.388 | 0,00000709 ETH |
+| `Lock` | 134.211 | 0,00000134 ETH |
+
+**Yang dibuktikan dengan membaca rantai.** `VerifyDeployment` menjalankan 47
+pemeriksaan dan hasilnya `every check passed`. Oracle dibaca terpisah karena
+`VerifyDeployment` tidak memeriksanya. Keenam feed di oracle menunjuk ke cermin yang
+benar, dan token kuota langsung sehat di $1,00005.
+
+**Kelima stock token tidak punya harga selama 30 menit pertama di akhir pekan.** Di
+sesi `CLOSED_WEEKEND` oracle membaca TWAP 1.800 detik, dan pool yang baru di-`sync`
+belum punya riwayat sepanjang itu, jadi `refPrice` revert dengan
+`ObservationTooOld`. Pool Uniswap V3 sungguhan yang baru diinisialisasi berperilaku
+sama. Itu bukan kerusakan, tapi artinya testnet baru bisa dicoba setengah jam setelah
+`sync` pertama, dan relayer jangan sampai mati lama di akhir pekan.
+
+Pukul 07.17 UTC, tepat setelah jendela itu penuh, kelimanya sehat. `refPrice`
+menjawab tNVDA $234,99, tAAPL $333,82, tTSLA $370,45, tGOOGL $343,65, dan tGME
+$25,19, masing-masing dalam satu tick dari round mainnet yang dicermin.
+
+Deployer `nokturn-testnet` di `0xcF9D130498657617b26e119d27Cdc469F7D6b8c4`, yang juga
+operator feed cermin. Proposer `nokturn-gov` di
+`0xF7354707BC51d1299B19c43B8B3cc79420Bc9c7B`. Angkatan keenam di bawah sudah tidak
+dipakai.
+
 ## Gladi resik testnet 46630, keenam, 29 September 2026
 
 Digelar ulang karena `Settlement` berubah. `setExposureCaps` sekarang menolak nilai di

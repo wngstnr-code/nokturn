@@ -50,6 +50,17 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseDelayMs = 15
 const READ_ATTEMPTS = 4;
 const read = <T>(fn: () => Promise<T>, final?: (error: unknown) => boolean) => withRetry(fn, READ_ATTEMPTS, 100, final);
 const RANGE_REFUSAL = /range|too many|limit|exceed/i;
+// Checked first, because a rate limit reads like a range refusal. The official
+// RPC answers "Too Many Requests" to a five block getLogs, and Alchemy's 429
+// says the app "exceeded its compute units per second capacity". Taken as a
+// refusal, either stopped the Railway indexer for good on 2 October 2026, when
+// the backoff in the step loop would have ridden it out.
+const RATE_LIMITED = /too many requests|rate limit|429|compute units|capacity/i;
+
+/** A refusal that no retry of the same range can get past, as opposed to a node asking us to slow down. */
+export function rangeRefused(message: string): boolean {
+  return !RATE_LIMITED.test(message) && RANGE_REFUSAL.test(message);
+}
 
 export interface Deployment {
   chainId: number;
@@ -193,11 +204,11 @@ export class Ingest {
     try {
       raw = await read(
         () => this.c.getLogs({address: [...this.d.contracts.keys()] as Address[], fromBlock: from, toBlock: to}),
-        (error) => RANGE_REFUSAL.test((error as Error).message),
+        (error) => rangeRefused((error as Error).message),
       );
     } catch (error) {
       const message = (error as Error).message;
-      if (RANGE_REFUSAL.test(message)) {
+      if (rangeRefused(message)) {
         throw new RangeRefused(`the node refused getLogs over ${from} to ${to}. this indexer asks for up to ${MAX_RANGE} blocks per call and does not fall back to one block at a time. point it at a node that serves ranges, the local anvil fork does. ${message.split("\n")[0]}`);
       }
       throw error;

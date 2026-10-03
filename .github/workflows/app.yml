@@ -25,15 +25,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # app runs its own pnpm major. Read from app/package.json, which names no
+      # packageManager, so the root pnpm@9 pin does not clash with this one.
       - uses: pnpm/action-setup@v4
         with:
           version: 10
+          package_json_file: app/package.json
 
+      # Not setup-node's pnpm cache. It asks for the store path from the repo
+      # root, where the pnpm@9 pin answers store/v3, while install here runs
+      # pnpm 10 into store/v10, and saving a path that never existed fails the job.
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
-          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: pnpm store path
+        id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-app-${{ runner.os }}-${{ hashFiles('app/pnpm-lock.yaml') }}
+          restore-keys: pnpm-app-${{ runner.os }}-
 
       - run: pnpm install --frozen-lockfile
 

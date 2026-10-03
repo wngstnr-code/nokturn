@@ -12,8 +12,8 @@ import type {FastifyInstance} from "fastify";
 import type {CurrentBatchResponse, SessionName, SessionResponse} from "../../../packages/shared/api-types.ts";
 import {isBatch} from "../../../packages/shared/batch.ts";
 import {chain, read, sessionAbi} from "../chain.ts";
-import {counts, openWindow} from "../mempool.ts";
-import {provenance, stamp, type BlockStamp} from "../provenance.ts";
+import {calendarReader, counts, maxDeviationBps as deviationFor, openWindow} from "../mempool.ts";
+import {provenance, recentStamp, type BlockStamp} from "../provenance.ts";
 
 /** Index by the Session enum, contracts/src/types/Types.sol. */
 export const SESSION_NAMES: SessionName[] = [
@@ -66,24 +66,22 @@ export function disagreementLimitBps(session: number): number | null {
 // event on the stream and the REST answer for the same moment cannot differ
 // in shape.
 
+// One round trip where there were three, and every read at the block the
+// provenance names rather than whatever latest is by the time it lands. The
+// duration and the deviation limit for a session come from the calendar
+// reader's memory, since both only move through the timelock.
 export async function buildSession(at: BlockStamp): Promise<SessionResponse> {
   const c = chain();
-  const session = await read<number>(c.deployment.sessions, sessionAbi, "currentSession");
-  const [batchDuration, maxDeviationBps, inGuardBand, nextTransition] = await Promise.all([
-    read<number>(c.deployment.sessions, sessionAbi, "batchDuration", [session]),
-    read<number>(c.deployment.sessions, sessionAbi, "maxDeviationBps", [session]),
-    read<boolean>(c.deployment.sessions, sessionAbi, "inGuardBand", [at.timestamp]),
-    read<bigint>(c.deployment.sessions, sessionAbi, "nextTransition", [at.timestamp]),
+  const s = c.deployment.sessions;
+  const [session, inGuardBand, nextTransition, tokenSessions] = await Promise.all([
+    read<number>(s, sessionAbi, "currentSession", [], at.number),
+    read<boolean>(s, sessionAbi, "inGuardBand", [at.timestamp], at.number),
+    read<bigint>(s, sessionAbi, "nextTransition", [at.timestamp], at.number),
+    // PROTECTIVE is per token rather than per chain, so it is asked per token.
+    Promise.all(c.tokens.map((t) => read<number>(s, sessionAbi, "tokenSession", [t.token], at.number))),
   ]);
-
-  // PROTECTIVE is per token rather than per chain, so it is asked per token.
-  const protective = await Promise.all(
-    c.tokens.map(async (t) => ({
-      token: t.token,
-      symbol: t.symbol,
-      session: await read<number>(c.deployment.sessions, sessionAbi, "tokenSession", [t.token]),
-    })),
-  );
+  const [batchDuration, maxDeviationBps] = await Promise.all([calendarReader().batchDuration(session), deviationFor(session)]);
+  const protective = c.tokens.map((t, i) => ({token: t.token, symbol: t.symbol, session: tokenSessions[i]!}));
 
   return {
     session,
@@ -103,8 +101,7 @@ export async function buildSession(at: BlockStamp): Promise<SessionResponse> {
 
 export async function buildCurrentBatch(at: BlockStamp): Promise<CurrentBatchResponse> {
   const c = chain();
-  const session = await read<number>(c.deployment.sessions, sessionAbi, "currentSession");
-  const lookup = await openWindow(at);
+  const [session, lookup] = await Promise.all([read<number>(c.deployment.sessions, sessionAbi, "currentSession", [], at.number), openWindow(at)]);
 
   if (!isBatch(lookup)) {
     return {
@@ -137,7 +134,30 @@ export async function buildCurrentBatch(at: BlockStamp): Promise<CurrentBatchRes
   };
 }
 
+// The lifecycle builds the current batch on every tick. On a real chain the
+// route serves that answer while it is at most a few seconds old, with the
+// mempool counts taken fresh, rather than walking the calendar again in round
+// trips that took five seconds on the official RPC on 2 October 2026. Its
+// provenance is the tick's own block, so it says exactly what it is. Not on a
+// fork, where an evm_revert or a warp can make the last tick wrong at once.
+const CURRENT_REUSE_MS = 3_000;
+let lastCurrent: {body: CurrentBatchResponse; at: number} | null = null;
+
+export function rememberCurrent(body: CurrentBatchResponse): void {
+  lastCurrent = {body, at: Date.now()};
+}
+
+async function currentBatch(): Promise<CurrentBatchResponse> {
+  if (!chain().isFork && lastCurrent && Date.now() - lastCurrent.at <= CURRENT_REUSE_MS) {
+    const body = lastCurrent.body;
+    if (body.batchId === null) return body;
+    const {intentCount, participantCount} = counts(BigInt(body.batchId));
+    return {...body, intentCount, participantCount};
+  }
+  return buildCurrentBatch(await recentStamp());
+}
+
 export function sessionRoutes(app: FastifyInstance) {
-  app.get("/v1/session", async (): Promise<SessionResponse> => buildSession(await stamp()));
-  app.get("/v1/batches/current", async (): Promise<CurrentBatchResponse> => buildCurrentBatch(await stamp()));
+  app.get("/v1/session", async (): Promise<SessionResponse> => buildSession(await recentStamp()));
+  app.get("/v1/batches/current", currentBatch);
 }

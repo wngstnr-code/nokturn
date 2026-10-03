@@ -561,7 +561,7 @@ requests.push({
     `if (body.batches.length) {`,
     `  pm.test("each batch names an outcome and a real netting ratio", () => {`,
     `    for (const b of body.batches) {`,
-    `      pm.expect(["settled", "passthrough", "expired"]).to.include(b.outcome);`,
+    `      pm.expect(["settled", "settled_at_venue", "passthrough", "expired"]).to.include(b.outcome);`,
     `      pm.expect(Number(b.nettingRatioBps)).to.be.at.least(0);`,
     `    }`,
     `  });`,

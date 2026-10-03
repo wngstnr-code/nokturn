@@ -11,7 +11,7 @@ import type {AuctionResponse, Provenance, TokenRef} from "../../../packages/shar
 import {loadAbi} from "../abi.ts";
 import {chain, erc20Abi, explorerAddress, read, revertReason} from "../chain.ts";
 import {badRequest, notFound} from "../errors.ts";
-import {provenance, stamp, type BlockStamp} from "../provenance.ts";
+import {provenance, recentStamp, type BlockStamp} from "../provenance.ts";
 
 export const auctionHouseAbi: Abi = loadAbi("AuctionHouse");
 
@@ -175,7 +175,7 @@ export function parseAuctionId(raw: string): bigint {
 export function auctionRoutes(app: FastifyInstance) {
   app.get<{Params: {auctionId: string}}>("/v1/auctions/:auctionId", async (request): Promise<AuctionResponse> => {
     const id = parseAuctionId(request.params.auctionId);
-    const at = await stamp();
+    const at = await recentStamp();
     const auction = await buildAuction(id, at);
     if (auction === null) throw notFound("COORDINATOR_INVALID_REQUEST", `no auction ${id} has been opened on AuctionHouse ${chain().deployment.auctionHouse}`);
     return auction;

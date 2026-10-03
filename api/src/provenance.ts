@@ -29,6 +29,28 @@ export async function stamp(): Promise<BlockStamp> {
   return {number: block.number, timestamp: block.timestamp};
 }
 
+/**
+ * For read only routes. The lifecycle reads the head on every poll on a real
+ * chain, and a route that stamps soon after reuses that block rather than
+ * spending a round trip that took close to two seconds on the official RPC on
+ * 2 October 2026. It is a real block, and every read pinned to it answers for
+ * that block, so the provenance stays exactly true. Anything that decides which
+ * batch an intent joins keeps stamp(), because a head a second old is how D7
+ * admitted intents into batches that had already closed. Never used on a fork,
+ * where the poll reads no timestamp and an evm_revert can move the head back.
+ */
+export async function recentStamp(): Promise<BlockStamp> {
+  if (seen && Date.now() - seen.at <= HEAD_REUSE_MS) return seen.head;
+  return stamp();
+}
+
+const HEAD_REUSE_MS = 3_000;
+let seen: {head: BlockStamp; at: number} | null = null;
+
+export function sawHead(head: BlockStamp): void {
+  seen = {head, at: Date.now()};
+}
+
 export function source(): ProvenanceSource {
   const c = chain();
   if (c.isFork) {

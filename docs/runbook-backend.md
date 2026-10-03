@@ -146,7 +146,9 @@ Struk yang dihasilkan tersimpan di `infra/.torture/receipt-<kasus>.json`.
 | `BlockOutOfRangeError` setelah revert | Proses lama memegang head sebelum revert | Nyalakan ulang proses itu. Cache nomor blok sudah dimatikan di API, indexer, dan solver |
 | `BaselineBelowVenue` di simulasi solver | Jumlah baseline per arah di bawah lantai kontrak | Seharusnya tidak terjadi lagi sejak perbaikan N20. Kalau muncul, catat batch dan pasangannya |
 | `NonceAlreadyUsed` atau `COORDINATOR_DUPLICATE_INTENT` di replay | Nonce dipakai tes yang di-revert, atau dipegang intent yang masih menunggu | Replay menanyakan nonce ke API untuk setiap intent sejak 28 September 2026 |
-| Replay atau test berhenti tanpa error | Sistem menghentikannya karena RAM hampir habis | Bebaskan RAM (§1), lalu ulangi |
+| Replay atau test berhenti tanpa error | Sistem menghentikannya karena RAM hampir habis | Bebaskan RAM (§1), lalu ulangi. Batasi VM Docker lewat `%USERPROFILE%\.wslconfig` (`memory=6GB`, `swap=8GB`, lalu `wsl --shutdown`) supaya Windows tetap punya ruang saat browser berat |
+| `C:\Users\<nama>\.foundry\anvil\tmp` membengkak sampai belasan GB | Anvil menulis state blok lama ke folder per sesi, dan sesi yang dimatikan atau tertidur tidak pernah menghapusnya. 17 GB dari delapan sesi, 2 Oktober 2026 | Sejak 2 Oktober 2026 `fork.sh` menyapu folder `anvil-state-*` lama saat tidak ada anvil yang hidup, dan membatasi state di disk dengan `--max-persisted-states 3600` (satu jam). Ubah lewat `NOKTURN_FORK_PERSISTED_STATES`, tapi jangan di bawah 800, jendela uji I8 |
+| `fund.sh` atau skrip `.sh` lain gagal di container dengan `$'\r': command not found` | Salinan di laptop ber-line-ending CRLF meski `.gitattributes` mematok LF | Hapus file itu lalu `git checkout -- <file>`. Cek semuanya dengan `git ls-files --eol \| grep w/crlf` |
 | API gagal start `EADDRINUSE` | API lama masih memegang port 3000 | Hentikan proses lama itu dulu |
 | API gagal start karena `NOKTURN_API_RPC looks like a paid endpoint` | URL baca membawa key, dan URL publik belum diset | Isi `NOKTURN_API_PUBLIC_RPC` dengan URL yang boleh dilihat juri |
 
@@ -225,7 +227,7 @@ pencegatan DNS hanya terjadi di ISP Indonesia.
 
 | Service | Dockerfile | Variabel |
 |---|---|---|
-| api | `api/Dockerfile`, domain publik port 8080, healthcheck `/v1/health` | `NOKTURN_API_PORT=8080`, `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_API_RPC` (Alchemy lalu RPC resmi, dipisah koma), `NOKTURN_API_PUBLIC_RPC` (RPC resmi), `NOKTURN_API_LOG_BLOCK_RANGE=10` |
+| api | `api/Dockerfile`, domain publik port 8080, healthcheck `/v1/health` | `NOKTURN_API_PORT=8080`, `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_API_RPC` (RPC resmi saja sejak 2 Oktober 2026), `NOKTURN_API_PUBLIC_RPC` (RPC resmi), `NOKTURN_API_LOG_BLOCK_RANGE=2000` |
 | indexer | `indexer/Dockerfile`, tanpa domain | `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_INDEXER_RPC` (RPC resmi), `NOKTURN_INDEXER_MAX_RANGE=50000`, `NOKTURN_INDEXER_FROM_BLOCK=75694415`, `NOKTURN_INDEXER_CONFIRMATIONS=20` |
 | Postgres | plugin Railway | tabelnya dibuat indexer saat start pertama |
 
@@ -234,6 +236,32 @@ baca menjawab 200, dan `wss://.../v1/stream` mengirim `batch.opened` serta
 `batch.collect_closed` dari mainnet. Satu jebakan yang sempat terjadi,
 `NOKTURN_INDEXER_MAX_RANGE=500000` membuat indexer crash berulang, karena RPC resmi
 menolak 500.000 blok dan menerima 50.000.
+
+**Diubah 2 Oktober 2026.** Key Alchemy kena batas kapasitas bulanan, jadi API kini
+hanya memakai RPC resmi, dan `NOKTURN_API_LOG_BLOCK_RANGE` naik dari 10 (batas Alchemy
+free tier) ke 2000. Hasil ukur di hari yang sama, semuanya dari produksi.
+
+| Yang diukur | Sebelum | Sesudah |
+|---|---|---|
+| `batch.collect_closed` sesudah collect tutup | 16 sampai 43 detik, selalu lewat jendela solusi | 2,5 sampai 3,1 detik |
+| Sisa jendela solusi setelah solver membaca feed | Negatif | 6,3 sampai 6,9 detik |
+| Route GET mana pun | 3 sampai 11 detik | 0,2 sampai 0,6 detik |
+| RPC resmi dari Railway, p50 dan p95 | Belum diukur | 76 ms dan 91 ms |
+
+Latensi RPC kini tercatat sekali semenit di log API, baris "rpc latency over the
+last minute". Cara membacanya `railway logs --service nokturn`. Dari laptop di
+Indonesia, RPC yang sama butuh 1,5 sampai 2 detik per panggilan, diukur dengan `curl`
+langsung, sementara koneksi dan TLS-nya hanya sekitar 140 ms. Karena itu solver
+sebaiknya berjalan dekat RPC, bukan di laptop. Indexer berhenti crash setelah rate
+limit RPC resmi tidak lagi dibaca sebagai penolakan rentang.
+
+Tiga batasan yang masih berlaku. RPC publik hanya menyimpan sekitar sepuluh menit
+riwayat untuk `eth_call`, jadi perintah `cast --block` di struk hanya bisa dicek
+selama itu (`audit-provenansi-backend.md` §5c). Fork dan job fork malam di CI butuh
+RPC archive, jadi keduanya berhenti sampai Alchemy pulih atau ada penyedia lain.
+Dan saat Railway berganti deploy, dua instance API sempat berjalan bersamaan dan RPC
+resmi menjawab beberapa permintaan dengan "Too Many Requests". Tick yang gagal
+diulang di poll berikutnya.
 
 **Kunci solver di mainnet.** Di chain yang bukan fork, solver dan keeper menolak
 mnemonic repo, karena mnemonic itu publik. Kuncinya dari `NOKTURN_SOLVER_PRIVATE_KEY`,

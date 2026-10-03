@@ -367,6 +367,11 @@ describe("indexer on the fork", () => {
     let fills = 0;
     let directionsChecked = 0;
     let stateUnavailable = 0;
+    // quote() returns ok false only for a revert, and throws when the node has
+    // no state, so a revert here is a receipt a judge would see revert. It was
+    // counted as unavailable until 2 October 2026, when one run failed with
+    // three of them and nothing said which.
+    const reverts: unknown[] = [];
     const differ: unknown[] = [];
     // Built from this suite's database, as I6 and I7 do. The API reads the
     // database make indexer fills, which may not have reached this batch yet.
@@ -383,14 +388,20 @@ describe("indexer on the fork", () => {
       for (const d of built.receipt.baselineFloors) {
         directionsChecked += 1;
         const q = await quote(c, k.baselineAdapter, d.sellToken.address as Address, d.buyToken.address as Address, BigInt(d.executedSell), BigInt(d.verifyFloor.blockNumber));
-        if (!q.ok || d.holds === null) {
+        const where = {batchId: id, sell: d.sellToken.symbol ?? d.sellToken.address, buy: d.buyToken.symbol ?? d.buyToken.address, executedSell: d.executedSell, block: d.verifyFloor.blockNumber, receiptSays: d.verifyFloor.expected};
+        if (!q.ok || d.verifyFloor.expected === "reverts") {
+          reverts.push({...where, quote: q.ok ? String(q.out) : q.error});
+          continue;
+        }
+        if (d.holds === null) {
           stateUnavailable += 1;
           continue;
         }
         if (d.verifyFloor.expected !== String(q.out) || !d.holds || BigInt(d.baselineBuy) < q.out) differ.push({batchId: id, sell: d.sellToken.symbol, buy: d.buyToken.symbol, baselineBuy: d.baselineBuy, floor: String(q.out), receiptSays: d.verifyFloor.expected, holds: d.holds});
       }
     }
-    results.I8 = {totalBatchesIndexed: rows.length, outOfStateWindow: outOfWindow, checkedBatches: recent.length, directionsChecked, stateUnavailable, fills, differ: differ.length, examples: differ.slice(0, 5)};
+    results.I8 = {totalBatchesIndexed: rows.length, outOfStateWindow: outOfWindow, checkedBatches: recent.length, directionsChecked, stateUnavailable, reverts, fills, differ: differ.length, examples: differ.slice(0, 5)};
+    assert.deepEqual(reverts, [], "quoteFromState reverts on a settled direction, so its receipt shows a revert");
     assert.equal(stateUnavailable, 0, "a batch inside the measured state window should still answer");
     assert.ok(fills > 0);
     assert.equal(differ.length, 0, JSON.stringify(differ));

@@ -7,6 +7,7 @@ import {console2} from "forge-std/console2.sol";
 
 import {Addresses} from "../Addresses.sol";
 import {StockTokenGate} from "../StockTokenGate.sol";
+import {MirrorFeed} from "./MirrorFeed.sol";
 import {TestQuoteToken} from "./TestQuoteToken.sol";
 import {TestStockToken} from "./TestStockToken.sol";
 import {TestV3Pool} from "./TestV3Pool.sol";
@@ -17,82 +18,166 @@ import {TestV3Pool} from "./TestV3Pool.sol";
 /// protocol reads. Permit2 is the single exception and it is already there at the
 /// canonical address.
 ///
+/// Prices are not chosen here. Every feed is a MirrorFeed of the mainnet proxy in
+/// Addresses, and every pool takes its price from those feeds, so the pools stay
+/// uninitialized until tools/mirror.py has pushed a first round and called sync.
+/// Bootstrap refuses an uninitialized pool, which keeps that order honest.
+///
 /// Its output is a list of addresses that goes into parameter.md and then into
 /// Addresses as constants, the same way every other address this protocol does not
 /// own gets there. Nothing is read from the environment.
 contract DeployTestnetFixtures is Script {
-    /// Arbitrary round numbers. Nothing on 46630 is priced by a market, so these
-    /// are chosen to be readable rather than to be anybody's quote. The tick is
-    /// the log of the raw price ratio with the stock token as token0, which is a
-    /// stock token at 18 decimals against a quote at 6.
-    int24 internal constant TICK_NVDA = -223_338; // 200
-    int24 internal constant TICK_AAPL = -221_941; // 230
-    int24 internal constant TICK_TSLA = -215_918; // 420
-    int24 internal constant TICK_GOOGL = -221_107; // 250
-    int24 internal constant TICK_GME = -244_134; // 25
+    /// Fee, spacing and in range liquidity of each mainnet pool in Addresses, read
+    /// at block 78,833,447 on 3 October 2026. Both sides have the same decimals on
+    /// both chains, so the raw liquidity carries over as depth. parameter.md 10.6.
+    uint24 internal constant FEE_NVDA = 500;
+    uint24 internal constant FEE_AAPL = 500;
+    uint24 internal constant FEE_TSLA = 3000;
+    uint24 internal constant FEE_GOOGL = 500;
+    uint24 internal constant FEE_GME = 500;
 
-    uint24 internal constant FEE = 3000;
-    uint128 internal constant LIQUIDITY = 1e24;
+    int24 internal constant SPACING_NVDA = 10;
+    int24 internal constant SPACING_AAPL = 10;
+    int24 internal constant SPACING_TSLA = 60;
+    int24 internal constant SPACING_GOOGL = 10;
+    int24 internal constant SPACING_GME = 10;
+
+    uint128 internal constant LIQUIDITY_NVDA = 19_531_557_485_415_257_411;
+    uint128 internal constant LIQUIDITY_AAPL = 520_436_072_689_231_175;
+    uint128 internal constant LIQUIDITY_TSLA = 352_474_549_280_711_413;
+    uint128 internal constant LIQUIDITY_GOOGL = 1_931_105_946_085_635_895;
+    uint128 internal constant LIQUIDITY_GME = 788_065_785_292_685_059;
+
+    /// Every mainnet feed in Addresses answers in eight decimals, measured on
+    /// 19 September and 3 October 2026. tools/mirror.py refuses to push into a
+    /// mirror whose decimals differ from its source.
+    uint8 internal constant FEED_DECIMALS = 8;
+
+    /// Enough of each side to pay out a price move of a half in either direction
+    /// at the deepest pool above. A flat range with no reserve behind it would
+    /// quote a swap it cannot pay.
+    uint256 internal constant STOCK_RESERVE = 1e27;
+    uint256 internal constant QUOTE_RESERVE = 1e18;
+
+    struct Pair {
+        string name;
+        string symbol;
+        uint256 multiplier;
+        address source;
+        uint24 fee;
+        int24 spacing;
+        uint128 liquidity;
+    }
 
     function run() external {
         require(block.chainid == Addresses.TESTNET, "fixtures are for the testnet rehearsal only");
 
+        Pair[] memory pairs = _pairs();
+
         vm.startBroadcast();
+        (, address operator,) = vm.readCallers();
 
         TestQuoteToken quote = new TestQuoteToken();
+        MirrorFeed quoteFeed =
+            new MirrorFeed(operator, Addresses.FEED_USDG, FEED_DECIMALS, "mirror of USDG / USD on 4663");
 
-        address[] memory tokens = new address[](5);
-        int24[] memory ticks = new int24[](5);
-        tokens[0] = address(_stock("Nokturn Test NVDA", "tNVDA", 1.0032e18));
-        tokens[1] = address(_stock("Nokturn Test AAPL", "tAAPL", 1.0011e18));
-        tokens[2] = address(_stock("Nokturn Test TSLA", "tTSLA", 1e18));
-        tokens[3] = address(_stock("Nokturn Test GOOGL", "tGOOGL", 1.0007e18));
-        tokens[4] = address(_stock("Nokturn Test GME", "tGME", 1e18));
-        ticks[0] = TICK_NVDA;
-        ticks[1] = TICK_AAPL;
-        ticks[2] = TICK_TSLA;
-        ticks[3] = TICK_GOOGL;
-        ticks[4] = TICK_GME;
+        address[] memory tokens = new address[](pairs.length);
+        address[] memory feeds = new address[](pairs.length);
+        address[] memory pools = new address[](pairs.length);
+        for (uint256 k = 0; k < pairs.length; ++k) {
+            Pair memory p = pairs[k];
+            TestStockToken token = new TestStockToken(p.name, p.symbol, StockTokenGate.BEACON, p.multiplier);
+            MirrorFeed feed = new MirrorFeed(
+                operator, p.source, FEED_DECIMALS, string.concat("mirror of ", p.symbol, " / USD on 4663")
+            );
+            TestV3Pool pool = new TestV3Pool(
+                address(token),
+                address(quote),
+                address(feed),
+                address(quoteFeed),
+                p.fee,
+                p.spacing,
+                p.liquidity
+            );
+            token.mint(address(pool), STOCK_RESERVE);
+            quote.mint(address(pool), QUOTE_RESERVE);
 
-        address[] memory pools = new address[](5);
-        for (uint256 k = 0; k < tokens.length; ++k) {
-            pools[k] = _pool(tokens[k], address(quote), ticks[k]);
+            tokens[k] = address(token);
+            feeds[k] = address(feed);
+            pools[k] = address(pool);
         }
 
         vm.stopBroadcast();
 
-        console2.log("quote", address(quote));
-        for (uint256 k = 0; k < tokens.length; ++k) {
-            console2.log("token", tokens[k]);
-            console2.log("pool ", pools[k]);
+        console2.log("operator ", operator);
+        console2.log("quote    ", address(quote));
+        console2.log("quoteFeed", address(quoteFeed));
+        for (uint256 k = 0; k < pairs.length; ++k) {
+            console2.log(pairs[k].symbol);
+            console2.log("  token", tokens[k]);
+            console2.log("  feed ", feeds[k]);
+            console2.log("  pool ", pools[k]);
         }
 
-        _write(address(quote), tokens, pools);
+        _write(operator, address(quote), address(quoteFeed), tokens, feeds, pools);
     }
 
-    /// @dev The multipliers mirror the mainnet drift measured on 16 September 2026,
+    /// @dev Same order as Addresses.allowlist, because the feed and pool tables
+    /// are read against it by index.
+    ///
+    /// The multipliers mirror the mainnet drift measured on 16 September 2026,
     /// because a gate that only ever sees exactly one would not be exercised by a
     /// rehearsal at all. See parameter.md section 10.1.
-    function _stock(string memory name_, string memory symbol_, uint256 multiplier)
-        internal
-        returns (TestStockToken token)
-    {
-        token = new TestStockToken(name_, symbol_, StockTokenGate.BEACON, multiplier);
+    function _pairs() internal pure returns (Pair[] memory pairs) {
+        pairs = new Pair[](5);
+        pairs[0] = Pair(
+            "Nokturn Test NVDA",
+            "tNVDA",
+            1.0032e18,
+            Addresses.FEED_NVDA,
+            FEE_NVDA,
+            SPACING_NVDA,
+            LIQUIDITY_NVDA
+        );
+        pairs[1] = Pair(
+            "Nokturn Test AAPL",
+            "tAAPL",
+            1.0011e18,
+            Addresses.FEED_AAPL,
+            FEE_AAPL,
+            SPACING_AAPL,
+            LIQUIDITY_AAPL
+        );
+        pairs[2] = Pair(
+            "Nokturn Test TSLA", "tTSLA", 1e18, Addresses.FEED_TSLA, FEE_TSLA, SPACING_TSLA, LIQUIDITY_TSLA
+        );
+        pairs[3] = Pair(
+            "Nokturn Test GOOGL",
+            "tGOOGL",
+            1.0007e18,
+            Addresses.FEED_GOOGL,
+            FEE_GOOGL,
+            SPACING_GOOGL,
+            LIQUIDITY_GOOGL
+        );
+        pairs[4] =
+            Pair("Nokturn Test GME", "tGME", 1e18, Addresses.FEED_GME, FEE_GME, SPACING_GME, LIQUIDITY_GME);
     }
 
-    /// @dev The pool sorts its own pair the way a real one does, and the tick is
-    /// stated for the stock token as token0. When the addresses come out the other
-    /// way round the price is the reciprocal, so the tick flips sign.
-    function _pool(address stock, address quote, int24 tick) internal returns (address) {
-        (address token0, address token1) = stock < quote ? (stock, quote) : (quote, stock);
-        int24 tick0 = token0 == stock ? tick : -tick;
-        return address(new TestV3Pool(token0, token1, tick0, FEE, LIQUIDITY));
-    }
-
-    function _write(address quote, address[] memory tokens, address[] memory pools) internal {
+    function _write(
+        address operator,
+        address quote,
+        address quoteFeed,
+        address[] memory tokens,
+        address[] memory feeds,
+        address[] memory pools
+    ) internal {
         string memory key = "fixtures";
+        vm.serializeAddress(key, "operator", operator);
         vm.serializeAddress(key, "quote", quote);
+        vm.serializeAddress(key, "quoteFeed", quoteFeed);
         vm.serializeAddress(key, "tokens", tokens);
+        vm.serializeAddress(key, "feeds", feeds);
         string memory out = vm.serializeAddress(key, "pools", pools);
         string memory path = string.concat("deployments/", vm.toString(block.chainid), "-fixtures.json");
         // Same reason as Deploy. A simulation writes addresses no chain holds, and

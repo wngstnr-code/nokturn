@@ -103,9 +103,43 @@ Satu hal dikuatkan, bukan diubah. `NOKTURN_API_PUBLIC_RPC` di compose disetel ke
 menjalankan demo dan bukan endpoint berbayar. Itu persis kondisi yang membuat
 baris terakhir §1 berstatus lolos bersyarat, dan syaratnya belum hilang.
 
+## 5c. Dijalankan ulang terhadap API mainnet, 2 Oktober 2026
+
+Sejak §5b ada empat perubahan yang menyentuh data. Backend kini juga berjalan di
+mainnet 4663 lewat `https://api.nokturn.xyz`. Batch di bawah ambang savings kini
+ber-outcome `settled_at_venue`. Route baca memakai ulang head yang dibaca lifecycle
+paling lama tiga detik sebelumnya. Dan `/v1/batches/current` serta `/v1/config`
+dilayani dari ingatan, masing-masing hasil tick terakhir dan bacaan semenit
+terakhir. Setiap jawaban di bawah dicocokkan ke chain di blok yang disebut
+provenansinya, lewat RPC publik `https://rpc.mainnet.chain.robinhood.com`.
+
+| Item | Yang diperiksa | Hasil | Vonis |
+|---|---|---|---|
+| `GET /v1/quote` | `verify` dijalankan apa adanya di bloknya | Sama sampai wei terakhir, 425447685760764534 di blok 78.214.526 | Lolos |
+| `GET /v1/session` | Sesi, durasi, transisi berikutnya, deviasi, dan waktu chain dibaca ulang di blok provenansi | Kelimanya sama di blok 78.215.328 | Lolos. Sebelumnya bacaan route ini memakai `latest` dan bisa jatuh di blok lain dari yang disebut provenansi. Kini semuanya dipatok |
+| `GET /v1/allowlist` | `uiMultiplier` dan slot beacon kelima token dibaca ulang di blok provenansi | Sama untuk kelimanya di blok 78.215.383 | Lolos. Bacaan juga kini dipatok ke blok provenansi |
+| `GET /v1/batches/current` | Dilayani dari tick terakhir | Provenansinya blok tick itu sendiri, jadi menyebut persis apa adanya | Lolos |
+| `GET /v1/config` | Disimpan semenit | Isinya konstanta deployment dan parameter yang hanya berubah lewat timelock 48 jam. Tidak membawa blok, dan tidak mengklaim membawa | Lolos |
+| Outcome `settled_at_venue` | Dari `BatchPassthrough` "savings below threshold" dan `BatchSettled` di finalize yang sama | Kedua event punya tx hash. Dibuktikan di fork, batch 1789893540 dan 1789893660 | Lolos |
+| Struk mainnet | Belum ada batch di mainnet, karena solver belum didanai | Tidak ada yang diklaim | Tidak berlaku. `rencana-uji.md` §11.5 menyebut kontrak mainnet tanpa pengguna sebagai pra-peluncuran, bukan mock |
+| Semua perintah `cast --block` di mainnet | Kedalaman riwayat RPC publik untuk `eth_call` | Menjawab di 10 menit ke belakang, menolak di 15 menit dan seterusnya dengan "historical state is not available" | **Lolos bersyarat.** Lihat di bawah |
+
+**Syarat untuk perintah `cast` di mainnet.** Event, yaitu fill, `baselineBuy`, savings,
+dan alasan kegagalan, tetap bisa dicek juri kapan saja lewat tx hash di Blockscout.
+Yang hilang setelah sekitar sepuluh menit adalah menghitung ulang `quoteFromState` di
+blok lama, yaitu `verifyFloor` dan `verifyBaseline`. Endpoint JSON-RPC Blockscout
+dilindungi tantangan Cloudflare, jadi tidak bisa dipakai `cast`. Diuji 2 Oktober 2026.
+Ada tiga jalan, dan keputusannya ada di tim. Pertama, `NOKTURN_API_PUBLIC_RPC`
+diarahkan ke RPC archive yang boleh dilihat publik. Kedua, layar struk menyebut dengan
+jelas bahwa perintah itu bisa dijalankan dalam sepuluh menit pertama, lalu menunjuk
+event di Blockscout untuk sesudahnya. Ketiga, verifikasi diperagakan langsung di depan
+juri sesaat setelah batch settle.
+
 ## 6. Yang masih harus terjadi sebelum submit
 
 1. Nabil memindahkan layar netting ke route F30 dan menampilkan `baselineFloors`.
 2. Tim memutuskan cara juri menjalankan perintah `cast` dari struk fork, apakah lewat
    fork yang dibuka ke publik, rekaman demo, atau disebut sebagai contoh.
 3. Audit ini dijalankan ulang setelah setiap pemotongan, sesuai §11.4.
+4. Tim memutuskan syarat perintah `cast` di mainnet dari §5c, sebelum struk mainnet
+   pertama ditunjukkan ke juri.
