@@ -1,5 +1,6 @@
 .shell {
   display: flex;
+  flex-direction: column;
   width: 100%;
   padding: 10px 28px;
   z-index: 9;
@@ -8,6 +9,20 @@
   margin: 0 auto;
   max-width: 100%;
   color: var(--n-text);
+}
+
+/* Mint on purpose. Nothing on mainnet wears it as a fill, so the two never look alike. */
+.testnet {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 16px;
+  border-radius: var(--n-menu-radius);
+  background: var(--n-success);
+  color: var(--n-button-text);
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-semibold);
+  line-height: var(--n-line-small);
+  text-align: center;
 }
 
 .bar {
