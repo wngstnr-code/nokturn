@@ -85,6 +85,18 @@ export const env = {
   // takes a few seconds, which is why the timeout is not tighter. D9.
   rpcTimeoutMs: Number(process.env.NOKTURN_API_RPC_TIMEOUT_MS ?? 8000),
   rpcRetryCount: Number(process.env.NOKTURN_API_RPC_RETRY_COUNT ?? 2),
+  /**
+   * The testnet faucet. Without a key the route stays off, and it never runs on
+   * a chain but 46630 whatever is set. Amounts are what an address is topped up
+   * to, in whole units. 0.0005 ETH pays for some hundreds of transactions at
+   * the 0.01 gwei 46630 charged on 3 October 2026.
+   */
+  faucet: {
+    key: process.env.NOKTURN_FAUCET_PRIVATE_KEY ?? "",
+    eth: process.env.NOKTURN_FAUCET_ETH ?? "0.0005",
+    quote: process.env.NOKTURN_FAUCET_QUOTE ?? "10000",
+    stock: process.env.NOKTURN_FAUCET_STOCK ?? "10",
+  },
 };
 
 function readJson<T>(path: string, hint: string): T {
