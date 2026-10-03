@@ -1,0 +1,38 @@
+# Nokturn
+
+> Intent based batch settlement for tokenized equities on Robinhood Chain. Signed intents are collected over a window sized to the market session, opposite sides are matched at one clearing price, only the residual is routed to Uniswap V3, and the venue baseline is published next to every fill so anyone can recompute it from pool state at the same block. A batch that cannot beat the venue settles at the venue price with no fee.
+
+Built by Team Nokturn (Wangsit Nursyahada, smart contracts. Dharu Bintang Mahendratama, backend. Nabil Aufa Danaputra, frontend) for the Arbitrum Open House Singapore Buildathon.
+
+## Status
+
+- Mainnet, Robinhood Chain 4663. Contracts deployed 29 September 2026 and verified on Sourcify. Chainlink pricing for NVDA, AAPL, TSLA, GOOGL, GME and USDG live since 1 October 2026. No solver is bonded yet, so no batch has settled on mainnet, and the app does not offer to sign until one is.
+- Testnet, Robinhood Chain 46630. The full flow runs with test tokens, an in-app faucet, a running solver and auction keeper, and prices mirrored from the mainnet Chainlink feeds. Routed and netted batches have settled from the app.
+
+## Try it
+
+- [Testnet app](https://app.testnet.nokturn.xyz/trade): connect a wallet on chain 46630, press Get test tokens, sell 1 tNVDA, then read the batch receipt
+- [Mainnet app](https://app.nokturn.xyz): live sessions, oracle prices and baseline quotes from real Uniswap V3 pools
+- [Website](https://nokturn.xyz)
+
+## Evidence
+
+- [Source code](https://github.com/wngstnr-code/nokturn): contracts, API, solver, indexer and app
+- [README](https://github.com/wngstnr-code/nokturn/blob/main/README.md): deployments, security gates, and the judging criteria mapped to evidence
+- [Market data on Dune](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026): the August 2026 queries behind every market figure
+- [Mainnet Settlement contract](https://robinhoodchain.blockscout.com/address/0x92075BaA431Cb3A4CeaD3F6E676d26F6c0bCb934)
+- [Testnet Settlement contract](https://explorer.testnet.chain.robinhood.com/address/0xe1FF85BCBaf11C2540a623BE3Ee2846f0a60e607)
+- [A netted testnet batch, finalize transaction](https://explorer.testnet.chain.robinhood.com/tx/0xad5a849c1905eac638d9e4fe734e21a7254e4fa310790f020d0afd4984b2478b)
+
+## Key figures, August 2026
+
+- 8.58 million stock token trades, $1,005.6M volume, 139,093 active wallets
+- 74.1 percent of trades and 65.2 percent of volume landed while NYSE was closed, 33.2 percent of trades on weekends
+- p99 price movement between trades was 1,779 bps in weekday off-hours against 209 bps in the open session
+- Netting of 27 to 33 percent at a realistic early share of 10 to 20 percent of flow. This is a backtest over real trades, because Nokturn did not exist in August
+
+## Docs
+
+- [Docs index](https://github.com/wngstnr-code/nokturn/blob/main/docs/en/README.md)
+- [Glossary](https://github.com/wngstnr-code/nokturn/blob/main/docs/en/glossary.md)
+- [Threat model](https://github.com/wngstnr-code/nokturn/blob/main/docs/en/threat-model.md): thirteen residual risks listed openly, including a single intent coordinator and no third party audit yet
