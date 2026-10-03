@@ -548,6 +548,21 @@ Pukul 07.17 UTC, tepat setelah jendela itu penuh, kelimanya sehat. `refPrice`
 menjawab tNVDA $234,99, tAAPL $333,82, tTSLA $370,45, tGOOGL $343,65, dan tGME
 $25,19, masing-masing dalam satu tick dari round mainnet yang dicermin.
 
+**Batch pertama yang settle di 46630, 3 Oktober 2026.** Dikirim langsung ke kontrak
+lewat `tools/smoke-testnet.sh`, tanpa app dan tanpa layanan solver, di sesi
+`CLOSED_WEEKEND` dengan harga dari TWAP. Ketiga aktornya kunci sekali pakai dari
+mnemonic yang diberikan saat dijalankan dan tidak pernah masuk repo. Solver
+`0x409F09BD75040D6749dE9F3De6C30BD6128049ED` bond 500 tQUOTE.
+
+| Batch | Mode | submit | finalize | Hasil |
+|---|---|---|---|---|
+| 1791015060 | routed, 100 tQUOTE lewat pool | `0x8944f33f…840e0`, 392.081 gas | `0xd2e47434…a661d`, 515.624 gas | `BatchSettled` |
+| 1791015180 | netted, pool tidak disentuh | `0x92eb1e9a…c9455`, 415.870 gas | `0xbec4968b…3b84b`, 464.667 gas | `BatchSettled`, savings $0,0876 |
+
+Keduanya dibaca ulang dari chain. `finalized` bernilai benar, dan saldo Alice serta
+Bob berubah persis sebesar eksekusinya. Kalau nanti batch dari app gagal, jalur
+kontrak di bawahnya sudah terbukti bekerja, jadi carinya di app, api, atau solver.
+
 Deployer `nokturn-testnet` di `0xcF9D130498657617b26e119d27Cdc469F7D6b8c4`, yang juga
 operator feed cermin. Proposer `nokturn-gov` di
 `0xF7354707BC51d1299B19c43B8B3cc79420Bc9c7B`. Angkatan keenam di bawah sudah tidak
