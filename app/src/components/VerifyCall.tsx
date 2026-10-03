@@ -30,10 +30,19 @@ export function VerifyCall({call}: {call: VerifiableCall}) {
         </button>
       </div>
       <code className={`${styles.command} chainvalue`}>{call.castCommand}</code>
+      {/* The call does not return either word. They say why there is no number. */}
       <div className={styles.expected}>
-        Returns
-        <span className="chainvalue">{call.expected}</span>
-        at block
+        {call.expected === "unavailable" ? (
+          "Needs an archive node to run at block"
+        ) : call.expected === "reverts" ? (
+          "Reverts at block"
+        ) : (
+          <>
+            Returns
+            <span className="chainvalue">{call.expected}</span>
+            at block
+          </>
+        )}
         <span className="chainvalue">{call.blockNumber}</span>
       </div>
     </div>
