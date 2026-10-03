@@ -311,8 +311,25 @@ production, jadi satu merge men-deploy kedua environment. Relayer terbuka sebaga
 operator `0xcF9D…b8c4`. Solver `0x3668A344e592C403dC7AeA8E7Ab7fc77f099e1Cb` dan keeper
 `0xe0ceac9850506a54eb6C1E709a73D54EB6F6855D` aktif di SolverRegistry dengan bond 500
 tQUOTE dan sekitar 0,011 ETH masing-masing. Layar sesi testnet menampilkan kelima token
-`Agree` dari feed cermin. Batch yang benar-benar settle di testnet belum ada, karena
-belum ada intent yang masuk.
+`Agree` dari feed cermin.
+
+**Batch pertama yang diselesaikan solver Railway, 3 Oktober 2026.** Intent dikirim Wangsit
+lewat `app.testnet.nokturn.xyz`, di sesi `CLOSED_WEEKEND`.
+
+| Batch | Hasil |
+|---|---|
+| `1791034440` | 1 intent, `settled_at_venue` |
+| `1791035100` | 1 intent, `settled_at_venue` |
+| `1791035460` | 1 intent, `settled_at_venue` |
+| `1791035640` | 2 intent dari 2 pedagang, `settled`, netting 10.000 bps |
+
+Batch `1791035640` dibaca ulang dari chain. Submit
+`0x05f1d8cf778067b97805512bcd78c4663c11fbf2888d0dd76f0149d915a91117` di blok 128.185.017
+dan finalize `0xad5a849c1905eac638d9e4fe734e21a7254e4fa310790f020d0afd4984b2478b` di blok
+128.185.070, keduanya status sukses, dikirim solver `0x3668…e1Cb` ke Settlement testnet.
+Struk di `api.testnet.nokturn.xyz` menyebut solver dan kedua hash yang sama. Angka
+netting dan savings dari testnet tidak boleh dikutip di mana pun, karena token, saldo, dan
+arus trade-nya sintetis (`parameter.md` §10.6).
 
 **Diukur 3 Oktober 2026.**
 
