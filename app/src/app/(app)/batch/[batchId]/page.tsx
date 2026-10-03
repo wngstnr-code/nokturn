@@ -223,6 +223,15 @@ function Floor({floor}: {floor: BaselineFloor}) {
  * between them matters. One is an honest zero, the other is an owner walking
  * away after a solution was already locked.
  */
+const OUTCOME_LABEL: Record<string, string> = {
+  settled: "Settled",
+  settled_at_venue: "Filled at venue",
+  passthrough: "Passed through",
+  expired: "Expired",
+  collecting: "Collecting",
+  solving: "Solving",
+};
+
 const WHY: Record<string, string> = {
   SavingsBelowThreshold: "No solution beat the venue by enough to be worth settling",
   IntentCollectionFailed: "An owner's sell leg could not be pulled when the batch closed",
@@ -324,6 +333,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
 
   const receipt = result.value;
   const settled = receipt.outcome === "settled";
+  const atVenue = receipt.outcome === "settled_at_venue";
 
   return (
     <div className={styles.page}>
@@ -337,10 +347,10 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.headFacts}>
           <span
-            className={`${styles.outcome} ${settled && receipt.failure === null ? styles.settled : styles.notSettled}`}
+            className={`${styles.outcome} ${settled ? styles.settled : styles.notSettled}`}
           >
-            <Seal state={settled && receipt.failure === null ? "pass" : "unknown"} size={17} />
-            {receipt.outcome}
+            <Seal state={settled ? "pass" : "unknown"} size={17} />
+            {OUTCOME_LABEL[receipt.outcome] ?? receipt.outcome}
           </span>
           <span className={styles.headFact}>
             <MoonArt size={18} />
@@ -352,6 +362,19 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
           </span>
         </div>
       </header>
+
+      {/*
+        Filled, but not inside the batch. No solution saved enough to settle there,
+        so the intents went to the venue. Without this the receipt would show a fill
+        and zero savings and leave the reader to guess why.
+      */}
+      {atVenue ? (
+        <p className={styles.venueNote}>
+          Every intent was filled at the venue&apos;s own price and no better. No solution saved
+          enough to settle inside the batch, so the trades went to the venue and no fee was taken.
+          The comparison below is published all the same, at the same block.
+        </p>
+      ) : null}
 
       {receipt.failure === null ? null : <Failure failure={receipt.failure} receipt={receipt} />}
 
