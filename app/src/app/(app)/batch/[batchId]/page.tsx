@@ -233,7 +233,6 @@ const OUTCOME_LABEL: Record<string, string> = {
 };
 
 const WHY: Record<string, string> = {
-  SavingsBelowThreshold: "No solution beat the venue by enough to be worth settling",
   IntentCollectionFailed: "An owner's sell leg could not be pulled when the batch closed",
   WinnerNeverFinalized: "The winning solver never came back to finalize",
   BatchPassthrough: "The batch passed through without settling",
@@ -244,7 +243,6 @@ const WHY: Record<string, string> = {
 function Failure({failure, receipt}: {failure: NonNullable<BatchReceipt["failure"]>; receipt: BatchReceipt}) {
   // A passthrough has no fills, so the token comes off the routed leg.
   const quote = receipt.fills[0]?.buyToken ?? receipt.venueRoutes[0]?.tokenOut;
-  const filled = receipt.fills.length > 0;
 
   return (
     <section className={styles.failure}>
@@ -255,15 +253,10 @@ function Failure({failure, receipt}: {failure: NonNullable<BatchReceipt["failure
           Settlement recorded the reason as <span className="chainvalue">{failure.reason}</span>
         </p>
       )}
-      {/*
-        A batch that finds no saving worth keeping can still fill, by sending the
-        intent to the venue at the venue's own price. Saying nothing settled over a
-        fill would be false, so the two cases get their own sentence.
-      */}
       <p className={styles.failureBody}>
-        {filled
-          ? `The intent was filled, at the venue's own price and no better. The fee charged was ${failure.feeCharged}. The comparison below is published all the same, at the same block.`
-          : `Nothing settled, and the fee charged was ${failure.feeCharged}. The comparison below was published anyway, at the same block, which is the number a batch that never ran would have no reason to show.`}
+        Nothing settled, and the fee charged was {failure.feeCharged}. The comparison below was
+        published anyway, at the same block, which is the number a batch that never ran would have
+        no reason to show.
       </p>
       {failure.bestSolutionBuy === null &&
       failure.baselineBuy === null &&
