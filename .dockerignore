@@ -19,6 +19,8 @@ contracts
 # The testnet record and its fixtures, for the same images pointed at 46630.
 !contracts/deployments/46630.json
 !contracts/deployments/46630-fixtures.json
+# The relayer that keeps the testnet mirror feeds current, infra/mirror.
+!contracts/tools/mirror.py
 # The source infra/chain.json is generated from at build time, the same way
 # make does it, since the generated file is not committed.
 !contracts/script/Addresses.sol
