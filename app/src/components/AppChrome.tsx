@@ -54,7 +54,7 @@ export async function AppChrome({children}: {children: React.ReactNode}) {
           <main className={shell.main}>{children}</main>
         </div>
         <div className={shell.footerSlot}>
-          <SiteFooter />
+          <SiteFooter chainId={network.chainId} />
         </div>
       </div>
     </WalletProvider>
