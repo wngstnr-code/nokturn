@@ -22,6 +22,10 @@ import {Addresses} from "./Addresses.sol";
 /// second opinion on a weekday and no price at all on a weekend, and one with a
 /// TWAP and no feed anchors the market to itself.
 ///
+/// On 46630 it runs before Lock, while the delay is still zero, because the feeds
+/// there only mirror mainnet and the rehearsal would otherwise wait two days for a
+/// number nobody chose. parameter.md section 10.6.
+///
 /// Run it twice. The first run schedules and prints when it can be executed, the
 /// second run executes. There is no flag for that, because a script that can be
 /// told to skip the wait is a script somebody will tell to skip the wait.
@@ -38,9 +42,7 @@ contract SetFeeds is Script {
     }
 
     function runWith(address timelock_, address oracle, address adapter) public {
-        require(
-            block.chainid == Addresses.MAINNET, "chain 46630 has no chainlink feed, see parameter.md 10.6"
-        );
+        require(block.chainid == Addresses.MAINNET || block.chainid == Addresses.TESTNET, "unknown chain");
 
         TimelockController timelock = TimelockController(payable(timelock_));
         (address[] memory targets, uint256[] memory values, bytes[] memory payloads) = batch(oracle, adapter);
@@ -98,7 +100,7 @@ contract SetFeeds is Script {
         targets[n - 1] = oracle;
         payloads[n - 1] = abi.encodeCall(
             PriceOracle.setFeed,
-            (Addresses.quote(), Addresses.FEED_USDG, Addresses.STALENESS_USDG, Addresses.STALENESS_USDG)
+            (Addresses.quote(), Addresses.quoteFeed(), Addresses.STALENESS_USDG, Addresses.STALENESS_USDG)
         );
     }
 }
