@@ -10,6 +10,14 @@ venue baseline next to every execution so anyone can recompute it from pool stat
 at the same block. If a batch cannot beat that baseline, it settles at the venue
 price and charges no fee.
 
+In August 2026, 74.1 percent of the 8.58 million stock token trades on this chain
+landed while NYSE was closed. The contracts are deployed on Robinhood Chain
+mainnet, with live Chainlink pricing for NVDA, AAPL, TSLA, GOOGL and GME. The full
+flow, from signature to settled batch, runs today on testnet with an in-app faucet,
+and both routed and netted batches have settled there from the app. The suite runs
+431 tests on every push, with fork tests against mainnet pools and symbolic proofs
+of the clearing math every night.
+
 **[Try it on testnet](https://app.testnet.nokturn.xyz)** ·
 **[Mainnet app](https://app.nokturn.xyz)** ·
 **[Website](https://nokturn.xyz)** ·
@@ -18,6 +26,17 @@ price and charges no fee.
 <!-- Demo video. Replace DEMO_VIDEO_URL and move this line up into the row above.
 **[Demo video](DEMO_VIDEO_URL)** ·
 -->
+
+## Judging criteria, mapped
+
+Each official criterion, with the evidence we would point a reviewer to.
+
+| Criterion | Evidence |
+|---|---|
+| Smart contract quality | 431 unit, fuzz and integration tests on every push, Slither and Aderyn with zero high findings, at least 95 percent line coverage on core contracts. Nightly fork tests against mainnet pools with zero difference from the pool quote, Halmos proofs of the clearing and rounding math, Echidna on the same invariants. An immutable settlement core with no proxy, where no key can move user funds. See [Security and testing](#security-and-testing) |
+| Product-market fit | 139,093 wallets traded stock tokens in August 2026, across 8.58 million trades and $1,005.6M in volume. A backtest over those real trades gives 27 to 33 percent netting at a realistic early share of 10 to 20 percent of flow. See [The problem, measured](#the-problem-measured) |
+| Innovation and creativity | Batch length, price band, exposure caps and the price source change with the real market session, including holidays, early closes and the weekend feed freeze. The venue baseline is published as an event next to every fill, so anyone can recompute it from pool state at the same block. Opening and closing auctions at the session boundary produce a closing print. See [How it works](#how-it-works) |
+| Real problem solving | Off-hours flow has no official reference price, and its p99 price movement between trades is 8.5 times the open session. A batch that cannot beat the venue settles at the venue price with no fee. On weekends the oracle moves to a pool TWAP with a 1,500 bps drift cap, because the Chainlink feeds freeze for 48 to 56 hours |
 
 ## Try it in three minutes
 
