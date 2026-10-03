@@ -58,7 +58,20 @@ async function record(c: PublicClient): Promise<DeploymentRecord> {
   return r as unknown as DeploymentRecord;
 }
 
-function tokenList(): {symbol: string; token: Address}[] {
+const CHAIN_ID_TESTNET = 46_630;
+
+/**
+ * infra/chain.json holds the mainnet addresses from Addresses.sol, which on
+ * 46630 belong to nobody, so there the keeper would find no allowed token and
+ * stop. The testnet list is the fixture record, named by what each token says.
+ */
+async function tokenList(c: PublicClient): Promise<{symbol: string; token: Address}[]> {
+  if ((await withRetry(() => c.getChainId())) === CHAIN_ID_TESTNET) {
+    const fixtures = JSON.parse(readFileSync(join(REPO_ROOT, "contracts", "deployments", "46630-fixtures.json"), "utf8")) as {tokens: Address[]};
+    return Promise.all(
+      fixtures.tokens.map(async (token) => ({symbol: await withRetry(() => c.readContract({address: token, abi: erc20Abi, functionName: "symbol"})), token})),
+    );
+  }
   const chain = JSON.parse(readFileSync(join(REPO_ROOT, "infra", "chain.json"), "utf8")) as {tokens: Record<string, {token: Address}>};
   return Object.entries(chain.tokens).map(([symbol, t]) => ({symbol, token: t.token}));
 }
@@ -90,7 +103,7 @@ export async function runKeeper(opts: KeeperOptions = {}): Promise<KeeperSummary
     withRetry(() => c.readContract({address, abi: a, functionName, args, blockNumber}) as Promise<T>);
 
   const tokens: {symbol: string; token: Address}[] = [];
-  for (const t of tokenList()) {
+  for (const t of await tokenList(c)) {
     if (await read<boolean>(house, abi, "auctionTokenAllowed", [t.token])) tokens.push(t);
   }
   if (tokens.length === 0) throw new Error("AuctionHouse allows no token, so there is nothing to keep. setAuctionTokenAllowed is Wangsit's, through the timelock");
