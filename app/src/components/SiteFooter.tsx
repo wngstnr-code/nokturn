@@ -5,15 +5,16 @@ import {useRef, useState} from "react";
 import {ArrowCircleIcon, GithubIcon} from "./Icons";
 import {MaskIcon} from "./landing/MaskIcon";
 import {BRAND, FOOTER} from "./landing/content";
+import {chainFor} from "@/lib/chain";
 import styles from "./SiteFooter.module.css";
 
 const REPO = "https://github.com/wngstnr-code/nokturn";
 const DUNE =
   "https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026";
-const EXPLORER = "https://robinhood-testnet.cloud.blockscout.com";
 const CHAIN_DOCS = "https://docs.chain.robinhood.com";
 
-const GROUPS = [
+/* The explorer follows the chain the app is reading, so it is filled in per render. */
+const groups = (explorer: string) => [
   {
     title: "Protocol",
     links: [
@@ -29,7 +30,7 @@ const GROUPS = [
     title: "Check the numbers",
     links: [
       {href: DUNE, label: "Dune dashboard", external: true},
-      {href: EXPLORER, label: "Block explorer", external: true},
+      {href: explorer, label: "Block explorer", external: true},
     ],
   },
   {
@@ -41,7 +42,8 @@ const GROUPS = [
   },
 ];
 
-export function SiteFooter() {
+export function SiteFooter({chainId}: {chainId: number}) {
+  const linkGroups = groups(chainFor(chainId).blockExplorers.default.url);
   const [expanded, setExpanded] = useState(false);
   const root = useRef<HTMLElement>(null);
 
@@ -82,7 +84,7 @@ export function SiteFooter() {
             </div>
 
             <div className={styles.groups}>
-              {GROUPS.map((group) => (
+              {linkGroups.map((group) => (
                 <div className={styles.group} key={group.title}>
                   <h4 className={styles.groupTitle}>{group.title}</h4>
                   <ul className={styles.list}>

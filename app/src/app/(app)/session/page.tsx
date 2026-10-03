@@ -19,6 +19,7 @@ import {readSession, SESSION_NAMES, type SessionReport, type TokenOracle} from "
 import {active, type Network} from "@/lib/network";
 import {units} from "@/lib/format";
 import {Session} from "@shared/types";
+import {CHAIN_ID_MAINNET} from "@shared/addresses";
 import styles from "./page.module.css";
 import {TokenMark} from "@/components/TokenMark";
 
@@ -71,7 +72,27 @@ function OracleRow({token, chainId}: {token: TokenOracle; chainId: number}) {
         </div>
       </td>
       <td>{priceOf(token.refPrice, token.refError)}</td>
-      <td>{priceOf(token.chainlink, token.dualError)}</td>
+      <td>
+        {priceOf(token.chainlink, token.dualError)}
+        {token.mirror === null ? null : (
+          <span className={styles.mirror}>
+            mirrored from round{" "}
+            <a
+              className="chainvalue"
+              href={explorerAddress(token.mirror.source, CHAIN_ID_MAINNET)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {token.mirror.sourceRound.toString()}
+            </a>
+            <Hint label="How to check the mirrored round">
+              The link opens the Chainlink feed this price was copied from, on mainnet{" "}
+              {CHAIN_ID_MAINNET}. Call getRoundData there with this round and it answers the same
+              price.
+            </Hint>
+          </span>
+        )}
+      </td>
       <td>{priceOf(token.uniTwap, token.dualError)}</td>
       <td>
         {token.agree === null ? (
@@ -188,10 +209,10 @@ function Report({report, network}: {report: SessionReport; network: Network}) {
 
       {network.kind === "testnet" ? (
         <p className={styles.note}>
-          A reading that says FeedNotSet is the contract answering, not the page failing. Chain{" "}
-          {report.chainId} carries no Chainlink equity feeds, so PriceOracle has none registered
-          for these test tokens and says so. The same screen against a chain with feeds shows
-          prices.
+          Chain {report.chainId} has no Chainlink of its own, so the Chainlink column here is a
+          copy. Each round is taken from the Chainlink feed for the same stock on mainnet{" "}
+          {CHAIN_ID_MAINNET}, and the round it came from is under the price. The tokens and the
+          pools are test ones, so the TWAP column reads test pools.
         </p>
       ) : null}
 

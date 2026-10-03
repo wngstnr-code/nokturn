@@ -1,8 +1,20 @@
-import type {Address} from "viem";
+import {parseAbi, type Address} from "viem";
 import {clientFor} from "./chain";
 import {deploymentFor} from "./deployments";
 import {priceOracleAbi, sessionManagerAbi} from "./abi";
 import {Session} from "@shared/types";
+import {CHAIN_ID_TESTNET} from "@shared/addresses";
+
+// contracts/script/testnet/MirrorFeed.sol. Testnet only, so it is not in the
+// shared ABIs the deployed contracts publish.
+const mirrorFeedAbi = parseAbi([
+  "function latestRound() view returns (uint80)",
+  "function source() view returns (address)",
+  "function sourceRoundOf(uint80 roundId) view returns (uint80)",
+]);
+
+/// Where a testnet Chainlink price was copied from, so it can be read on mainnet.
+export type Mirror = {feed: Address; round: bigint; source: Address; sourceRound: bigint};
 
 export const SESSION_NAMES: Record<Session, string> = {
   [Session.CLOSED_OVERNIGHT]: "Closed overnight",
@@ -29,6 +41,7 @@ export type TokenOracle = {
   dualError: string | null;
   stalenessLimit: number | null;
   tokenSession: Session | null;
+  mirror: Mirror | null;
 };
 
 export type SessionReport = {
@@ -120,6 +133,8 @@ async function readOracle(
     ),
   ]);
 
+  const mirror = chainId === CHAIN_ID_TESTNET ? await readMirror(chainId, oracle, entry.address, blockNumber) : null;
+
   return {
     symbol: entry.symbol,
     address: entry.address,
@@ -133,7 +148,47 @@ async function readOracle(
     dualError: dual.error,
     stalenessLimit: staleness.value,
     tokenSession: tokenSession.value === null ? null : (tokenSession.value as Session),
+    mirror,
   };
+}
+
+/*
+ * The feed is the one PriceOracle holds for the token, read from the oracle rather
+ * than from a file, so the round shown is the round the Chainlink column came from.
+ * A feed that is not a mirror answers nothing here, and the screen then says
+ * nothing about mirroring.
+ */
+async function readMirror(
+  chainId: number,
+  oracle: Address,
+  token: Address,
+  blockNumber: bigint,
+): Promise<Mirror | null> {
+  const client = clientFor(chainId);
+  const at = {blockNumber} as const;
+  try {
+    const [feed] = (await client.readContract({
+      address: oracle,
+      abi: priceOracleAbi,
+      functionName: "feeds",
+      args: [token],
+      ...at,
+    })) as readonly [Address, number, number];
+    const [round, source] = await Promise.all([
+      client.readContract({address: feed, abi: mirrorFeedAbi, functionName: "latestRound", ...at}),
+      client.readContract({address: feed, abi: mirrorFeedAbi, functionName: "source", ...at}),
+    ]);
+    const sourceRound = await client.readContract({
+      address: feed,
+      abi: mirrorFeedAbi,
+      functionName: "sourceRoundOf",
+      args: [round],
+      ...at,
+    });
+    return sourceRound === 0n ? null : {feed, round, source, sourceRound};
+  } catch {
+    return null;
+  }
 }
 
 export async function readSession(

@@ -26,7 +26,7 @@ export const robinhoodMainnet = defineChain({
   nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
   rpcUrls: {default: {http: [rpcMainnet]}},
   blockExplorers: {
-    default: {name: "Blockscout", url: "https://robinhood.cloud.blockscout.com"},
+    default: {name: "Blockscout", url: "https://robinhoodchain.blockscout.com"},
   },
   contracts: {multicall3: {address: MULTICALL3}},
 });
@@ -37,7 +37,7 @@ export const robinhoodTestnet = defineChain({
   nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
   rpcUrls: {default: {http: [rpcTestnet]}},
   blockExplorers: {
-    default: {name: "Blockscout", url: "https://robinhood-testnet.cloud.blockscout.com"},
+    default: {name: "Blockscout", url: "https://explorer.testnet.chain.robinhood.com"},
   },
   contracts: {multicall3: {address: MULTICALL3}},
 });
