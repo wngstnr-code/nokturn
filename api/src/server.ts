@@ -140,6 +140,7 @@ export function buildServer(): FastifyInstance {
   batchRoutes(app);
   backtestRoutes(app);
   auctionRoutes(app);
+  faucetRoutes(app);
 
   // An oversized frame is closed with 1009 by ws itself, before any handler
   // allocates for it. The stream routes sit in their own scope so they are
