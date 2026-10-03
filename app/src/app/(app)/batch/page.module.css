@@ -72,6 +72,11 @@
   transition: background var(--n-duration) var(--n-easing);
 }
 
+/* The testnet row has no netting or savings column. */
+.rowPlain {
+  grid-template-columns: 1fr repeat(2, minmax(120px, auto));
+}
+
 a.row:hover {
   background: var(--n-blue-100);
   text-decoration: none;

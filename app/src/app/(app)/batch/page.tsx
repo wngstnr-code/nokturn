@@ -7,7 +7,7 @@ import type {BatchSummary} from "@/lib/coordinator/types";
 import {scanBatches, SCAN_SPAN, type BatchRow, type BatchScan} from "@/lib/batches";
 import {SESSION_NAMES} from "@/lib/session";
 import {sessionLabel, shortAddress, units} from "@/lib/format";
-import {active} from "@/lib/network";
+import {active, activeNetwork} from "@/lib/network";
 import type {Session} from "@shared/types";
 import styles from "./page.module.css";
 
@@ -30,13 +30,13 @@ function ratio(value: string): string {
 }
 
 /// Served by the indexer, so this reaches back further than one scan window.
-function IndexedRow({batch}: {batch: BatchSummary}) {
+function IndexedRow({batch, stats}: {batch: BatchSummary; stats: boolean}) {
   // A batch filled at the venue traded, so it shows its savings like any other
   // fill, and those savings are zero.
   const settled = batch.outcome === "settled" || batch.outcome === "settled_at_venue";
 
   return (
-    <Link className={styles.row} href={`/batch/${batch.batchId}`}>
+    <Link className={`${styles.row} ${stats ? "" : styles.rowPlain}`} href={`/batch/${batch.batchId}`}>
       <div className={styles.lead}>
         <BatchOwl seed={batch.batchId} size={46} />
         <div className={styles.cell}>
@@ -50,25 +50,36 @@ function IndexedRow({batch}: {batch: BatchSummary}) {
           {batch.intentCount} intents, {batch.participantCount} owners
         </strong>
       </div>
-      <div className={styles.cell}>
-        Netting
-        <strong className="chainvalue">{ratio(batch.nettingRatioBps)}</strong>
-      </div>
-      <div className={styles.cell}>
-        {settled ? "Savings" : "Outcome"}
-        <strong className={settled ? "chainvalue" : styles.notSettled}>
-          {settled
-            ? `${units(BigInt(batch.totalSavingsUsd), 18, 2)} USD`
-            : (OUTCOME_LABEL[batch.outcome] ?? batch.outcome)}
-        </strong>
-      </div>
+      {stats ? (
+        <>
+          <div className={styles.cell}>
+            Netting
+            <strong className="chainvalue">{ratio(batch.nettingRatioBps)}</strong>
+          </div>
+          <div className={styles.cell}>
+            {settled ? "Savings" : "Outcome"}
+            <strong className={settled ? "chainvalue" : styles.notSettled}>
+              {settled
+                ? `${units(BigInt(batch.totalSavingsUsd), 18, 2)} USD`
+                : (OUTCOME_LABEL[batch.outcome] ?? batch.outcome)}
+            </strong>
+          </div>
+        </>
+      ) : (
+        <div className={styles.cell}>
+          Outcome
+          <strong className={settled ? undefined : styles.notSettled}>
+            {OUTCOME_LABEL[batch.outcome] ?? batch.outcome}
+          </strong>
+        </div>
+      )}
     </Link>
   );
 }
 
 /// The fallback when no coordinator answers. A hundred blocks of logs is a live
 /// tail rather than a history, and the screen says so rather than implying more.
-function TailRow({row, chainId}: {row: BatchRow; chainId: number}) {
+function TailRow({row, chainId, stats}: {row: BatchRow; chainId: number; stats: boolean}) {
   return (
     <div className={styles.row}>
       <div className={styles.lead}>
@@ -87,9 +98,13 @@ function TailRow({row, chainId}: {row: BatchRow; chainId: number}) {
         <strong className="chainvalue">{row.intentCount.toString()}</strong>
       </div>
       <div className={styles.cell}>
-        {row.kind === "settled" ? "Savings" : "Reason"}
-        <strong className={row.kind === "settled" ? "chainvalue" : undefined}>
-          {row.kind === "settled" ? `${units(row.totalSavingsUsd, 18, 2)} USD` : row.reason}
+        {row.kind === "settled" ? (stats ? "Savings" : "Outcome") : "Reason"}
+        <strong className={row.kind === "settled" && stats ? "chainvalue" : undefined}>
+          {row.kind !== "settled"
+            ? row.reason
+            : stats
+              ? `${units(row.totalSavingsUsd, 18, 2)} USD`
+              : "Settled"}
         </strong>
         {row.kind === "passthrough" && row.uncollected.length > 0 ? (
           <span className={styles.note}>
@@ -136,7 +151,10 @@ function Empty({scan}: {scan: BatchScan}) {
 }
 
 export default async function BatchesPage() {
-  const indexed = await listBatches();
+  const [indexed, network] = await Promise.all([listBatches(), activeNetwork()]);
+  // Test flow says nothing about netting or savings. Those columns are left off
+  // the testnet rather than shown with a caveat.
+  const stats = network.kind !== "testnet";
 
   if (indexed.ok) {
     const {batches, cursor} = indexed.value;
@@ -162,7 +180,7 @@ export default async function BatchesPage() {
         ) : (
           <div className={styles.rows}>
             {batches.map((batch) => (
-              <IndexedRow key={batch.batchId} batch={batch} />
+              <IndexedRow key={batch.batchId} batch={batch} stats={stats} />
             ))}
             {cursor === null ? null : (
               <p className={styles.more}>Older batches exist beyond this page</p>
@@ -208,7 +226,12 @@ export default async function BatchesPage() {
       ) : (
         <div className={styles.rows}>
           {scan.rows.map((row) => (
-            <TailRow key={`${row.transactionHash}-${row.batchId}`} row={row} chainId={scan.chainId} />
+            <TailRow
+              key={`${row.transactionHash}-${row.batchId}`}
+              row={row}
+              chainId={scan.chainId}
+              stats={stats}
+            />
           ))}
         </div>
       )}
