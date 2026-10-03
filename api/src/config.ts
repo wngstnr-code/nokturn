@@ -141,7 +141,9 @@ export function loadTestnetTokens(
     "the rehearsal fixtures are not on this machine",
   ),
 ): ChainFile {
-  const symbols = ["NVDA", "AAPL", "TSLA", "GOOGL", "GME"];
+  // The symbols the fixture tokens answer on chain. A public testnet that said
+  // NVDA beside a test token would read as the real share.
+  const symbols = ["tNVDA", "tAAPL", "tTSLA", "tGOOGL", "tGME"];
   const lengths = [fixtures.tokens, fixtures.pools, fixtures.feeds ?? []].map((list) => list.length);
   if (lengths.some((n) => n !== symbols.length)) {
     throw new Error(`46630 fixtures carry ${lengths.join(", ")} tokens, pools and feeds, not five of each`);

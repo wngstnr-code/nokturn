@@ -19,6 +19,10 @@ describe("testnet tokens from the 46630 fixtures", () => {
     assert.deepEqual(entries.map((t) => t.pool), [20, 21, 22, 23, 24].map(address));
   });
 
+  test("symbols keep the t prefix the test tokens carry on chain", () => {
+    assert.deepEqual(Object.keys(loadTestnetTokens(fixtures(5)).tokens), ["tNVDA", "tAAPL", "tTSLA", "tGOOGL", "tGME"]);
+  });
+
   test("a feed list shorter than the tokens is refused rather than misaligned", () => {
     assert.throws(() => loadTestnetTokens(fixtures(4)), /5, 5, 4/);
   });
