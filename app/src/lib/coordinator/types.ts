@@ -15,6 +15,7 @@ export type {
   ClearingPriceRow,
   ConfigResponse,
   CurrentBatchResponse,
+  FaucetResponse,
   FillReceipt,
   HealthResponse,
   Hex,

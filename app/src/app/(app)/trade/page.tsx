@@ -1,4 +1,5 @@
 import {IntentsProvider} from "@/components/trade/IntentsProvider";
+import {TestTokens} from "@/components/trade/TestTokens";
 import {TradeLayout} from "@/components/trade/TradeLayout";
 import {MyIntents} from "@/components/trade/MyIntents";
 import {TradeWidget, type TradeContext} from "@/components/trade/TradeWidget";
@@ -147,7 +148,13 @@ export default async function TradePage() {
         <IntentsProvider>
           <TradeLayout
             widget={
-              <TradeWidget bases={loaded.bases} quote={loaded.quote} context={loaded.context} />
+              <>
+                <TradeWidget bases={loaded.bases} quote={loaded.quote} context={loaded.context} />
+                {/* The faucet is the coordinator's, so it is offered only where one answers. */}
+                {loaded.context.chainId === CHAIN_ID_TESTNET && loaded.context.coordinatorReachable ? (
+                  <TestTokens chainId={loaded.context.chainId} tokens={[...loaded.bases, loaded.quote]} />
+                ) : null}
+              </>
             }
             intents={
               <MyIntents

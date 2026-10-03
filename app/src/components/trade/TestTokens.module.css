@@ -1,0 +1,95 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 18px;
+  background: var(--n-paper);
+  border-radius: var(--n-radius-normal);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  font-size: var(--n-font-medium);
+  font-weight: var(--n-weight-semibold);
+}
+
+.body {
+  margin-top: 4px;
+  color: var(--n-text-o60);
+  font-size: var(--n-font-small-plus);
+  line-height: var(--n-line-small);
+}
+
+/* Quieter than the sign button, which stays the main action on this screen. */
+.button {
+  flex: none;
+  padding: 10px 16px;
+  border: 1.5px solid var(--n-primary-o50);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--n-primary);
+  font-size: var(--n-font-small-plus);
+  font-weight: var(--n-weight-semibold);
+  white-space: nowrap;
+  transition: background var(--n-duration) var(--n-easing);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--n-primary-o10);
+}
+
+.button:disabled {
+  border-color: var(--n-text-o15);
+  color: var(--n-text-o50);
+  cursor: progress;
+}
+
+.note {
+  color: var(--n-text-o50);
+  font-size: var(--n-font-small);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 14px;
+  list-style: none;
+  background: var(--n-paper-darker);
+  border-radius: 16px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--n-font-small-plus);
+}
+
+.skipped {
+  color: var(--n-text-o50);
+}
+
+.error {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--n-alert-bg);
+  color: var(--n-alert-text);
+  font-size: var(--n-font-small-plus);
+  line-height: var(--n-line-small);
+}
+
+@media (max-width: 720px) {
+  .head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
