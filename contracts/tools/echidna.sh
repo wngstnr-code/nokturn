@@ -14,6 +14,13 @@
 # project the way forge does for a release and skips test/ entirely, and echidna
 # then reports that the contract does not exist.
 set -euo pipefail
+
+# Foundry rewrites `new Contract()` in tests into deployCode helpers under
+# foundry-pp/, and crytic-compile 0.3.9 cannot resolve those files, so every
+# nightly run since the job was added on 19 September died with "Unknown file
+# foundry-pp/DeployHelper".
+# The halmos profile turns the rewrite off for the same kind of reason.
+export FOUNDRY_DYNAMIC_TEST_LINKING=false
 cd "$(dirname "$0")/.."
 
 run() {
