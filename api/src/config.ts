@@ -17,6 +17,8 @@ export const REPO_ROOT = join(HERE, "..", "..");
 
 export const CHAIN_ID_MAINNET = 4663;
 export const CHAIN_ID_TESTNET = 46_630;
+/** What the 46630 quote fixture answers from symbol(). It is not USDG. */
+export const TESTNET_QUOTE_SYMBOL = "tQUOTE";
 
 export interface TokenEntry {
   symbol: string;
@@ -125,16 +127,28 @@ export function loadDeployment(chainId: number, isFork: boolean): Deployment {
  * Chain 46630 carries no Stock Token, no canonical USDG and no Uniswap pool, so
  * the rehearsal fixtures stand in for all three. parameter.md section 10.6.
  * Their order matches Addresses.allowlist(), and relying on that order is why it
- * is asserted here rather than assumed.
+ * is asserted here rather than assumed. The feeds are MirrorFeed copies of the
+ * mainnet Chainlink proxies and share that order.
  */
-export function loadTestnetTokens(): ChainFile {
-  const fixtures = readJson<{quote: `0x${string}`; tokens: `0x${string}`[]; pools: `0x${string}`[]}>(
+export interface TestnetFixtures {
+  quote: `0x${string}`;
+  tokens: `0x${string}`[];
+  pools: `0x${string}`[];
+  feeds: `0x${string}`[];
+}
+
+export function loadTestnetTokens(
+  fixtures: TestnetFixtures = readJson<TestnetFixtures>(
     join(REPO_ROOT, "contracts", "deployments", "46630-fixtures.json"),
     "the rehearsal fixtures are not on this machine",
-  );
-  const symbols = ["NVDA", "AAPL", "TSLA", "GOOGL", "GME"];
-  if (fixtures.tokens.length !== symbols.length || fixtures.pools.length !== symbols.length) {
-    throw new Error("46630 fixtures no longer carry five tokens and five pools");
+  ),
+): ChainFile {
+  // The symbols the fixture tokens answer on chain. A public testnet that said
+  // NVDA beside a test token would read as the real share.
+  const symbols = ["tNVDA", "tAAPL", "tTSLA", "tGOOGL", "tGME"];
+  const lengths = [fixtures.tokens, fixtures.pools, fixtures.feeds ?? []].map((list) => list.length);
+  if (lengths.some((n) => n !== symbols.length)) {
+    throw new Error(`46630 fixtures carry ${lengths.join(", ")} tokens, pools and feeds, not five of each`);
   }
   return {
     chainId: CHAIN_ID_TESTNET,
@@ -144,7 +158,7 @@ export function loadTestnetTokens(): ChainFile {
     tokens: Object.fromEntries(
       symbols.map((symbol, i) => [
         symbol,
-        {token: fixtures.tokens[i]!, pool: fixtures.pools[i]!, feed: "0x" as `0x${string}`, decimals: 18},
+        {token: fixtures.tokens[i]!, pool: fixtures.pools[i]!, feed: fixtures.feeds[i]!, decimals: 18},
       ]),
     ),
   };

@@ -3,9 +3,8 @@
 
 import type {Address, PublicClient} from "viem";
 import type {BatchIntentsResponse} from "../../packages/shared/api-types.ts";
-import {USDG} from "../../packages/shared/addresses.ts";
 import type {Profile} from "./account.ts";
-import {API, type Contracts} from "./chain.ts";
+import {API, quoteToken, type Contracts} from "./chain.ts";
 import type {Intent} from "./solution.ts";
 import {readInputs, solve, type Plan, type SignedIntent} from "./solve.ts";
 
@@ -35,13 +34,14 @@ export async function feed(batchId: bigint): Promise<{body: BatchIntentsResponse
   return {body, signed: body.intents.map((s) => ({intent: toIntent(s.intent), signature: s.signature}))};
 }
 
-export function tokensOf(signed: SignedIntent[]): Address[] {
-  const set = new Map<string, Address>([[USDG.toLowerCase(), USDG as Address]]);
+export function tokensOf(signed: SignedIntent[], quote: Address): Address[] {
+  const set = new Map<string, Address>([[quote.toLowerCase(), quote]]);
   for (const {intent} of signed) for (const t of [intent.sellToken, intent.buyToken]) set.set(t.toLowerCase(), t);
   return [...set.values()];
 }
 
 export async function solveAt(c: PublicClient, k: Contracts, batchId: bigint, signed: SignedIntent[], solver: Address, block: bigint, profile: Profile = "a"): Promise<{plan: Plan; inputs: Awaited<ReturnType<typeof readInputs>>}> {
-  const inputs = await readInputs(c, k, batchId, tokensOf(signed), block);
-  return {plan: await solve(c, k, batchId, signed, USDG as Address, solver, inputs, profile), inputs};
+  const quote = await quoteToken(c);
+  const inputs = await readInputs(c, k, batchId, tokensOf(signed, quote), block);
+  return {plan: await solve(c, k, batchId, signed, quote, solver, inputs, profile), inputs};
 }

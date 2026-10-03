@@ -27,8 +27,10 @@ COPY indexer/sql indexer/sql
 # The mainnet record and the token list, for a host like Railway with no mounts.
 # Under compose ./ is mounted over /app/infra and the fork record wins. The
 # token list is generated from Addresses.sol the way make does it, since the
-# generated file is not committed.
+# generated file is not committed. The testnet record comes too, so one image
+# serves whichever chain NOKTURN_INDEXER_RPC answers as.
 COPY contracts/deployments/4663.json contracts/deployments/4663.json
+COPY contracts/deployments/46630.json contracts/deployments/46630.json
 COPY contracts/script/Addresses.sol /tmp/Addresses.sol
 COPY infra/scripts/extract-addresses.mjs /tmp/extract-addresses.mjs
 RUN mkdir -p infra && node /tmp/extract-addresses.mjs /tmp/Addresses.sol infra/chain.json && rm /tmp/Addresses.sol /tmp/extract-addresses.mjs

@@ -25,6 +25,7 @@ import {
   loadDeployment,
   loadPinnedBlock,
   loadTestnetTokens,
+  TESTNET_QUOTE_SYMBOL,
   type ChainFile,
   type Deployment,
   type PinnedBlock,
@@ -73,7 +74,7 @@ export interface ChainContext {
   isTestnet: boolean;
   pinned: PinnedBlock | null;
   deployment: Deployment;
-  quote: {address: Address; decimals: number};
+  quote: {address: Address; decimals: number; symbol: string};
   permit2: Address;
   tokens: TokenEntry[];
   explorer: string;
@@ -264,7 +265,7 @@ export async function initChain(): Promise<ChainContext> {
     isTestnet,
     pinned: fork ? await forkPoint(probe, chainId, fork.forkBlockNumber) : null,
     deployment,
-    quote: {address: chainFile.usdg, decimals: chainFile.usdgDecimals},
+    quote: {address: chainFile.usdg, decimals: chainFile.usdgDecimals, symbol: isTestnet ? TESTNET_QUOTE_SYMBOL : "USDG"},
     permit2: chainFile.permit2,
     tokens: Object.entries(chainFile.tokens).map(([symbol, t]) => ({
       symbol,

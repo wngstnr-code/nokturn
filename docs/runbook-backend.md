@@ -268,3 +268,73 @@ mnemonic repo, karena mnemonic itu publik. Kuncinya dari `NOKTURN_SOLVER_PRIVATE
 dan kunci milik akun di `infra/accounts.json` ditolak. Preflight menyebut alamat
 SolverRegistry dan jumlah bond serta gas yang dibutuhkan, dihitung dari harga gas saat
 itu. Pada 0,022 gwei itu 0,016 ETH untuk tiga jam.
+
+## 8. Testnet 46630, untuk testnet.nokturn.xyz
+
+Ditulis 3 Oktober 2026, hari yang sama dengan gladi testnet ketujuh. Fixture angkatan
+ketiga mencermin harga Chainlink mainnet dan pool-nya bisa swap, jadi batch di 46630
+bisa benar-benar settle (`parameter.md` §10.6). Bagian ini menyiapkan backend untuk
+situs testnet publik. Tokennya token uji, dan setiap layar harus menyebutnya begitu.
+
+**Satu image, dua chain.** API, indexer, dan solver memilih chain dari jawaban RPC,
+bukan dari flag. Ketiga image sekarang memanggang catatan 4663 dan 46630, jadi
+environment testnet di Railway memakai Dockerfile yang sama dengan production.
+
+| Service | Dockerfile | Variabel di environment `testnet` |
+|---|---|---|
+| api | `api/Dockerfile`, domain `api.testnet.nokturn.xyz` port 8080 | `NOKTURN_API_PORT=8080`, `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_API_RPC` dan `NOKTURN_API_PUBLIC_RPC` ke `https://rpc.testnet.chain.robinhood.com`, `NOKTURN_API_LOG_BLOCK_RANGE=2000`, `NOKTURN_EXPLORER=https://explorer.testnet.chain.robinhood.com` |
+| indexer | `indexer/Dockerfile`, tanpa domain | `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_INDEXER_RPC` ke RPC resmi testnet, `NOKTURN_INDEXER_MAX_RANGE=50000`, `NOKTURN_INDEXER_FROM_BLOCK=128002702`, `NOKTURN_INDEXER_CONFIRMATIONS=20` |
+| Postgres | plugin Railway, terpisah dari production | |
+| mirror | `infra/mirror/Dockerfile`, tanpa domain | `NOKTURN_MIRROR_KEYSTORE` (keystore `nokturn-testnet`, base64), `NOKTURN_MIRROR_PASSWORD` |
+| solver | `solver/Dockerfile`, tanpa domain, volume di `/app/solver/.state` | `NOKTURN_SOLVER_RPC` ke RPC resmi testnet, `NOKTURN_API_URL=https://api.testnet.nokturn.xyz`, `NOKTURN_SOLVER_PRIVATE_KEY` (kunci testnet) |
+| keeper | `solver/Dockerfile`, start command `node solver/src/keeper.ts --profile b` | `NOKTURN_SOLVER_RPC`, `NOKTURN_SOLVER_B_PRIVATE_KEY` (kunci testnet kedua) |
+
+`NOKTURN_EXPLORER` wajib diisi, karena default-nya Blockscout mainnet.
+
+**Diukur 3 Oktober 2026.**
+
+| Pemeriksaan | Hasil |
+|---|---|
+| `Settlement` testnet dibuat | Blok 128.002.702, 06.53.38 UTC, dibaca dari Blockscout testnet. Itu `FROM_BLOCK` di atas |
+| `eth_getLogs` RPC resmi testnet, 50.000 blok | Diterima, 343 ms |
+| `eth_getLogs` RPC resmi testnet, 500.000 blok | Diterima, 312 ms. Mainnet menolak rentang ini, jadi 50.000 tetap dipakai supaya kedua environment sama |
+| State di blok deploy, sekitar enam jam kemudian | Ditolak, `historical state ... is not available`. Sama seperti mainnet, perintah `cast --block` di struk testnet hanya bisa dicek beberapa menit |
+| Kelima token fixture di `AuctionHouse.auctionTokenAllowed` | `true` semua |
+| `minBond` SolverRegistry dan bond cross AuctionHouse | 500 tQUOTE masing-masing |
+| Saldo kunci `nokturn-testnet` | 0,00597 ETH testnet. Di mainnet 0 ETH dan 0 USDG |
+
+**Relayer.** `MirrorFeed.operator` immutable, jadi hanya kunci `nokturn-testnet` yang
+bisa mendorong round. Kunci itu juga deployer testnet. Feed beku di akhir pekan
+karena feed mainnet beku, jadi relayer harus sudah jalan sebelum Chainlink mainnet
+mengeluarkan round lagi di awal pekan. Begitu ada round yang tidak tersalin, oracle
+testnet stale dan batch gagal. Relayer membaca mainnet lewat drpc, yang masih
+melayani `latest`, supaya beban itu tidak menambah rate limit RPC resmi mainnet yang
+dipakai API production.
+
+Biaya satu pass yang mendorong keenam feed dan lima `sync` kira kira satu juta gas,
+sekitar 0,00001 ETH pada 0,01 gwei. Berapa lama saldo bertahan tergantung seberapa
+sering mainnet mengeluarkan round, dan itu diukur di hari kerja pertama.
+
+**Solver dan keeper.** Dua kunci baru, terpisah dari kunci mainnet. Bond dari laptop
+cukup sekali per kunci.
+
+```bash
+NOKTURN_TESTNET_RPC=<endpoint yang menjangkau 46630> bash infra/scripts/testnet.sh bond     # solver
+NOKTURN_TESTNET_RPC=<endpoint yang menjangkau 46630> bash infra/scripts/testnet.sh bond b   # keeper
+```
+
+Script mencetak tQUOTE yang kurang lewat `mint` yang terbuka, lalu approve dan bond.
+Keeper dicetakkan bond solver plus empat bond cross, karena keeper meng-approve empat
+sekaligus. Kunci testnet yang sama dengan kunci mainnet ditolak. Gas ETH testnet harus
+sudah ada di kedua alamat.
+
+Volume `.state` untuk solver bukan hiasan. Store menyimpan solusi yang sudah disubmit
+supaya restart tetap mem-finalize-nya. Tanpa volume, deploy ulang di tengah jendela
+finalize membuang catatan itu.
+
+**Tiga hal yang diperbaiki supaya testnet bisa jalan.** Solver menaruh alamat USDG
+mainnet di indeks kuota pada setiap chain, padahal di 46630 alamat itu tidak punya
+kode, jadi tidak ada solusi testnet yang bisa lolos verifikasi. Keeper membaca daftar
+token mainnet dari `infra/chain.json` dan berhenti karena tidak ada token yang
+diizinkan. API menulis `USDG` dan `NVDA` di samping token uji. Ketiganya sekarang
+mengikuti catatan chain, dan di testnet simbolnya `tQUOTE`, `tNVDA`, dan seterusnya.
