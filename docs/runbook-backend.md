@@ -285,11 +285,34 @@ environment testnet di Railway memakai Dockerfile yang sama dengan production.
 | api | `api/Dockerfile`, domain `api.testnet.nokturn.xyz` port 8080 | `NOKTURN_API_PORT=8080`, `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_API_RPC` dan `NOKTURN_API_PUBLIC_RPC` ke `https://rpc.testnet.chain.robinhood.com`, `NOKTURN_API_LOG_BLOCK_RANGE=2000`, `NOKTURN_EXPLORER=https://explorer.testnet.chain.robinhood.com` |
 | indexer | `indexer/Dockerfile`, tanpa domain | `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_INDEXER_RPC` ke RPC resmi testnet, `NOKTURN_INDEXER_MAX_RANGE=50000`, `NOKTURN_INDEXER_FROM_BLOCK=128002702`, `NOKTURN_INDEXER_CONFIRMATIONS=20` |
 | Postgres | plugin Railway, terpisah dari production | |
-| mirror | `infra/mirror/Dockerfile`, tanpa domain | `NOKTURN_MIRROR_KEYSTORE` (keystore `nokturn-testnet`, base64), `NOKTURN_MIRROR_PASSWORD` |
-| solver | `solver/Dockerfile`, tanpa domain, volume di `/app/solver/.state` | `NOKTURN_SOLVER_RPC` ke RPC resmi testnet, `NOKTURN_API_URL=https://api.testnet.nokturn.xyz`, `NOKTURN_SOLVER_PRIVATE_KEY` (kunci testnet) |
-| keeper | `solver/Dockerfile`, start command `node solver/src/keeper.ts --profile b` | `NOKTURN_SOLVER_RPC`, `NOKTURN_SOLVER_B_PRIVATE_KEY` (kunci testnet kedua) |
+| mirror | `infra/mirror/Dockerfile` lewat `RAILWAY_DOCKERFILE_PATH`, tanpa domain | `NOKTURN_MIRROR_KEYSTORE` (keystore `nokturn-testnet`, JSON mentah atau base64), `NOKTURN_MIRROR_PASSWORD`, `NOKTURN_RPC_MAINNET=https://robinhood.drpc.org`, `NOKTURN_RPC_TESTNET`, `NOKTURN_MIRROR_INTERVAL=60` |
+| solver, menjalankan solver dan keeper | `solver/Dockerfile` lewat `RAILWAY_DOCKERFILE_PATH`, tanpa domain, volume di `/app/solver/.state` | `NOKTURN_ROLE=both`, `NOKTURN_SOLVER_RPC` ke RPC resmi testnet, `NOKTURN_API_URL=https://api.testnet.nokturn.xyz`, `NOKTURN_SOLVER_PRIVATE_KEY` (solver), `NOKTURN_SOLVER_B_PRIVATE_KEY` (keeper), `RAILWAY_RUN_UID=0` |
 
 `NOKTURN_EXPLORER` wajib diisi, karena default-nya Blockscout mainnet.
+
+**Solver dan keeper satu service.** Paket gratis Railway menolak service keenam dengan
+"Free plan resource provision limit exceeded", jadi keduanya jalan di satu container
+dengan `NOKTURN_ROLE=both`. Container keluar begitu salah satu proses mati, supaya
+Railway me-restart keduanya, bukan menyisakan satu proses mati di balik service yang
+tampak hidup. Kalau paketnya dinaikkan, keeper bisa dipisah dengan `NOKTURN_ROLE=keeper`
+di service kedua tanpa mengubah image.
+
+**`RAILWAY_RUN_UID=0` bukan hiasan.** Volume Railway terpasang milik root, sedangkan
+image solver berjalan sebagai `node`, jadi tanpa variabel itu store solusi tidak bisa
+ditulis.
+
+**Dua jebakan CLI.** `railway add --branch` diabaikan dan service tetap membangun dari
+`main`. Branch diganti dengan `railway service source connect --branch <nama>
+--service <service> --environment testnet`. Dan `railway volume add` bekerja pada
+service yang sedang ter-link, jadi link sementara ke service tujuan lalu kembalikan.
+
+**Keadaan 3 Oktober 2026 sore.** Keempat service testnet mengikuti `main`, sama seperti
+production, jadi satu merge men-deploy kedua environment. Relayer terbuka sebagai
+operator `0xcF9D…b8c4`. Solver `0x3668A344e592C403dC7AeA8E7Ab7fc77f099e1Cb` dan keeper
+`0xe0ceac9850506a54eb6C1E709a73D54EB6F6855D` aktif di SolverRegistry dengan bond 500
+tQUOTE dan sekitar 0,011 ETH masing-masing. Layar sesi testnet menampilkan kelima token
+`Agree` dari feed cermin. Batch yang benar-benar settle di testnet belum ada, karena
+belum ada intent yang masuk.
 
 **Diukur 3 Oktober 2026.**
 
