@@ -20,6 +20,7 @@ import {backtestRoutes} from "./routes/backtest.ts";
 import {batchRoutes} from "./routes/batches.ts";
 import {configRoutes} from "./routes/config.ts";
 import {escapeRoutes} from "./routes/escape.ts";
+import {faucetRoutes} from "./routes/faucet.ts";
 import {intentRoutes} from "./routes/intents.ts";
 import {nonceRoutes} from "./routes/nonces.ts";
 import {quoteRoutes} from "./routes/quote.ts";
