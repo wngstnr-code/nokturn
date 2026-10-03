@@ -60,12 +60,12 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Learn",
     children: [
-      {label: "Docs", description: "Design, parameters and decisions", href: `${REPO}/blob/main/docs/README.md`, icon: "book", external: true},
-      {label: "Glossary", description: "What intent, batch and session mean here", href: `${REPO}/blob/main/docs/glosarium.md`, icon: "glossary", external: true},
+      {label: "Docs", description: "Design, parameters and decisions", href: `${REPO}/blob/main/docs/en/README.md`, icon: "book", external: true},
+      {label: "Glossary", description: "What intent, batch and session mean here", href: `${REPO}/blob/main/docs/en/glossary.md`, icon: "glossary", external: true},
       {
         label: "Threat model",
         description: "The risks that remain, listed openly",
-        href: `${REPO}/blob/main/docs/threat-model.md`,
+        href: `${REPO}/blob/main/docs/en/threat-model.md`,
         icon: "risk",
         external: true,
       },
@@ -143,7 +143,7 @@ export const GOVERNANCE = {
     },
     {
       title: "Docs",
-      href: `${REPO}/blob/main/docs/README.md`,
+      href: `${REPO}/blob/main/docs/en/README.md`,
       bg: "var(--nk-peri-deep)",
       fg: "var(--nk-ink-98)",
       image: ASSET("image-docs.svg"),
@@ -156,7 +156,7 @@ export const GRANTS = {
   iconHeight: 116,
   title: "Risks, listed openly",
   body: "Nokturn's code has not been audited by a third party yet, and the intent coordinator is still a single point of trust. Our threat model lists every risk that remains, with what limits it, so you can judge them yourself.",
-  cta: {text: "Read the threat model", href: `${REPO}/blob/main/docs/threat-model.md`},
+  cta: {text: "Read the threat model", href: `${REPO}/blob/main/docs/en/threat-model.md`},
 };
 
 // A social entry without a real link is not shown.
