@@ -46,6 +46,21 @@ export async function deploymentRecord(c: PublicClient): Promise<{path: string; 
   return {path, record};
 }
 
+let quote: Address | null = null;
+
+/**
+ * The quote token of the deployment the node is on, from its record. Canonical
+ * USDG on mainnet and the fork, the tQUOTE fixture on 46630, where the mainnet
+ * USDG address has no code and a solution built around it never verifies.
+ */
+export async function quoteToken(c: PublicClient): Promise<Address> {
+  if (quote) return quote;
+  const {path, record} = await deploymentRecord(c);
+  if (!record.usdg) throw new Error(`${path} names no usdg, the quote token`);
+  quote = record.usdg;
+  return quote;
+}
+
 export function settlementAddress(): Address {
   const record = JSON.parse(readFileSync(RECORD, "utf8")) as {settlement?: Address};
   if (!record.settlement) throw new Error(`${RECORD} names no settlement. run make deploy`);
