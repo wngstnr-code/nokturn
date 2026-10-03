@@ -99,7 +99,7 @@ function Fill({fill, chainId, stats}: {fill: FillReceipt; chainId: number; stats
         {fill.partial ? <span className={styles.partial}>Partial fill</span> : null}
       </div>
 
-      <div className={styles.versus}>
+      <div className={`${styles.versus} ${stats ? "" : styles.versusPair}`}>
         <div className={styles.side}>
           <span className={styles.sideLabel}>In this batch</span>
           <span className={`${styles.sideValue} chainvalue`}>

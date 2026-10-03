@@ -493,6 +493,11 @@
   background: var(--n-paper);
 }
 
+/* No gap in the middle on the testnet, so the two sides take the row between them. */
+.versusPair {
+  grid-template-columns: 1fr 1fr;
+}
+
 .side {
   display: flex;
   flex-direction: column;
