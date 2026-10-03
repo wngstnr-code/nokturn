@@ -282,11 +282,11 @@ environment testnet di Railway memakai Dockerfile yang sama dengan production.
 
 | Service | Dockerfile | Variabel di environment `testnet` |
 |---|---|---|
-| api | `api/Dockerfile`, domain `api-testnet.nokturn.xyz` port 8080 | `NOKTURN_API_PORT=8080`, `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_API_RPC` dan `NOKTURN_API_PUBLIC_RPC` ke `https://rpc.testnet.chain.robinhood.com`, `NOKTURN_API_LOG_BLOCK_RANGE=2000`, `NOKTURN_EXPLORER=https://explorer.testnet.chain.robinhood.com` |
+| api | `api/Dockerfile`, domain `api.testnet.nokturn.xyz` port 8080 | `NOKTURN_API_PORT=8080`, `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_API_RPC` dan `NOKTURN_API_PUBLIC_RPC` ke `https://rpc.testnet.chain.robinhood.com`, `NOKTURN_API_LOG_BLOCK_RANGE=2000`, `NOKTURN_EXPLORER=https://explorer.testnet.chain.robinhood.com` |
 | indexer | `indexer/Dockerfile`, tanpa domain | `NOKTURN_DATABASE_URL=${{Postgres.DATABASE_URL}}`, `NOKTURN_INDEXER_RPC` ke RPC resmi testnet, `NOKTURN_INDEXER_MAX_RANGE=50000`, `NOKTURN_INDEXER_FROM_BLOCK=128002702`, `NOKTURN_INDEXER_CONFIRMATIONS=20` |
 | Postgres | plugin Railway, terpisah dari production | |
 | mirror | `infra/mirror/Dockerfile`, tanpa domain | `NOKTURN_MIRROR_KEYSTORE` (keystore `nokturn-testnet`, base64), `NOKTURN_MIRROR_PASSWORD` |
-| solver | `solver/Dockerfile`, tanpa domain, volume di `/app/solver/.state` | `NOKTURN_SOLVER_RPC` ke RPC resmi testnet, `NOKTURN_API_URL=https://api-testnet.nokturn.xyz`, `NOKTURN_SOLVER_PRIVATE_KEY` (kunci testnet) |
+| solver | `solver/Dockerfile`, tanpa domain, volume di `/app/solver/.state` | `NOKTURN_SOLVER_RPC` ke RPC resmi testnet, `NOKTURN_API_URL=https://api.testnet.nokturn.xyz`, `NOKTURN_SOLVER_PRIVATE_KEY` (kunci testnet) |
 | keeper | `solver/Dockerfile`, start command `node solver/src/keeper.ts --profile b` | `NOKTURN_SOLVER_RPC`, `NOKTURN_SOLVER_B_PRIVATE_KEY` (kunci testnet kedua) |
 
 `NOKTURN_EXPLORER` wajib diisi, karena default-nya Blockscout mainnet.
