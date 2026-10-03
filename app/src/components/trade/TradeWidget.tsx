@@ -89,7 +89,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   const {address, isConnected, chainId, status} = useAccount();
   const {signTypedDataAsync, isPending} = useSignTypedData();
 
-  const {data: balance} = useReadContract({
+  const {data: balance, isError: balanceFailed} = useReadContract({
     address: sellToken?.address,
     abi: erc20Abi,
     functionName: "balanceOf",
@@ -105,7 +105,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
    * thing here that is not just a signature, and it is needed once per token.
    * Without it an intent is accepted and then cannot be collected.
    */
-  const {data: allowance, refetch: recheckAllowance} = useReadContract({
+  const {data: allowance, isError: allowanceFailed, refetch: recheckAllowance} = useReadContract({
     address: sellToken?.address,
     abi: erc20Abi,
     functionName: "allowance",
@@ -181,12 +181,17 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
   const openAuction = sellToken === undefined ? undefined : context.auctions[sellToken.address];
   const short = sellAmount !== null && balance !== undefined && balance < sellAmount;
   const unapproved = sellAmount !== null && !short && allowance !== undefined && allowance < sellAmount;
+  // An unread balance or allowance is not a pass. Signing on one sent an intent
+  // the coordinator refused for a missing Permit2 approval the card never offered.
+  const unread = sellAmount !== null && (balance === undefined || allowance === undefined);
+  const readFailed = unread && (balanceFailed || allowanceFailed);
   const canSign =
     isConnected &&
     !wrongChain &&
     context.signingOk &&
     sellAmount !== null &&
     sellToken !== undefined &&
+    !unread &&
     !short &&
     !unapproved;
 
@@ -312,17 +317,21 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
         ? "Signing is disabled"
         : sellAmount === null
           ? "Enter an amount"
-          : short
-            ? `Not enough ${sellToken?.symbol ?? "balance"}`
-            : approving
-              ? "Waiting for the approval to land"
-              : unapproved
-                ? `Approve ${sellToken?.symbol ?? "token"} for Permit2`
-                : isPending
-                  ? "Waiting for your wallet"
-                  : submitting
-                    ? "Sending to the coordinator"
-                    : "Sign intent";
+          : readFailed
+            ? "Could not read your balance from the chain"
+            : unread
+              ? "Reading your balance"
+              : short
+                ? `Not enough ${sellToken?.symbol ?? "balance"}`
+                : approving
+                  ? "Waiting for the approval to land"
+                  : unapproved
+                    ? `Approve ${sellToken?.symbol ?? "token"} for Permit2`
+                    : isPending
+                      ? "Waiting for your wallet"
+                      : submitting
+                        ? "Sending to the coordinator"
+                        : "Sign intent";
 
   return (
     <div className={styles.container}>
