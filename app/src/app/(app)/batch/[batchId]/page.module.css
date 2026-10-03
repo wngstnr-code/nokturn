@@ -443,7 +443,6 @@
   border-radius: 999px;
   font-size: var(--n-font-small-plus);
   font-weight: var(--n-weight-semibold);
-  text-transform: capitalize;
 }
 
 .outcome.settled {
@@ -658,4 +657,14 @@
   color: var(--n-text);
   font-size: var(--n-font-medium);
   font-weight: var(--n-weight-medium);
+}
+
+.venueNote {
+  max-width: 72ch;
+  padding: 14px 16px;
+  border-radius: var(--n-radius-normal);
+  background: var(--n-alert-bg);
+  color: var(--n-text-o70);
+  font-size: var(--n-font-normal);
+  line-height: var(--n-line-medium);
 }

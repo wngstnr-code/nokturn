@@ -170,6 +170,16 @@ function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
  * docs/audit-provenansi-backend.md section 1.
  */
 function Floor({floor}: {floor: BaselineFloor}) {
+  // Either word means there is no number to show, and parsing one would print a
+  // made up figure or "unreadable", which says less than the word itself.
+  const expected = floor.verifyFloor.expected;
+  const quoted =
+    expected === "unavailable"
+      ? "Needs an archive node"
+      : expected === "reverts"
+        ? "The call reverts at this block"
+        : `${amount(expected, floor.buyToken.decimals, 4)} ${floor.buyToken.symbol}`;
+
   return (
     <article className={styles.floor}>
       <div className={styles.floorHead}>
@@ -189,7 +199,9 @@ function Floor({floor}: {floor: BaselineFloor}) {
             ? "At or above the venue"
             : floor.holds === false
               ? "Below the venue"
-              : "The venue could not be read"}
+              : expected === "unavailable"
+                ? "No node still holds this block"
+                : "The venue could not be read"}
         </span>
       </div>
       <div className={styles.floorFigures}>
@@ -207,9 +219,7 @@ function Floor({floor}: {floor: BaselineFloor}) {
         </span>
         <span>
           Venue quote for the same amount
-          <strong className="chainvalue">
-            {amount(floor.verifyFloor.expected, floor.buyToken.decimals, 4)} {floor.buyToken.symbol}
-          </strong>
+          <strong className="chainvalue">{quoted}</strong>
         </span>
       </div>
       <VerifyCall call={floor.verifyFloor} />
@@ -223,8 +233,16 @@ function Floor({floor}: {floor: BaselineFloor}) {
  * between them matters. One is an honest zero, the other is an owner walking
  * away after a solution was already locked.
  */
+const OUTCOME_LABEL: Record<string, string> = {
+  settled: "Settled",
+  settled_at_venue: "Filled at venue",
+  passthrough: "Passed through",
+  expired: "Expired",
+  collecting: "Collecting",
+  solving: "Solving",
+};
+
 const WHY: Record<string, string> = {
-  SavingsBelowThreshold: "No solution beat the venue by enough to be worth settling",
   IntentCollectionFailed: "An owner's sell leg could not be pulled when the batch closed",
   WinnerNeverFinalized: "The winning solver never came back to finalize",
   BatchPassthrough: "The batch passed through without settling",
@@ -235,7 +253,6 @@ const WHY: Record<string, string> = {
 function Failure({failure, receipt}: {failure: NonNullable<BatchReceipt["failure"]>; receipt: BatchReceipt}) {
   // A passthrough has no fills, so the token comes off the routed leg.
   const quote = receipt.fills[0]?.buyToken ?? receipt.venueRoutes[0]?.tokenOut;
-  const filled = receipt.fills.length > 0;
 
   return (
     <section className={styles.failure}>
@@ -246,15 +263,10 @@ function Failure({failure, receipt}: {failure: NonNullable<BatchReceipt["failure
           Settlement recorded the reason as <span className="chainvalue">{failure.reason}</span>
         </p>
       )}
-      {/*
-        A batch that finds no saving worth keeping can still fill, by sending the
-        intent to the venue at the venue's own price. Saying nothing settled over a
-        fill would be false, so the two cases get their own sentence.
-      */}
       <p className={styles.failureBody}>
-        {filled
-          ? `The intent was filled, at the venue's own price and no better. The fee charged was ${failure.feeCharged}. The comparison below is published all the same, at the same block.`
-          : `Nothing settled, and the fee charged was ${failure.feeCharged}. The comparison below was published anyway, at the same block, which is the number a batch that never ran would have no reason to show.`}
+        Nothing settled, and the fee charged was {failure.feeCharged}. The comparison below was
+        published anyway, at the same block, which is the number a batch that never ran would have
+        no reason to show.
       </p>
       {failure.bestSolutionBuy === null &&
       failure.baselineBuy === null &&
@@ -324,6 +336,7 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
 
   const receipt = result.value;
   const settled = receipt.outcome === "settled";
+  const atVenue = receipt.outcome === "settled_at_venue";
 
   return (
     <div className={styles.page}>
@@ -337,10 +350,10 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
         </div>
         <div className={styles.headFacts}>
           <span
-            className={`${styles.outcome} ${settled && receipt.failure === null ? styles.settled : styles.notSettled}`}
+            className={`${styles.outcome} ${settled ? styles.settled : styles.notSettled}`}
           >
-            <Seal state={settled && receipt.failure === null ? "pass" : "unknown"} size={17} />
-            {receipt.outcome}
+            <Seal state={settled ? "pass" : "unknown"} size={17} />
+            {OUTCOME_LABEL[receipt.outcome] ?? receipt.outcome}
           </span>
           <span className={styles.headFact}>
             <MoonArt size={18} />
@@ -352,6 +365,19 @@ export default async function BatchReceiptPage({params}: {params: Promise<{batch
           </span>
         </div>
       </header>
+
+      {/*
+        Filled, but not inside the batch. No solution saved enough to settle there,
+        so the intents went to the venue. Without this the receipt would show a fill
+        and zero savings and leave the reader to guess why.
+      */}
+      {atVenue ? (
+        <p className={styles.venueNote}>
+          Every intent was filled at the venue&apos;s own price and no better. No solution saved
+          enough to settle inside the batch, so the trades went to the venue and no fee was taken.
+          The comparison below is published all the same, at the same block.
+        </p>
+      ) : null}
 
       {receipt.failure === null ? null : <Failure failure={receipt.failure} receipt={receipt} />}
 

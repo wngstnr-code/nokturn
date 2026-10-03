@@ -23,6 +23,16 @@ export function SiteHeader({snapshot, network}: {snapshot: SessionSnapshot; netw
 
   return (
     <header className={styles.shell}>
+      {/*
+        Cannot be closed, and sticks with the header. A screenshot of the testnet
+        has to say so on its own, wherever on the page it was taken.
+      */}
+      {network.kind === "testnet" ? (
+        <p className={styles.testnet} role="note">
+          Testnet {network.chainId}. Test tokens and test liquidity. Prices mirrored from
+          Chainlink on mainnet 4663.
+        </p>
+      ) : null}
       <div className={styles.bar}>
         <Link href="/" className={styles.brand}>
           <MaskIcon src={BRAND.mark} className={styles.mark} />

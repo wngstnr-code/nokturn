@@ -105,6 +105,23 @@ function decode(log: Log): BatchRow | null {
   }
 }
 
+/*
+ * A batch that saved nothing but still filled at the venue emits BatchPassthrough
+ * and BatchSettled in the same finalize. Read naively that is two rows for one
+ * batch, one saying it passed through and one saying it settled. It settled, so
+ * that row is the one kept.
+ */
+function oneRowPerBatch(rows: BatchRow[]): BatchRow[] {
+  const kept = new Map<bigint, BatchRow>();
+  for (const row of rows) {
+    const held = kept.get(row.batchId);
+    if (held === undefined || (held.kind === "passthrough" && row.kind === "settled")) {
+      kept.set(row.batchId, row);
+    }
+  }
+  return [...kept.values()];
+}
+
 export async function scanBatches(chainId: number, settlement?: Address): Promise<BatchScan> {
   const deployment = settlement === undefined ? deploymentFor(chainId) : {settlement};
   if (deployment === null) throw new Error(`Nokturn is not deployed on chain ${chainId}`);
@@ -119,9 +136,7 @@ export async function scanBatches(chainId: number, settlement?: Address): Promis
       .map(decodeUncollected)
       .filter((entry): entry is Uncollected => entry !== null);
 
-    const rows = logs
-      .map(decode)
-      .filter((row): row is BatchRow => row !== null)
+    const rows = oneRowPerBatch(logs.map(decode).filter((row): row is BatchRow => row !== null))
       .map((row) =>
         row.kind === "passthrough"
           ? {
