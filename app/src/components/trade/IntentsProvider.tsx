@@ -19,6 +19,9 @@ export type Sent = {
   /// What this tab sent, already formatted. For example "120.0000 tNVDA".
   sold: string;
   buySymbol: string;
+  /// The batch the coordinator placed it in. Its receipt still holds the fill
+  /// after a restart has cleared the mempool.
+  batchId?: string;
   /// The coordinator it was handed to. An intent sent to a fork is unknown to the
   /// one serving mainnet, and listing it there reads as a loss that never happened.
   via?: string | null;

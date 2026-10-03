@@ -282,6 +282,7 @@ export function TradeWidget({bases, quote, context}: TradeWidgetProps) {
           sentAt: Date.now(),
           sold: `${formatUnits(sellAmount, sellToken.decimals)} ${sellToken.symbol}`,
           buySymbol: quote.symbol,
+          batchId: result.value.batchId,
         });
         setSent({
           sold: `${formatUnits(sellAmount, sellToken.decimals)} ${sellToken.symbol}`,

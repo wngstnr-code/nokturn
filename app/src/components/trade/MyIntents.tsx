@@ -4,9 +4,9 @@ import Link from "next/link";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {formatUnits} from "viem";
 import {useAccount} from "wagmi";
-import {intentStatus} from "@/lib/coordinator/client";
+import {batchReceipt, intentStatus} from "@/lib/coordinator/client";
 import {watchBatches} from "@/lib/coordinator/stream";
-import type {ApiError, IntentStatusResponse} from "@/lib/coordinator/types";
+import type {ApiError, FillReceipt, IntentStatusResponse} from "@/lib/coordinator/types";
 import type {TokenInfo} from "@/lib/tokens";
 import {EscapeHatch} from "./EscapeHatch";
 import {useIntents, type Sent} from "./IntentsProvider";
@@ -22,7 +22,13 @@ const POLL_BLIND_MS = 5000;
 /* A safety net under the socket, not the way news arrives. */
 const POLL_LIVE_MS = 20000;
 
-type Answer = {sent: Sent; status: IntentStatusResponse | null; error: ApiError | null};
+/// recovered is the fill read from the batch receipt, for an intent the coordinator
+/// no longer holds because it restarted after the batch settled.
+type Answer = {sent: Sent; status: IntentStatusResponse | null; error: ApiError | null; recovered?: FillReceipt};
+
+function isForgotten(error: ApiError | null): boolean {
+  return error?.message.startsWith("no intent known") === true;
+}
 
 type Mark = "waiting" | "batched" | "pass" | "fail" | "unknown";
 
@@ -85,9 +91,15 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
     const next = await Promise.all(
       sent.map(async (entry): Promise<Answer> => {
         const result = await intentStatus(entry.hash);
-        return result.ok
-          ? {sent: entry, status: result.value, error: null}
-          : {sent: entry, status: null, error: result.error};
+        if (result.ok) return {sent: entry, status: result.value, error: null};
+        if (isForgotten(result.error) && entry.batchId !== undefined) {
+          const receipt = await batchReceipt(entry.batchId);
+          const fill = receipt.ok
+            ? receipt.value.fills.find((f) => f.intentHash.toLowerCase() === entry.hash.toLowerCase())
+            : undefined;
+          if (fill !== undefined) return {sent: entry, status: null, error: result.error, recovered: fill};
+        }
+        return {sent: entry, status: null, error: result.error};
       }),
     );
     if (alive.current) setAnswers(next);
@@ -146,8 +158,8 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
         </div>
       ) : (
         <div className={styles.rows}>
-          {shown.map(({sent: entry, status, error}) => {
-            const forgotten = status === null && error?.message.startsWith("no intent known") === true;
+          {shown.map(({sent: entry, status, error, recovered}) => {
+            const forgotten = status === null && isForgotten(error);
 
             // The coordinator calls an intent pending until its batch stops
             // collecting, even once it knows which batch that is. Waiting for a
@@ -158,9 +170,11 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
               ? {label: "In the open batch", tone: styles.batched, mark: "batched" as Mark}
               : status !== null
                 ? (LOOK[status.status] ?? {label: status.status, tone: styles.pending, mark: "waiting" as Mark})
-                : forgotten
-                  ? {label: "No longer held", tone: styles.gone, mark: "unknown" as Mark}
-                  : error === null
+                : recovered !== undefined
+                  ? LOOK.settled!
+                  : forgotten
+                    ? {label: "No longer held", tone: styles.gone, mark: "unknown" as Mark}
+                    : error === null
                       ? {label: "Checking", tone: styles.pending, mark: "waiting" as Mark}
                       : {label: "Not reachable", tone: styles.bad, mark: "fail" as Mark};
 
@@ -177,22 +191,27 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
             const soldSymbol = sellToken?.symbol ?? entry.sold.split(" ").pop() ?? "";
 
             const line =
-              status === null
-                ? forgotten
-                  ? `for ${entry.buySymbol}. This coordinator does not hold it. It restarted, or the intent went to another one`
-                  : error === null
-                    ? `for ${entry.buySymbol}. Reading its status`
-                    : `for ${entry.buySymbol}. Its status cannot be read right now`
-                : status.rejection !== null
-                  ? status.rejection.message
-                  : status.fill !== null
-                    ? `filled for ${amount((status.fill as {executedBuy?: string}).executedBuy, buyToken)}`
-                    : status.status === "expired"
-                      ? "the window closed before a batch opened"
-                      : `for ${buyToken?.symbol ?? "the quote token"} at the clearing price`;
+              recovered !== undefined
+                ? `filled for ${amount(recovered.executedBuy, {...recovered.buyToken, name: null})}`
+                : status === null
+                  ? forgotten
+                    ? `for ${entry.buySymbol}. This coordinator does not hold it. It restarted, or the intent went to another one`
+                    : error === null
+                      ? `for ${entry.buySymbol}. Reading its status`
+                      : `for ${entry.buySymbol}. Its status cannot be read right now`
+                  : status.rejection !== null
+                    ? status.rejection.message
+                    : status.fill !== null
+                      ? `filled for ${amount((status.fill as {executedBuy?: string}).executedBuy, buyToken)}`
+                      : status.status === "expired"
+                        ? "the window closed before a batch opened"
+                        : `for ${buyToken?.symbol ?? "the quote token"} at the clearing price`;
+
+            const batchId = status?.batchId ?? (recovered !== undefined ? entry.batchId : undefined);
 
             const finished =
-              status !== null && ["settled", "partially_settled", "expired", "cancelled", "rejected"].includes(status.status);
+              recovered !== undefined ||
+              (status !== null && ["settled", "partially_settled", "expired", "cancelled", "rejected"].includes(status.status));
 
             return (
               <div key={entry.hash} className={`${styles.row} ${finished ? styles.done : ""}`}>
@@ -221,12 +240,12 @@ export function MyIntents({reachable, tokens}: {reachable: boolean; tokens: Toke
                   <span className={styles.legSub}>{line}</span>
                   <span className={`${styles.meta} chainvalue`}>
                     {age(entry.sentAt, now)}
-                    {status?.batchId == null ? (
+                    {batchId == null ? (
                       " · no batch"
                     ) : (
                       <>
                         {" · "}
-                        <Link href={`/batch/${status.batchId}`}>batch {status.batchId}</Link>
+                        <Link href={`/batch/${batchId}`}>batch {batchId}</Link>
                       </>
                     )}
                   </span>
