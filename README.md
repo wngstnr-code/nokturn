@@ -1,184 +1,227 @@
 # Nokturn
 
-Intent-based settlement for tokenized equities on Robinhood Chain.
+Intent based batch settlement for tokenized equities on Robinhood Chain.
 
 Most trading in tokenized equities on this chain happens while the underlying
-market is closed. In August 2026, 74.1 percent of stock token trades and 65.2
-percent of volume landed outside NYSE hours, and 33.2 percent of trades happened
-on weekends. During those hours there is no official reference price, and the
-tail of execution quality is where the damage sits.
+market is closed, when there is no official reference price. Nokturn collects
+signed intents over a window sized to the market session, matches opposing flow
+at one clearing price, routes only the residual to Uniswap V3, and publishes the
+venue baseline next to every execution so anyone can recompute it from pool state
+at the same block. If a batch cannot beat that baseline, it settles at the venue
+price and charges no fee.
 
-Nokturn collects signed intents, batches them over a fixed window sized per market
-session, matches opposing flow directly at a single clearing price, routes only
-the residual imbalance to a venue, and publishes the venue baseline next to every
-execution so anyone can recompute it from pool state at the same block.
+**[Try it on testnet](https://app.testnet.nokturn.xyz)** ·
+**[Mainnet app](https://app.nokturn.xyz)** ·
+**[Website](https://nokturn.xyz)** ·
+**[Technical report](https://drive.google.com/drive/folders/11-DkCsKXMJsj-1Jb4owT-TWUeg_9kd0Y?usp=drive_link)** ·
+**[Market data on Dune](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026)**
+<!-- Demo video. Replace DEMO_VIDEO_URL and move this line up into the row above.
+**[Demo video](DEMO_VIDEO_URL)** ·
+-->
 
-- Website, [nokturn.xyz](https://nokturn.xyz)
-- App, [app.nokturn.xyz](https://app.nokturn.xyz)
+## Try it in three minutes
 
-## Status
+The testnet runs the whole flow, from a signature in your wallet to a settled
+batch on chain. Its tokens are test tokens, and its prices follow the Chainlink
+feeds on mainnet, checked for a new round every minute.
 
-Implementation started on 14 September 2026, the first day the buildathon Code of
-Conduct allows code. The contracts were deployed to Robinhood Chain mainnet on
-29 September 2026 and verified on Sourcify. Settlement lives at
-`0x92075BaA431Cb3A4CeaD3F6E676d26F6c0bCb934`. The price feeds went through the
-48 hour time-lock and were executed on 1 October 2026 at block 77,423,153, in
-transaction `0xfb8efc533e48e24768ea1f9762579a7360f2e006748d77768aa2475a58453d21`.
-From that block the oracle prices all five stock tokens and USDG, and batches can
-settle on mainnet. The backend and the app both read mainnet. Every response
-carries the chain and block it was read at.
+1. Add Robinhood Chain Testnet to your wallet. Chain ID `46630`, RPC
+   `https://rpc.testnet.chain.robinhood.com`, currency ETH.
+2. Open [app.testnet.nokturn.xyz/trade](https://app.testnet.nokturn.xyz/trade) and
+   connect. Press **Get test tokens**. The faucet sends a little ETH for gas,
+   10,000 tQUOTE and 10 of each stock token. You need nothing to start.
+3. Sell 1 tNVDA. Your wallet asks for one Permit2 approval, the only transaction
+   you send, and then one signature. The signature is the intent. Nothing leaves
+   your wallet until the batch clears.
+4. Wait for the batch to close. A batch lasts 10 seconds while NYSE is open, 30
+   seconds in pre-market and after-hours, 45 seconds overnight and 60 seconds on
+   weekends.
+5. Open **Batches** and read the receipt. It shows how the batch ended, what you
+   received next to your share of the venue baseline, and the transactions that
+   settled it.
 
-The design documents in `docs/` are the working record from the research phase
-that ran through August and early September 2026. They are published as written,
-including the parts where earlier conclusions were measured and thrown away.
+If two people sell and buy in the same batch, they are matched with each other
+directly and nothing goes to the pool.
 
-## The measured problem
+## The problem, measured
 
-All figures below come from our own Dune queries against indexed Robinhood Chain
-data, covering August 2026 unless noted.
+All figures come from our own public Dune queries over indexed Robinhood Chain
+data for August 2026.
 
 | | August 2026 |
 |---|---|
 | Stock token trades | 8.58M |
 | Stock token volume | $1,005.6M |
 | Active wallets | 139,093 |
-| Trades while NYSE closed | 74.1% |
-| Volume while NYSE closed | 65.2% |
+| Trades while NYSE was closed | 74.1% |
+| Volume while NYSE was closed | 65.2% |
 | Weekend trades | 33.2% |
 
-Execution quality is not uniformly worse off-hours. It is worse in the tail. At
-p90, price movement between trades on weekday off-hours was 1.27x the open
-session. At p99 it was 8.50x, 1,779 bps against 209 bps. Off-hours flow is not
-generally badly priced. It is occasionally very badly priced, with no reference
-price available to tell the difference at the time.
+Off-hours execution is not uniformly worse. It is worse in the tail. At p90, price
+movement between trades in weekday off-hours was 1.27x the open session. At p99 it
+was 8.50x, 1,779 bps against 209 bps. Off-hours flow is occasionally very badly
+priced, and there is no reference price to tell when.
 
-July 2026 figures are left out on purpose. The queries behind them could not be
-recovered, so nobody, including us, can rerun them.
+Replaying real August 2026 trades through the batching mechanism gives 27 to 33
+percent netting at a realistic early share of 10 to 20 percent of flow, and 50.1
+percent at full flow once bot round trips are excluded. These are backtests. The
+trades are real and the mechanism is hypothetical for that month, because Nokturn
+did not exist yet. The SQL for every query is mirrored in `data/dune-queries/`.
 
-## What is verifiable today
+## How it works
 
-Nine Dune queries, all permanent and public, assembled into one dashboard.
+```
+ wallet signs intent (Permit2 witness, no gas)
+        │
+        ▼
+ coordinator API ── collects intents for one batch window, sized per session
+        │
+        ▼
+ solver ── nets buyers against sellers at one clearing price
+        │   routes only the residual to Uniswap V3
+        ▼
+ Settlement contract
+   ├─ checks every limit, the price band and the oracle for the session
+   ├─ pulls funds through Permit2, pays out, routes the residual
+   └─ emits the result next to the venue baseline computed from pool state
+        │
+        ▼
+ indexer ── batch receipts any reader can check against the chain
+```
 
-[Nokturn, Robinhood Chain equity market structure, August 2026](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026)
+The session engine is what makes this specific to equities. Batch length, price
+band, exposure caps and the price source all change with the real market state,
+including daylight saving, holidays, early closes and per token halts. On weekends
+the Chainlink feeds freeze for 48 to 56 hours, so the oracle switches to a 30
+minute pool TWAP anchored to the Friday close, with a drift cap of 1,500 bps.
 
-Query IDs are 8595234, 8595239, 8595244, 8595247, 8595251, 8595303, 8595357,
-8595365, and 8595386. A further three run against September data, with IDs
-8663760, 8663787, and 8663798. The SQL for each is mirrored in `data/dune-queries/`.
+Solvers post a 500 USDG bond. A failed finalize costs 10 percent of it and a
+misreported surplus costs 25 percent.
 
-The NYSE session calendar the contracts depend on is in `data/nyse-calendar/`,
-generated rather than hand-entered, with DST boundaries broken out separately.
+## Deployments
 
-## Netting is a backtest, and it is labeled that way everywhere
+| | Mainnet 4663 | Testnet 46630 |
+|---|---|---|
+| Contracts | Deployed 29 September 2026, verified on Sourcify | Deployed 3 October 2026 |
+| Settlement | [`0x92075BaA…3cb934`](https://robinhoodchain.blockscout.com/address/0x92075BaA431Cb3A4CeaD3F6E676d26F6c0bCb934) | [`0xe1FF85BC…60e607`](https://explorer.testnet.chain.robinhood.com/address/0xe1FF85BCBaf11C2540a623BE3Ee2846f0a60e607) |
+| Tokens | Real Stock Tokens NVDA, AAPL, TSLA, GOOGL, GME and USDG | Test tokens tNVDA, tAAPL, tTSLA, tGOOGL, tGME and tQUOTE |
+| Prices | Chainlink feeds, live since the 48 hour time-lock executed on 1 October 2026 | Mainnet Chainlink rounds, mirrored as they land |
+| Venue | Real Uniswap V3 pools | Test pools with liquidity copied from the mainnet pools |
+| Solver | **None bonded yet**, so no batch has settled on mainnet | Running, with a keeper for the session auctions |
+| Batches settled | 0 | Routed and netted batches, from the app |
 
-Replaying real August 2026 flow through the batching mechanism gives 63.8 percent
-gross netting at full flow and 50.1 percent once bot round-trips are excluded. At
-a realistic early market share of 10 to 20 percent the figure is 27 to 33 percent.
+Every address is in `contracts/deployments/`. On mainnet the app reads live
+sessions, oracle prices and baseline quotes from real pools, and it does not offer
+to sign while no solver is bonded, because nothing would fill the intent. A
+netted testnet batch, `1791035640`, settled in
+[submit](https://explorer.testnet.chain.robinhood.com/tx/0x05f1d8cf778067b97805512bcd78c4663c11fbf2888d0dd76f0149d915a91117)
+and
+[finalize](https://explorer.testnet.chain.robinhood.com/tx/0xad5a849c1905eac638d9e4fe734e21a7254e4fa310790f020d0afd4984b2478b).
+Testnet balances and flow are synthetic, so no netting or savings figure from
+testnet is quoted anywhere as evidence.
 
-These are counterfactual simulations over real trade inputs. The inputs are real,
-the mechanism is hypothetical, because Nokturn did not exist in August. We write
-backtest, never measured. The interesting result is not any single number but the
-curve, which runs from 21.4 percent netting at 5 percent share to 50.1 percent at
-full share. That shape is a network effect that can be checked rather than
-asserted.
+## Security and testing
+
+The settlement core is immutable, with no proxy. Only the allowlist and parameters
+change, through a 48 hour time-lock. No key can move user funds, and that is meant
+to be checked by reading the code rather than by trusting this sentence.
+
+| Gate | When it runs |
+|---|---|
+| 431 unit, fuzz and integration tests | Every push |
+| Slither and Aderyn, zero high findings | Every push |
+| Line coverage of at least 95 percent on core contracts | Every push |
+| Committed gas snapshot | Every push |
+| Fork tests against mainnet, zero difference from the pool quote | Nightly |
+| Deep invariant runs, differential tests against a Rust verifier | Nightly |
+| Halmos symbolic proofs of the clearing and rounding math | Nightly |
+| Echidna on the same invariants | Nightly |
+
+The [threat model](docs/en/threat-model.md) lists the assets, the trust
+boundaries, the attack catalogue and thirteen residual risks. The ones we state
+first:
+
+- Intents pass through a single coordinator. It is a point of centralization.
+  Anyone can publish their own intent on chain through the escape hatch, which the
+  app shows next to every waiting intent.
+- Solver solutions are not commit-reveal. A short solution window and the bond
+  limit the damage.
+- A routed finalize can revert if the pool moves between submit and finalize. This
+  one is not closed.
+- The comparison against the dominant aggregator router is an off-chain metric
+  with an open method, not an on-chain guarantee. The on-chain baseline is Uniswap
+  V3 pool state.
+- No third party has audited the code yet.
 
 ## Scope of v1.0
 
-The code is general and does not assume particular tokens. Exposure is gated by an
-allowlist that grows through a 48 hour time-lock, not by narrowing the code.
+The code assumes no particular token. What it trades is gated by an allowlist
+that changes through the time-lock. The launch allowlist is NVDA, AAPL, TSLA, GOOGL
+and GME, chosen on volume, oracle cadence and weekend liquidity together. SPCX is
+excluded permanently because it has no feed.
 
-Launch allowlist is NVDA, AAPL, TSLA, and GOOGL, chosen on volume, oracle feed
-cadence, and weekend liquidity together rather than volume alone. GME and SPY are
-held back because their feeds update too rarely. SPCX is permanently excluded
-because it has no feed at all.
-
-Uniswap V3 is the only venue adapter in v1.0. Dominant V4 pools use a dynamic fee
-hook, which means the baseline cannot be computed from pool state, and a baseline
-we cannot recompute is a baseline nobody can check. V4 arrives in v1.1 through the
-allowlist, not through a redeploy. The adapter is written factory-agnostic, because
-two other concentrated liquidity venues on this chain turned out to be byte
-identical to Uniswap V3 when we called their contracts directly.
-
-## Limits we state up front
-
-The settlement core is immutable with no proxy. Only the allowlist and parameters
-can change, through a 48 hour time-lock. No key can move user funds, and that is
-meant to be verifiable by reading the code rather than by trusting this paragraph.
-
-Known gaps in v1.0, all deliberate:
-
-- The intent mempool runs through a single coordinator. This is a centralization
-  point and we are not going to pretend otherwise.
-- Solver solutions are not commit-reveal. Mitigation for now is a short solution
-  window plus bonding.
-- The exchange calendar is owner-controlled behind the time-lock.
-- Comparison against the dominant aggregator router is an off-chain published
-  metric with open methodology, not an on-chain guarantee. That router cannot be
-  quoted on-chain. The on-chain baseline is Uniswap V3 pool state.
-
-Thirteen residual risks are listed openly in `docs/threat-model.md`. Three were
-added on 29 September 2026 from the coordinator torture suite and a fork test. One
-of them, a routed finalize that reverts when the pool moves before it lands, is not
-closed.
+Uniswap V3 is the only venue in v1.0. The dominant V4 pools use a dynamic fee hook,
+so their baseline cannot be computed from state, and a baseline nobody can
+recompute is not a baseline. The adapter is factory agnostic, because two other
+venues on this chain proved byte identical to Uniswap V3 when we called them.
 
 ## Repository layout
 
 ```
-contracts/          Foundry project, owned by the on-chain side
+contracts/          Foundry project
   src/              Settlement, SessionManager, ClearingVerifier, PriceOracle,
                     SolverRegistry, AuctionHouse, ClosingPrintFeed,
                     AgentMandate, MandateAccount, Guarded
   src/adapters/     UniswapV3Adapter, the only venue in v1.0
-  script/           Deploy, Bootstrap, Lock, SetFeeds, VerifyDeployment
+  script/           Deploy, Bootstrap, Lock, SetFeeds, VerifyDeployment,
+                    and the testnet fixtures and price mirror
   test/             Unit, fuzz, invariant, fork, Halmos and Echidna suites
-  deployments/      Deployed addresses per chain, 4663 mainnet and 46630 testnet
-api/                Intent coordinator API, Fastify, REST and WebSocket
-solver/             Reference solver, recovery, and the auction keeper
+  deployments/      Deployed addresses, 4663 mainnet and 46630 testnet
+  tools/            Price mirror, smoke run, proof and coverage gates
+api/                Intent coordinator, Fastify, REST and WebSocket
+solver/             Reference solver, recovery and the auction keeper
 indexer/            Event indexer into PostgreSQL, serves batch receipts
-packages/shared/    ABIs and types shared by the API, solver and indexer
+packages/shared/    ABIs and API types shared by the backend and the app
+app/                Next.js website and trading app
 analytics/          Replay of real August 2026 trades for the netting backtest
 verifier/           Rust clearing verifier and the differential harness
-infra/              Docker Compose, mainnet fork, deploy scripts, Postman
-app/                Next.js frontend
+infra/              Docker Compose, mainnet fork, deploy and relayer images
 data/               Dune SQL mirrors and the NYSE session calendar
-docs/               Design documents and the research record
-tools/              Prose gate and fork demo helpers
+docs/               Design documents, with English versions in docs/en/
+tools/              Repository gates
 ```
 
-## Technology
+## Built with
 
 | Layer | Stack |
 |---|---|
 | Smart contracts | Solidity 0.8.28, Foundry 1.8.3, OpenZeppelin Contracts 5.7.0, Permit2, Uniswap V3, Chainlink Data Feeds |
-| Backend | Node.js 22 or newer, TypeScript, Fastify 5, viem 2, PostgreSQL 18, pnpm 9.15.4 |
+| Backend | Node.js 22, TypeScript, Fastify 5, viem 2, PostgreSQL 18, pnpm |
 | Frontend | Next.js 15, React 19, wagmi 2, viem 2 |
-| Verification | Rust with revm and the Stylus SDK for the differential verifier, Slither, Aderyn, Echidna, Halmos |
-| Testing and operations | Anvil mainnet fork, Postman and Newman, Docker Compose, GitHub Actions |
+| Verification | Rust with revm for the differential verifier, Slither, Aderyn, Echidna, Halmos |
+| Operations | Anvil mainnet fork, Docker Compose, GitHub Actions, Railway, Vercel |
 | Data | Dune, over indexed Robinhood Chain tables |
 
-## Chain
+## Documentation
 
-Mainnet is Robinhood Chain 4663. Testnet is 46630.
+- [Docs index](docs/en/README.md), a map of every design document
+- [Glossary](docs/en/glossary.md)
+- [Threat model](docs/en/threat-model.md)
+- [Technical report](https://drive.google.com/drive/folders/11-DkCsKXMJsj-1Jb4owT-TWUeg_9kd0Y?usp=drive_link)
 
-Testnet has no stock tokens, no canonical USDG, and no Uniswap V3 pools. We
-verified this directly. That means testnet cannot be used to prove any number,
-because anything running there sits on top of tokens and pools we filled
-ourselves. Testnet carries the end to end flow and the UI. Anything numeric runs
-against a mainnet fork with real pools, real tokens, and real prices.
+The design documents under `docs/` were written in Indonesian during the research
+phase in August and early September 2026. They are published as written, including
+the places where an earlier conclusion was measured and thrown away.
 
-## Team
+## Team Nokturn
 
-Group Nokturn. Built for the Arbitrum Open House Singapore Buildathon.
+Built for the Arbitrum Open House Singapore Buildathon.
 
 | Member | Role |
 |---|---|
 | Wangsit Nursyahada | Smart contracts |
 | Dharu Bintang Mahendratama | Backend |
 | Nabil Aufa Danaputra | Frontend |
-
-## Milestone report
-
-The Milestone 1 (Backend) report is in
-[Google Drive](https://drive.google.com/drive/folders/11-DkCsKXMJsj-1Jb4owT-TWUeg_9kd0Y?usp=drive_link).
 
 ## License
 
