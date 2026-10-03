@@ -16,6 +16,7 @@ import type {
   NonceResponse,
   Outcome,
   SessionResponse,
+  SolverBoardResponse,
   SubmitIntentResponse,
 } from "./types";
 
@@ -150,6 +151,16 @@ export async function faucet(address: string): Promise<Outcome<FaucetResponse>> 
 
 export async function intentStatus(intentHash: string): Promise<Outcome<IntentStatusResponse>> {
   return call<IntentStatusResponse>(`/v1/intents/${intentHash}`);
+}
+
+/*
+ * True only when the board answered and lists no active solver. Nothing fills an
+ * intent or crosses an auction then, so the screens stop offering to sign one.
+ * A board that cannot be read is not taken as empty.
+ */
+export async function noActiveSolver(): Promise<boolean> {
+  const board = await call<SolverBoardResponse>("/v1/solvers");
+  return board.ok && !board.value.solvers.some((solver) => solver.active);
 }
 
 /* The failure variant comes back in this same shape, docs/demo.md section 3. */

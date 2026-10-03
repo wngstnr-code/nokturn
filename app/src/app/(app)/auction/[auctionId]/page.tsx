@@ -6,7 +6,7 @@ import {Admission} from "@/components/auction/Admission";
 import {AuctionLive} from "@/components/auction/AuctionLive";
 import {CommitCard} from "@/components/auction/CommitCard";
 import {ProvenanceStrip} from "@/components/Provenance";
-import {auction, coordinatorUrl} from "@/lib/coordinator/client";
+import {auction, coordinatorUrl, noActiveSolver} from "@/lib/coordinator/client";
 import type {ApiError, AuctionResponse} from "@/lib/coordinator/types";
 import {units} from "@/lib/format";
 import {active} from "@/lib/network";
@@ -71,7 +71,9 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
   const settled = book.phase === "crossed" || book.phase === "aborted";
   // AuctionHouse takes commitments until the freeze and refuses them after.
   const taking = book.phase === "accumulating" || book.phase === "disclosing";
-  const now = taking ? await active().catch(() => null) : null;
+  const [now, solverless] = taking
+    ? await Promise.all([active().catch(() => null), noActiveSolver()])
+    : [null, false];
 
   return (
     <div className={styles.page}>
@@ -178,7 +180,13 @@ export default async function AuctionPage({params}: {params: Promise<{auctionId:
       )}
 
       {/* On a fork the book is the demo harness's five intents, and a sixth stops its cross. */}
-      {now === null || now.network.kind === "fork" ? null : (
+      {/* A cross needs an active solver, and without one a commitment would sit in escrow until the abort. */}
+      {now === null || now.network.kind === "fork" ? null : solverless ? (
+        <p className={styles.hint}>
+          No solver is bonded on this chain yet, so nothing would cross this auction. Commitments open
+          once one is.
+        </p>
+      ) : (
         <CommitCard
           chainId={now.network.chainId}
           auctionHouse={now.contracts.auctionHouse}

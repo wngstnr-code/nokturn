@@ -27,6 +27,7 @@ export type {
   Provenance,
   ProvenanceSource,
   SessionResponse,
+  SolverBoardResponse,
   SolutionSummary,
   SubmitIntentResponse,
   TokenRef,

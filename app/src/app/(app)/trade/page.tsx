@@ -4,7 +4,7 @@ import {TradeLayout} from "@/components/trade/TradeLayout";
 import {MyIntents} from "@/components/trade/MyIntents";
 import {TradeWidget, type TradeContext} from "@/components/trade/TradeWidget";
 import {openAuctionIds} from "@/lib/auctions";
-import {health, session as servedSession} from "@/lib/coordinator/client";
+import {health, noActiveSolver, session as servedSession} from "@/lib/coordinator/client";
 import {deploymentFor} from "@/lib/deployments";
 import {servedConfig} from "@/lib/network";
 import {signingContext} from "@/lib/permit2";
@@ -22,6 +22,9 @@ const CHAIN = CHAIN_ID_TESTNET;
 
 type Loaded = {bases: TokenInfo[]; quote: TokenInfo; context: TradeContext};
 
+const NO_SOLVER =
+  "No solver is bonded on this chain yet, so a signed intent would wait and expire unfilled. Signing opens once one is. The full flow, from signature to settlement, runs on testnet at app.testnet.nokturn.xyz.";
+
 /*
  * With a coordinator, everything the card signs against comes from the chain the
  * coordinator is on. Its Settlement is the spender Permit2 binds the signature to,
@@ -36,10 +39,11 @@ async function loadServed(served: NonNullable<Awaited<ReturnType<typeof servedCo
     decimals: token.decimals,
   });
 
-  const [signing, session, coordinator] = await Promise.all([
+  const [signing, session, coordinator, solverless] = await Promise.all([
     signingContext(served.chainId, settlement, permit2),
     servedSession(),
     health(),
+    noActiveSolver(),
   ]);
 
   const bases = served.tokens.filter((token) => token.allowed).map(named);
@@ -60,8 +64,8 @@ async function loadServed(served: NonNullable<Awaited<ReturnType<typeof servedCo
       chainId: served.chainId,
       settlement,
       permit2,
-      signingOk: signing.ok,
-      signingProblem: signing.problem,
+      signingOk: signing.ok && !solverless,
+      signingProblem: solverless ? NO_SOLVER : signing.problem,
       sessionName: session.ok ? SESSION_NAMES[session.value.session as Session] : null,
       batchDuration: session.ok ? session.value.batchDurationSeconds : null,
       maxDeviationBps: session.ok ? session.value.maxDeviationBps : null,
