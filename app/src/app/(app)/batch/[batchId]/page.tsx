@@ -170,6 +170,16 @@ function Fill({fill, chainId}: {fill: FillReceipt; chainId: number}) {
  * docs/audit-provenansi-backend.md section 1.
  */
 function Floor({floor}: {floor: BaselineFloor}) {
+  // Either word means there is no number to show, and parsing one would print a
+  // made up figure or "unreadable", which says less than the word itself.
+  const expected = floor.verifyFloor.expected;
+  const quoted =
+    expected === "unavailable"
+      ? "Needs an archive node"
+      : expected === "reverts"
+        ? "The call reverts at this block"
+        : `${amount(expected, floor.buyToken.decimals, 4)} ${floor.buyToken.symbol}`;
+
   return (
     <article className={styles.floor}>
       <div className={styles.floorHead}>
@@ -189,7 +199,9 @@ function Floor({floor}: {floor: BaselineFloor}) {
             ? "At or above the venue"
             : floor.holds === false
               ? "Below the venue"
-              : "The venue could not be read"}
+              : expected === "unavailable"
+                ? "No node still holds this block"
+                : "The venue could not be read"}
         </span>
       </div>
       <div className={styles.floorFigures}>
@@ -207,9 +219,7 @@ function Floor({floor}: {floor: BaselineFloor}) {
         </span>
         <span>
           Venue quote for the same amount
-          <strong className="chainvalue">
-            {amount(floor.verifyFloor.expected, floor.buyToken.decimals, 4)} {floor.buyToken.symbol}
-          </strong>
+          <strong className="chainvalue">{quoted}</strong>
         </span>
       </div>
       <VerifyCall call={floor.verifyFloor} />
