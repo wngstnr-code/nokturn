@@ -8,6 +8,7 @@ import type {
   ConfigResponse,
   CoordinatorHealth,
   CurrentBatchResponse,
+  FaucetResponse,
   HealthResponse,
   Hex,
   IntentStatusResponse,
@@ -136,6 +137,14 @@ export async function submitIntent(payload: {
   return call<SubmitIntentResponse>("/v1/intents", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+/* Testnet only. It waits for every transfer to land, so it can take some seconds. */
+export async function faucet(address: string): Promise<Outcome<FaucetResponse>> {
+  return call<FaucetResponse>("/v1/faucet", {
+    method: "POST",
+    body: JSON.stringify({address}),
   });
 }
 
