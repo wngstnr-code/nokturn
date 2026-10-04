@@ -18,14 +18,12 @@ and both routed and netted batches have settled there from the app. The suite ru
 431 tests on every push, with fork tests against mainnet pools and symbolic proofs
 of the clearing math every night.
 
+**[Demo video](https://drive.google.com/file/d/17XZ65qgqnpxXPSbI9Xrq3-qwA0wVzCPU/view?usp=sharing)** ·
 **[Try it on testnet](https://app.testnet.nokturn.xyz)** ·
 **[Mainnet app](https://app.nokturn.xyz)** ·
 **[Website](https://nokturn.xyz)** ·
 **[Technical report](https://drive.google.com/drive/folders/11-DkCsKXMJsj-1Jb4owT-TWUeg_9kd0Y?usp=drive_link)** ·
 **[Market data on Dune](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026)**
-<!-- Demo video. Replace DEMO_VIDEO_URL and move this line up into the row above.
-**[Demo video](DEMO_VIDEO_URL)** ·
--->
 
 ## Judging criteria, mapped
 
