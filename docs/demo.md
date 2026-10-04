@@ -336,20 +336,37 @@ Angka yang keluar, diverifikasi dari saldo dan event, ada di
 
 ---
 
-## 4. Pembagian panggung: fork mainnet vs testnet
+## 4. Pembagian panggung: testnet, fork mainnet, dan mainnet
 
-Sudah ditetapkan `CLAUDE.md` §2 nomor 9 dan dikonfirmasi P2-6: testnet 46630 **tidak
-punya** Stock Token, USDG kanonik, maupun pool Uniswap V3.
+Diperbarui 4 Oktober 2026 supaya cocok dengan README. Pembagian lama menaruh struk di
+fork mainnet dan menyisakan testnet untuk alur tanda tangan saja, karena waktu itu
+46630 tidak punya token, pool, maupun harga. Sejak 3 Oktober 2026 itu berubah.
+Testnet menjalankan seluruh alur dari app, dengan token fixture uji, pool uji, harga
+yang dicermin dari feed Chainlink mainnet round demi round, dan faucet di app yang
+mengisi dompet tanpa biaya. Mainnet tidak punya solver dan keeper karena tidak ada
+dana untuk bond dan gas, jadi mainnet tidak akan punya batch.
+
+Karena itu testnet menjadi panggung utama video, sama dengan tautan "Try it on
+testnet" di README. Fork tetap dipakai untuk adegan yang belum bisa terjadi di
+testnet, sebagai gambaran, dan selalu disebut fork.
 
 | Permukaan | Jalan di mana | Yang ditunjukkan |
 |---|---|---|
-| **Struk batch + batch gagal** | **Fork mainnet**, blok **67.798.044** | Pool nyata, token nyata, harga nyata |
-| **Cross penutupan** | **Fork mainnet**, blok **66.491.729** | Sesi penutupan nyata, feed hidup, cetakan terbit. Lihat catatan terbuka di §3b Prioritas 3 soal siapa pesertanya |
-| Alur end-to-end tanda tangan → settlement | Testnet 46630 | UX, gasless, Permit2 |
-| Angka riset (74,1% trade off-hours, p99 ekor 8,5×, netting backtest) | Dune, kueri `8595234`–`8595386`, [dashboard publik](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026) | ✅ **Lolos** — kueri permanen, publik, bervisualisasi, deskripsi metodologi terpasang |
+| **Alur utama** | Testnet 46630, `app.testnet.nokturn.xyz` | Faucet, satu approval Permit2, tanda tangan, batch settle, struk. Alur yang sama yang dicoba juri |
+| **Harga** | Testnet, halaman sesi | Kolom Chainlink dengan nomor round mainnet yang dicermin. Juri bisa membuka feed asalnya di explorer mainnet dan memanggil `getRoundData` |
+| **Netting dan savings** | App mainnet, `app.nokturn.xyz/netting` | Backtest Agustus 2026. Testnet sengaja tidak menampilkan angka arus, karena arus uji tidak berarti apa-apa untuk netting maupun savings |
+| **Cross penutupan** | Testnet di sesi lelang hari bursa, atau fork mainnet blok **66.491.729** lewat `tools/fork-auction.sh` | Buku, imbalance, cetakan. Kalau dari fork, label fork dan bloknya tampil dan disebut lisan |
+| **Batch gagal** | Testnet kalau terjadi saat merekam, kalau tidak fork mainnet blok **67.798.044** lewat `demo-fail.mjs` | Struk yang tetap menerbitkan baseline saat tidak ada yang tereksekusi |
+| **Bukti deployment** | App mainnet, `app.nokturn.xyz` | Kontrak, allowlist, dan sesi dibaca dari mainnet 4663. Disebut terus terang bahwa belum ada batch di sana dan kenapa |
+| Angka riset (74,1% trade off-hours, p99 ekor 8,5×, netting backtest) | Dune, kueri `8595234`–`8595386`, [dashboard publik](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026) | Kueri permanen dan publik |
 
-⚠️ Saat menampilkan testnet, **sebut jujur bahwa tokennya token uji.** Sekali, di
-awal, jangan di catatan kaki.
+Tiga aturan label yang ikut ke naskah lisan, bukan hanya ke layar.
+
+1. Token testnet disebut token uji sekali, di awal. Banner di setiap halaman testnet
+   sudah menuliskannya, tapi lisan tetap wajib.
+2. Setiap adegan fork menampilkan blok patokannya dan disebut fork. Fork bukan mock,
+   tapi harus terbaca sebagai fork.
+3. Netting selalu disebut backtest.
 
 ---
 
@@ -378,9 +395,9 @@ Urutannya sengaja: masalah → struk → kegagalan → bukti. Kegagalan diletakk
 | Detik | Isi |
 |---|---|
 | 0–15 | *"Saham tokenized di Robinhood Chain diperdagangkan 24/7 — tapi chain ini tidak punya satu pun harga pembukaan atau penutupan resmi. Kalau bursa AS tutup, 74% trade terjadi tanpa harga referensi sama sekali, dan di ekornya eksekusi bisa 8,5 kali lebih buruk."* ⚠️ *direvisi 10 September 2026 untuk membuka dengan rel harga penutupan (`pitch.md` §1 lapis 1), bukan langsung dengan statistik; angka p99 sendiri direvisi 3 September 2026, klaim lama "melebar tiga kali lipat, setengah aktivitas" sudah gugur — lihat `ide-utama.md` §B1.* Tunjukkan chart Dune. ✅ **Klik query-nya** — [dashboard Agustus 2026](https://dune.com/passchick/nokturn-robinhood-chain-equity-market-structure-august-2026) sudah publik |
-| 15–45 | Kirim intent → struk muncul. *"Ini yang Anda dapat. Ini harga pembandingnya. Selisihnya segini."* **Klik ke Blockscout, tunjukkan angka yang sama di log** |
-| 45–70 | Batch gagal. *"Kami tetap menerbitkan pembandingnya saat gagal."* Tunjukkan event-nya |
-| 70–90 | Sebut sisi lemah duluan: *"82,1% nilai Stock Token yang dipegang onchain ada di kontrak — pool dan smart wallet — dompet pribadi baru pegang $13,56 juta dari total $75,62 juta."* Lalu netting: *"Netting di backtest Agustus: 27–33% pada pangsa awal realistis."* *"Query-nya publik — silakan buka dan jalankan ulang."* Tutup dengan lapis 1: *"Ini rel yang belum ada di chain ini — Nokturn membentuknya."* Sebut **backtest** (bukan "terukur") untuk netting; angka pemegang & kepemilikan **terukur 10 September 2026**, Dune 8663760 |
+| 15–45 | Di testnet. Sebut token uji, lalu faucet, satu approval, tanda tangan, dan struk muncul. *"Ini yang Anda dapat. Ini baseline venue di blok yang sama."* Salin perintah verifikasi dari struk, atau buka transaksinya di explorer. Selisih dalam bps tidak tampil di testnet, dan itu disengaja |
+| 45–70 | Batch gagal, dari testnet kalau terjadi atau dari fork dengan label bloknya. *"Kami tetap menerbitkan pembandingnya saat gagal."* Tunjukkan event-nya |
+| 70–90 | Sebut sisi lemah duluan. *"82,1% nilai Stock Token yang dipegang onchain ada di kontrak, pool dan smart wallet. Dompet pribadi baru pegang $13,56 juta dari total $75,62 juta."* Lalu pindah ke halaman netting di app mainnet. *"Netting di backtest Agustus 27 sampai 33 persen pada pangsa awal realistis."* *"Query-nya publik, silakan buka dan jalankan ulang."* Tutup dengan lapis 1. *"Ini rel yang belum ada di chain ini. Nokturn membentuknya."* Sebut **backtest** untuk netting. Angka pemegang dan kepemilikan **terukur 10 September 2026**, Dune 8663760 |
 
 Sisakan waktu untuk **satu** hal saja kalau tertekan: detik 15–45. Sisanya bisa
 dijelaskan; struk harus dilihat.
@@ -406,6 +423,8 @@ Kerangka `rencana-uji.md` §11.2, dengan baris yang sudah bisa ditentukan hari i
 | Deck | $75,62 juta total Stock Token dipegang onchain | Dune 8663760, terukur 10 September 2026 *(menggantikan $27,2 juta, 1 Agustus 2026)* | ✅ kueri permanen & publik |
 | Deck | Fill UniswapX per bulan: 16.072 (Jul) → 20.898 (Agu) → 27.931 (Sep 1–10), rasio < 0,25% vs tx router dominan | Dune 8663798, terukur 10 September 2026 *(menggantikan angka kumulatif lama 22.068)* | ✅ kueri permanen & publik |
 | Testnet | seluruh token | token uji — **sebut eksplisit** | ✅ kalau disebut |
+| Testnet | harga di halaman sesi | feed cermin `MirrorFeed`, nomor round mainnet tampil di bawah harga, ditambahkan 4 Oktober 2026 | Ya, round yang sama bisa dibaca di feed Chainlink mainnet |
+| Testnet | saldo awal juri | faucet `POST /v1/faucet`, alamat faucet ikut di jawaban, ditambahkan 4 Oktober 2026 | Ya, tiap transfer punya hash |
 | *(P1)* Allowlist | NVDA lolos / "GME" ditolak | slot beacon + `uiMultiplier()`, Blockscout | ✅ dua klik |
 | *(P2)* Sesi | durasi batch, band, sumber harga | state kontrak SessionEngine | ✅ |
 | *(P3)* Lelang | harga kliring, volume, cetakan penutupan | fork blok 66.491.729, event `CrossExecuted` dan `printRound` | ✅ reproducible |
