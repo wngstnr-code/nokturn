@@ -43,10 +43,10 @@ async function load(): Promise<Loaded | null> {
   return {curve, served: answer.value.source, statement: answer.value.statement};
 }
 
-/* Half up on the decimal as written, so 50.05 reads 50,1 the way the pitch quotes it. */
+/* Half up on the decimal as written, so 50.05 reads 50.1 the way the pitch quotes it. */
 function figure(value: number, places: number): string {
   const scale = 10 ** places;
-  return (Math.round((value + 1e-9) * scale) / scale).toFixed(places).replace(".", ",");
+  return (Math.round((value + 1e-9) * scale) / scale).toFixed(places);
 }
 
 function at(curve: Point[], share: number): Point | undefined {
