@@ -41,6 +41,25 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseDelayMs = 15
 }
 
 /**
+ * The block at a height, or null only when the node answers that it has none.
+ * Any other failure is thrown, so the step backs off instead of judging a
+ * revert. On 4 and 5 October 2026 Cloudflare answered the Railway indexer with
+ * a 403 challenge page for minutes at a time, every getBlock read as "hash
+ * differs", and two rewinds that matched nothing stopped the process as a
+ * second full reset. Had the first reset's initial() read gone through, the
+ * whole index would have been dropped and rebuilt from the deploy block.
+ */
+async function blockOrNull(c: PublicClient, blockNumber: bigint) {
+  const missing = (error: unknown) => (error as Error).name === "BlockNotFoundError";
+  try {
+    return await withRetry(() => c.getBlock({blockNumber}), 2, 150, missing);
+  } catch (error) {
+    if (missing(error)) return null;
+    throw error;
+  }
+}
+
+/**
  * Every read inside step() gets its own retries. A step makes one getBlock per
  * block holding a log, so without them its chance of finishing is 0.7^k under a
  * 30 percent error rate, and N10 measured zero progress in 51 minutes. At four
@@ -164,7 +183,7 @@ export class Ingest {
   private async rewind(cp: Checkpoint): Promise<{to: bigint; full: boolean}> {
     const stored = await this.store.storedBlocks(this.d.chainId, this.d.settlement, cp.lastBlock, MAX_REWIND);
     for (const s of stored) {
-      const onChain = await withRetry(() => this.c.getBlock({blockNumber: s.number})).catch(() => null);
+      const onChain = await blockOrNull(this.c, s.number);
       if (onChain?.hash === s.hash) {
         await this.store.rewind({...cp, lastBlock: s.number, lastHash: s.hash});
         this.log(`revert detected at ${cp.lastBlock}, rolled back to ${s.number}`);
@@ -187,7 +206,7 @@ export class Ingest {
     let rewoundTo: bigint | null = null;
     let fullReset = false;
 
-    const at = await withRetry(() => this.c.getBlock({blockNumber: cp.lastBlock})).catch(() => null);
+    const at = await blockOrNull(this.c, cp.lastBlock);
     if (at?.hash !== cp.lastHash) {
       const r = await this.rewind(cp);
       rewoundTo = r.to;

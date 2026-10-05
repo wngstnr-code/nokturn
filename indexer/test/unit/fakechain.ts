@@ -2,7 +2,7 @@
 // real ABIs in packages/shared/abi, so the decoder under test meets exactly the
 // bytes the contracts emit. Nothing here reaches the API or any screen.
 
-import {encodeAbiParameters, encodeEventTopics, keccak256, toHex, type Abi, type AbiEvent, type Hex, type Log, type PublicClient} from "viem";
+import {BlockNotFoundError, encodeAbiParameters, encodeEventTopics, keccak256, toHex, type Abi, type AbiEvent, type Hex, type Log, type PublicClient} from "viem";
 import {loadAbi} from "../../src/abi.ts";
 import type {Deployment} from "../../src/ingest.ts";
 
@@ -88,7 +88,7 @@ export class FakeChain {
       },
       async getBlock({blockNumber}: {blockNumber: bigint}) {
         const hash = self.hashes.get(blockNumber);
-        if (!hash) throw new Error(`no block ${blockNumber}`);
+        if (!hash) throw new BlockNotFoundError({blockNumber});
         return {number: blockNumber, hash, parentHash: self.hashes.get(blockNumber - 1n) ?? `0x${"0".repeat(64)}`, timestamp: 1_789_000_000n + blockNumber};
       },
       async getLogs({fromBlock, toBlock}: {fromBlock: bigint; toBlock: bigint}) {
