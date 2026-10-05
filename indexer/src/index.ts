@@ -40,18 +40,21 @@ export function client(rpc = RPC): PublicClient {
  * I5 found this at 30 percent injected errors. solver/src/chain.ts carries
  * the same fix under the same name, for the same reason.
  *
- * About a minute in all before it gives up. Eight seconds was not enough for
- * the official RPC's rate limit on Railway, 2 October 2026, and every boot
- * that gave up counted toward the restarts Railway allows before it marks the
- * service crashed.
+ * About ten minutes in all before it gives up, each wait capped at the step
+ * loop's thirty seconds. Every boot that gave up counted toward the restarts
+ * Railway allows before it marks the service crashed. A minute covered the
+ * rate limit of 2 October 2026 but not the Cloudflare 403 challenges of
+ * 4 and 5 October, which lasted minutes and used up every restart.
  */
-async function withRetry<T>(fn: () => Promise<T>, attempts = 8, baseDelayMs = 500): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, attempts = 25, baseDelayMs = 500): Promise<T> {
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await fn();
     } catch (error) {
       if (attempt >= attempts) throw error;
-      await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** (attempt - 1)));
+      const wait = Math.min(baseDelayMs * 2 ** (attempt - 1), BACKOFF_MAX_MS);
+      console.log(`boot read failed, attempt ${attempt} of ${attempts}, retrying in ${wait / 1_000}s. ${(error as Error).message.split("\n")[0]}`);
+      await new Promise((r) => setTimeout(r, wait));
     }
   }
 }
