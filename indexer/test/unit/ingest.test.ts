@@ -197,6 +197,34 @@ describe("ingest", () => {
     for (const m of refused) assert.equal(rangeRefused(m), true, m);
   });
 
+  // The page Cloudflare served the Railway indexer on 5 October 2026, cut short.
+  test("a node that refuses every read is an outage, not a revert", async () => {
+    const chain = new FakeChain();
+    chain.emit(settledBatch(1n));
+    const store = new MemoryStore();
+    const c = chain.client();
+    const ingest = new Ingest(c, store, DEPLOYMENT);
+    await drain(ingest);
+    const before = await ingest.checkpoint();
+
+    const real = c.getBlock.bind(c);
+    let down = true;
+    c.getBlock = (async (args: Parameters<typeof real>[0]) => {
+      if (down) throw new Error("HTTP request failed.\n\nStatus: 403\nURL: https://rpc.mainnet.chain.robinhood.com/\nDetails: \"<!DOCTYPE html><title>Just a moment...</title>\"");
+      return real(args);
+    }) as typeof c.getBlock;
+    chain.emit(settledBatch(2n));
+    for (let i = 0; i < 3; i += 1) await assert.rejects(ingest.step(), (e: Error) => /Status: 403/.test(e.message));
+    assert.deepEqual(await ingest.checkpoint(), before);
+    assert.equal(store.rows("batches").length, 1);
+
+    down = false;
+    const r = await ingest.step();
+    assert.equal(r.rewoundTo, null);
+    assert.equal(r.fullReset, false);
+    assert.equal(store.rows("batches").length, 2);
+  });
+
   test("a rate limited getLogs backs off and the next step indexes the same range", async () => {
     const chain = new FakeChain();
     chain.emit(settledBatch(7n));
